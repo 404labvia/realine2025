@@ -19,7 +19,7 @@ function App() {
             <Route path="/pratiche" element={<PratichePage />} />
             <Route path="/finanze" element={<FinanzePage />} />
             <Route path="/prezziario" element={<PrezziarioPage />} />
-            <Route path="/calendario" element={<CalendarPage />} /> {/* Nuova route per il calendario */}
+            <Route path="/calendario" element={<CalendarPage />} /> {/* Nuova route per il calendario di prova */}
           </Routes>
         </main>
       </div>
