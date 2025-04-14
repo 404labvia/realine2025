@@ -1,98 +1,65 @@
-// src/services/googleCalendarService.js
-import firebase from '../config/firebase';
+// src/services/GoogleCalendarService.js
+import enhancedAuthService from './EnhancedAuthService';
 
 // Costanti per l'API di Google Calendar
 const GOOGLE_API_BASE_URL = 'https://www.googleapis.com/calendar/v3';
-const SCOPES = [
-  'https://www.googleapis.com/auth/calendar',
-  'https://www.googleapis.com/auth/calendar.events'
-];
 
 class GoogleCalendarService {
   constructor() {
-    this.auth = firebase.auth();
-    this.accessToken = null;
-    this.expiresAt = null;
-    
-    // Carica token dalla localStorage se disponibile
-    this.loadTokenFromStorage();
+    this.calendarId = 'primary'; // Default calendar
   }
   
-  // Carica il token da localStorage
-  loadTokenFromStorage() {
-    try {
-      const tokenData = localStorage.getItem('googleCalendarToken');
-      if (tokenData) {
-        const parsed = JSON.parse(tokenData);
-        this.accessToken = parsed.accessToken;
-        this.expiresAt = parsed.expiresAt;
-      }
-    } catch (error) {
-      console.error('Errore nel caricare il token:', error);
-      this.clearToken();
-    }
-  }
-  
-  // Salva il token in localStorage
-  saveTokenToStorage(accessToken, expiresIn) {
-    const expiresAt = Date.now() + (expiresIn * 1000);
-    this.accessToken = accessToken;
-    this.expiresAt = expiresAt;
-    
-    localStorage.setItem('googleCalendarToken', JSON.stringify({
-      accessToken,
-      expiresAt
-    }));
-  }
-  
-  // Pulisce il token
-  clearToken() {
-    this.accessToken = null;
-    this.expiresAt = null;
-    localStorage.removeItem('googleCalendarToken');
-  }
-  
-  // Controlla se l'utente è autenticato
+  // Controlla se l'utente è autenticato - usa il servizio migliorato
   isAuthenticated() {
-    return !!this.accessToken && Date.now() < this.expiresAt;
+    return enhancedAuthService.isCalendarAuthenticated();
   }
   
-  // Esegue l'autenticazione con OAuth2
+  // Verifica se l'utente è autenticato con Google Calendar
+  isGoogleCalendarAuthenticated() {
+    return enhancedAuthService.isCalendarAuthenticated();
+  }
+  
+  // Ottiene il token per le richieste a Google Calendar
+  getGoogleCalendarToken() {
+    return enhancedAuthService.getCalendarToken();
+  }
+  
+  // Esegue l'autenticazione con OAuth2 - usa il servizio migliorato
   async authenticate() {
     try {
-      // Utilizzare Firebase per la gestione dell'autenticazione OAuth
-      const provider = new firebase.auth.GoogleAuthProvider();
-      SCOPES.forEach(scope => provider.addScope(scope));
+      // Utilizziamo il servizio migliorato
+      const result = await enhancedAuthService.authenticateCalendar('badalucco.g@gmail.com');
       
-      const result = await this.auth.signInWithPopup(provider);
-      const credential = result.credential;
-      
-      // Ottieni token di accesso e salva
-      this.saveTokenToStorage(credential.accessToken, 3600); // Assumiamo 1 ora di validità
-      
-      return {
-        success: true,
-        user: result.user
-      };
+      if (result.success) {
+        return {
+          success: true,
+          user: result.user,
+          token: result.token
+        };
+      } else {
+        throw new Error('Token non ottenuto');
+      }
     } catch (error) {
       console.error('Errore di autenticazione con Google:', error);
       return {
         success: false,
-        error: error.message
+        error: error.message || 'Errore di autenticazione'
       };
     }
   }
   
-  // Ottiene un token d'accesso valido
+  // Ottieni un token d'accesso valido
   async getAccessToken() {
-    if (this.isAuthenticated()) {
-      return this.accessToken;
+    // Usa il servizio migliorato per ottenere il token
+    const token = enhancedAuthService.getCalendarToken();
+    if (token) {
+      return token;
     }
     
     try {
       const authResult = await this.authenticate();
       if (authResult.success) {
-        return this.accessToken;
+        return authResult.token;
       } else {
         throw new Error('Autenticazione fallita');
       }
@@ -100,6 +67,14 @@ class GoogleCalendarService {
       console.error('Errore nell\'ottenere il token di accesso:', error);
       throw error;
     }
+  }
+  
+  /**
+   * Imposta il calendario da utilizzare
+   * @param {string} calendarId - ID del calendario
+   */
+  setCalendarId(calendarId) {
+    this.calendarId = calendarId;
   }
   
   // Esegue una richiesta API a Google Calendar
@@ -123,7 +98,7 @@ class GoogleCalendarService {
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error.message || 'Errore nella richiesta API');
+        throw new Error(errorData.error?.message || `Errore ${response.status}: ${response.statusText}`);
       }
       
       return await response.json();
@@ -134,53 +109,155 @@ class GoogleCalendarService {
   }
   
   // Ottiene la lista dei calendari disponibili
-  async getCalendarList() {
+  async getCalendars() {
     return await this.makeRequest('/users/me/calendarList');
   }
   
   // Ottiene gli eventi da un calendario specifico
-  async getEvents(calendarId = 'primary', params = {}) {
-    const queryParams = new URLSearchParams();
+  async getEvents(timeMin, timeMax, calendarId = null) {
+    const params = new URLSearchParams({
+      timeMin: timeMin.toISOString(),
+      timeMax: timeMax.toISOString(),
+      singleEvents: 'true',
+      orderBy: 'startTime'
+    });
     
-    if (params.timeMin) {
-      queryParams.append('timeMin', new Date(params.timeMin).toISOString());
-    }
+    const targetCalendarId = calendarId || this.calendarId;
     
-    if (params.timeMax) {
-      queryParams.append('timeMax', new Date(params.timeMax).toISOString());
-    }
-    
-    if (params.maxResults) {
-      queryParams.append('maxResults', params.maxResults);
-    }
-    
-    if (params.singleEvents !== undefined) {
-      queryParams.append('singleEvents', params.singleEvents);
-    }
-    
-    if (params.orderBy) {
-      queryParams.append('orderBy', params.orderBy);
-    }
-    
-    const queryString = queryParams.toString();
-    const endpoint = `/calendars/${encodeURIComponent(calendarId)}/events${queryString ? `?${queryString}` : ''}`;
-    
-    return await this.makeRequest(endpoint);
+    const response = await this.makeRequest(`/calendars/${encodeURIComponent(targetCalendarId)}/events?${params.toString()}`);
+    return response.items || [];
   }
   
   // Crea un nuovo evento nel calendario
-  async createEvent(calendarId = 'primary', eventData) {
-    return await this.makeRequest(`/calendars/${encodeURIComponent(calendarId)}/events`, 'POST', eventData);
+  async createEvent(eventData, calendarId = null) {
+    const targetCalendarId = calendarId || this.calendarId;
+    return await this.makeRequest(`/calendars/${encodeURIComponent(targetCalendarId)}/events`, 'POST', eventData);
   }
   
   // Aggiorna un evento esistente
-  async updateEvent(calendarId = 'primary', eventId, eventData) {
-    return await this.makeRequest(`/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, 'PUT', eventData);
+  async updateEvent(eventId, eventData, calendarId = null) {
+    const targetCalendarId = calendarId || this.calendarId;
+    return await this.makeRequest(`/calendars/${encodeURIComponent(targetCalendarId)}/events/${eventId}`, 'PATCH', eventData);
   }
   
   // Elimina un evento
-  async deleteEvent(calendarId = 'primary', eventId) {
-    return await this.makeRequest(`/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, 'DELETE');
+  async deleteEvent(eventId, calendarId = null) {
+    const targetCalendarId = calendarId || this.calendarId;
+    await this.makeRequest(`/calendars/${encodeURIComponent(targetCalendarId)}/events/${eventId}`, 'DELETE');
+  }
+  
+  /**
+   * Sincronizza una task con Google Calendar
+   * @param {Object} task - Oggetto task
+   * @param {string} praticaInfo - Info sulla pratica per il titolo evento
+   * @returns {Promise<string>} ID dell'evento creato
+   */
+  async syncTaskWithCalendar(task, praticaInfo) {
+    if (!task.dueDate) {
+      throw new Error('La task deve avere una data di scadenza');
+    }
+    
+    const dueDate = new Date(task.dueDate);
+    
+    // Se già esiste un evento per questa task, aggiornalo
+    if (task.googleCalendarEventId) {
+      try {
+        const event = await this.updateEvent(task.googleCalendarEventId, {
+          summary: task.text,
+          description: `Task associata alla pratica: ${praticaInfo}`,
+          start: {
+            dateTime: dueDate.toISOString(),
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+          },
+          end: {
+            dateTime: new Date(dueDate.getTime() + 30 * 60000).toISOString(), // 30 minuti dopo
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+          },
+          reminders: {
+            useDefault: false,
+            overrides: [
+              { method: 'popup', minutes: task.reminder || 60 }
+            ]
+          },
+          colorId: this.getColorIdForPriority(task.priority)
+        });
+        
+        return event.id;
+      } catch (error) {
+        // Se l'evento non esiste più, crea uno nuovo
+        console.warn('Evento non trovato, creazione nuovo evento', error);
+      }
+    }
+    
+    // Crea un nuovo evento
+    const eventData = {
+      summary: task.text,
+      description: `Task associata alla pratica: ${praticaInfo}`,
+      start: {
+        dateTime: dueDate.toISOString(),
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      },
+      end: {
+        dateTime: new Date(dueDate.getTime() + 30 * 60000).toISOString(), // 30 minuti dopo
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      },
+      reminders: {
+        useDefault: false,
+        overrides: [
+          { method: 'popup', minutes: task.reminder || 60 }
+        ]
+      },
+      colorId: this.getColorIdForPriority(task.priority),
+      // Aggiungi proprietà personalizzata per identificare le task
+      extendedProperties: {
+        private: {
+          taskId: `${task.id || ''}`,
+          praticaId: `${praticaInfo}`,
+          appSource: 'PraticheApp',
+          taskPriority: task.priority || 'normal',
+          category: 'task'
+        }
+      }
+    };
+    
+    const event = await this.createEvent(eventData);
+    return event.id;
+  }
+  
+  /**
+   * Importa gli eventi da Google Calendar come task
+   * @param {Date} startDate - Data di inizio 
+   * @param {Date} endDate - Data di fine
+   * @returns {Promise<Array>} Lista di task estratti dagli eventi
+   */
+  async importEventsAsTasks(startDate, endDate) {
+    const events = await this.getEvents(startDate, endDate);
+    
+    // Filtra gli eventi e converte in task quelli creati dall'app o con specifiche proprietà
+    return events
+      .filter(event => 
+        // Solo eventi creati dall'app o con categoria task
+        event.extendedProperties?.private?.appSource === 'PraticheApp' ||
+        event.extendedProperties?.private?.category === 'task'
+      )
+      .map(event => {
+        // Estrai praticaId se presente nelle proprietà estese
+        const praticaId = event.extendedProperties?.private?.praticaId || null;
+        const priority = event.extendedProperties?.private?.taskPriority || 'normal';
+        
+        return {
+          text: event.summary,
+          dueDate: event.start.dateTime || event.start.date,
+          googleCalendarEventId: event.id,
+          completed: event.status === 'cancelled',
+          createdDate: new Date().toISOString(),
+          priority: priority,
+          reminder: event.reminders?.overrides?.[0]?.minutes || 60,
+          praticaId: praticaId,
+          source: 'googleCalendar',
+          description: event.description
+        };
+      });
   }
   
   // Mappa un evento interno in formato Google Calendar
@@ -242,6 +319,18 @@ class GoogleCalendarService {
     return colorMap[category] || '1'; // default blu
   }
   
+  // Ottiene l'ID colore Google per priorità task
+  getColorIdForPriority(priority) {
+    // Mappa tra priorità task e ID colore di Google Calendar
+    const colorMap = {
+      high: '4',  // rosa/rosso per alta priorità
+      normal: '1', // blu per priorità normale
+      low: '2'    // verde per bassa priorità
+    };
+    
+    return colorMap[priority] || '1'; // default blu
+  }
+  
   // Ottiene il colore per una categoria
   getColorForCategory(category) {
     const colorMap = {
@@ -256,6 +345,55 @@ class GoogleCalendarService {
     
     return colorMap[category] || '#D8E4BC'; // default verde chiaro
   }
+  
+  // Ottiene il colore per priorità task
+  getColorForPriority(priority) {
+    const colorMap = {
+      high: '#F97316',   // arancione per alta priorità
+      normal: '#3B82F6',  // blu per priorità normale
+      low: '#10B981'     // verde per bassa priorità
+    };
+    
+    return colorMap[priority] || '#3B82F6'; // default blu
+  }
+  
+  // Converte una task interna in evento Google Calendar
+  mapTaskToGoogleEvent(task, praticaInfo) {
+    const dueDate = new Date(task.dueDate);
+    
+    return {
+      summary: task.text,
+      description: `Task associata alla pratica: ${praticaInfo}`,
+      start: {
+        dateTime: dueDate.toISOString(),
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      },
+      end: {
+        dateTime: new Date(dueDate.getTime() + 30 * 60000).toISOString(), // 30 minuti dopo
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      },
+      colorId: this.getColorIdForPriority(task.priority),
+      reminders: {
+        useDefault: false,
+        overrides: [
+          { method: 'popup', minutes: task.reminder || 60 }
+        ]
+      },
+      extendedProperties: {
+        private: {
+          taskId: `${task.id || ''}`,
+          praticaId: praticaInfo,
+          appSource: 'PraticheApp',
+          taskPriority: task.priority || 'normal',
+          category: 'task',
+          autoCreated: task.autoCreated ? 'true' : 'false',
+          triggerSource: task.triggerSource || ''
+        }
+      }
+    };
+  }
 }
 
-export default new GoogleCalendarService();
+// Esporta singola istanza per riutilizzo
+const googleCalendarService = new GoogleCalendarService();
+export default googleCalendarService;

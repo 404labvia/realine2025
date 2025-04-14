@@ -1,45 +1,83 @@
-// index.js (componente principale PratichePage)
+// src/pages/PratichePage/index.js
 import React, { useState, useEffect } from 'react';
 import { usePratiche } from '../../contexts/PraticheContext';
-import { FaPlus, FaFilter, FaFilePdf, FaTimes } from 'react-icons/fa';
-import { format } from 'date-fns';
-import { it } from 'date-fns/locale';
+import { FaPlus, FaFilter, FaFilePdf, FaCalendarAlt } from 'react-icons/fa';
 
+// Importa hooks personalizzati
+import { useActiveCells, useLocalPratiche } from './hooks';
+
+// Importa componenti UI
+import { NewPraticaForm, EditPraticaForm } from './components/forms';
+import WorkflowTable from './components/WorkflowTable';
+
+// Importa servizi
+import googleCalendarService from '../../services/GoogleCalendarService';
+import automationService from '../../services/AutomationService';
+// Importa il nuovo servizio di autenticazione migliorato
+import enhancedAuthService from '../../services/EnhancedAuthService';
+// Importa il componente CalendarAuthButton
+import CalendarAuthButton from '../../components/CalendarAuthButton';
+
+// Importa utilità
 import { 
   customStyles, 
-  generatePDF, 
   agenzieCollaboratori, 
-  migratePraticaData 
-} from './PraticheUtils';
-import { NewPraticaForm, EditPraticaForm } from './PraticheForms';
-import WorkflowTable from './WorkflowTable';
+  generatePDF
+} from './utils';
+
+// Importa handlers
+import { 
+  handleAddNote, 
+  handleDeleteNote, 
+  handleUpdateNote,
+  handleToggleTaskItem,
+  handlePaymentChange,
+  handleDateTimeChange,
+  handleDeleteDateTime,
+  handleToggleChecklistItem,
+  handleChangeStato
+} from './handlers';
+
+import {
+  handleSetTaskDueDate,
+  handleRemoveTaskDueDate,
+  handleSyncTaskWithCalendar
+} from './handlers/taskHandlers';
 
 function PratichePage() {
   const { pratiche, loading, deletePratica, addPratica, updatePratica } = usePratiche();
   
-  // Stati locali
-  const [localPratiche, setLocalPratiche] = useState([]);
+  // Stati locali di UI
   const [showNewPraticaForm, setShowNewPraticaForm] = useState(false);
   const [editingPraticaId, setEditingPraticaId] = useState(null);
   const [filtroAgenzia, setFiltroAgenzia] = useState('');
   const [filtroStato, setFiltroStato] = useState('In Corso');
   const [showExportOptions, setShowExportOptions] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [lastTaskEvent, setLastTaskEvent] = useState(null);
+  const [showTaskNotification, setShowTaskNotification] = useState(false);
   
-  // Carica e migra i dati delle pratiche
+  // Usa i custom hooks
+  const { 
+    activeCells, 
+    handleCellClick, 
+    isCellActive 
+  } = useActiveCells();
+  
+  const { 
+    localPratiche, 
+    praticheFiltered, 
+    setLocalPratiche, 
+    updateLocalPratica, 
+    addLocalPratica, 
+    removeLocalPratica 
+  } = useLocalPratiche(pratiche, loading, filtroAgenzia, filtroStato);
+  
+  // Controlla autenticazione Google Calendar all'avvio
   useEffect(() => {
-    if (!loading) {
-      // Migrazione del modello dati esistente alla nuova struttura
-      const migratedPratiche = pratiche.map(pratica => migratePraticaData(pratica));
-      setLocalPratiche(migratedPratiche);
-    }
-  }, [pratiche, loading]);
-  
-  // Filtra le pratiche in base all'agenzia e allo stato selezionati
-  const praticheFiltered = localPratiche.filter(pratica => {
-    const matchAgenzia = !filtroAgenzia || pratica.agenzia === filtroAgenzia;
-    const matchStato = !filtroStato || pratica.stato === filtroStato;
-    return matchAgenzia && matchStato;
-  });
+    const authenticated = enhancedAuthService.isCalendarAuthenticated();
+    setIsAuthenticated(authenticated);
+  }, []);
   
   // Handler per aggiungere una nuova pratica
   const handleAddNewPratica = async (praticaData) => {
@@ -48,7 +86,7 @@ function PratichePage() {
       const newId = await addPratica(praticaData);
       
       // Aggiorna stato locale
-      setLocalPratiche([...localPratiche, { ...praticaData, id: newId }]);
+      addLocalPratica({ ...praticaData, id: newId });
       
       // Chiudi form
       setShowNewPraticaForm(false);
@@ -69,12 +107,33 @@ function PratichePage() {
       await updatePratica(praticaId, updates);
       
       // Aggiorna la pratica localmente
-      setLocalPratiche(prev => prev.map(pratica => 
-        pratica.id === praticaId ? { ...pratica, ...updates } : pratica
-      ));
+      updateLocalPratica(praticaId, updates);
       
       // Chiudi form
       setEditingPraticaId(null);
+      
+      // Se è stata aggiornata la dataFine, verifica se generare task automatiche
+      if (updates.dataFine) {
+        const pratica = localPratiche.find(p => p.id === praticaId);
+        if (pratica) {
+          // Genera task automatiche basate sulla scadenza
+          const tasks = await automationService.processTrigger(
+            pratica, 
+            'deadline', 
+            { dataFine: updates.dataFine }, 
+            updatePratica
+          );
+          
+          if (tasks.length > 0) {
+            setLastTaskEvent({
+              type: 'created',
+              trigger: 'deadline',
+              count: tasks.length
+            });
+            setShowTaskNotification(true);
+          }
+        }
+      }
     } catch (error) {
       console.error('Errore durante l\'aggiornamento della pratica:', error);
       alert('Si è verificato un errore durante il salvataggio. Riprova.');
@@ -85,7 +144,7 @@ function PratichePage() {
   const handleDeletePratica = async (praticaId) => {
     try {
       await deletePratica(praticaId);
-      setLocalPratiche(prev => prev.filter(pratica => pratica.id !== praticaId));
+      removeLocalPratica(praticaId);
       setEditingPraticaId(null);
     } catch (error) {
       console.error('Errore durante l\'eliminazione della pratica:', error);
@@ -93,381 +152,171 @@ function PratichePage() {
     }
   };
   
-  // Handler per cambiare lo stato di una pratica
-  const handleChangeStato = async (praticaId, nuovoStato) => {
-    try {
-      // Aggiorna lo stato nel database
-      await updatePratica(praticaId, { 
-        stato: nuovoStato,
-        updatedAt: new Date().toISOString()
-      });
+  // Wrapper per handler di celle workflow
+  const handleCellClickWrapper = (praticaId, stepId, stepType, isActive = true) => {
+    handleCellClick(praticaId, stepId, stepType, isActive);
+  };
+  
+  // Funzioni wrapper per handlers
+  const handleAddNoteWrapper = (praticaId, stepId, noteText, type = 'task') => {
+    handleAddNote(praticaId, stepId, noteText, type, updatePratica, localPratiche, setLocalPratiche);
+  };
+  
+  const handleDeleteNoteWrapper = (praticaId, stepId, noteIndex) => {
+    handleDeleteNote(praticaId, stepId, noteIndex, updatePratica, localPratiche, setLocalPratiche);
+  };
+  
+  const handleUpdateNoteWrapper = (praticaId, stepId, noteIndex, newText, type) => {
+    handleUpdateNote(praticaId, stepId, noteIndex, newText, type, updatePratica, localPratiche, setLocalPratiche);
+  };
+  
+  const handleToggleTaskItemWrapper = (praticaId, stepId, taskIndex, completed) => {
+    handleToggleTaskItem(praticaId, stepId, taskIndex, completed, updatePratica, localPratiche, setLocalPratiche);
+  };
+  
+  const handleToggleChecklistItemWrapper = (praticaId, stepId, itemId, completed) => {
+    handleToggleChecklistItem(praticaId, stepId, itemId, completed, updatePratica, localPratiche, setLocalPratiche);
+  };
+  
+  const handleDateTimeChangeWrapper = async (praticaId, stepId, field, value) => {
+    // Ottieni vecchi dati prima dell'aggiornamento
+    const pratica = localPratiche.find(p => p.id === praticaId);
+    const oldData = pratica?.workflow?.[stepId] || {};
+    
+    // Esegui aggiornamento normale
+    await handleDateTimeChange(praticaId, stepId, field, value, updatePratica, localPratiche, setLocalPratiche);
+    
+    // Per incarico e accessoAtti, controlla se generare task automatiche
+    if ((stepId === 'incarico' || stepId === 'accessoAtti') && field === 'dataInvio') {
+      const updatedPratica = localPratiche.find(p => p.id === praticaId);
+      const updatedData = updatedPratica.workflow?.[stepId] || {};
       
-      // Aggiorna lo stato localmente
-      setLocalPratiche(prev => prev.map(pratica => 
-        pratica.id === praticaId ? { ...pratica, stato: nuovoStato } : pratica
-      ));
-    } catch (error) {
-      console.error('Errore durante l\'aggiornamento dello stato:', error);
-      alert('Si è verificato un errore durante la modifica dello stato. Riprova.');
-    }
-  };
-  
-  // Handler per aggiungere una nota
-  const handleAddNote = async (praticaId, stepId, noteText, type = 'task') => {
-    if (!noteText.trim()) {
-      return;
-    }
-    
-    const updatedPratiche = localPratiche.map(pratica => {
-      if (pratica.id === praticaId) {
-        const updatedWorkflow = { ...pratica.workflow };
-        if (!updatedWorkflow[stepId]) {
-          updatedWorkflow[stepId] = { completed: false, notes: [], tasks: [] };
-        }
+      // Se la data è stata aggiunta o modificata
+      if (updatedData.dataInvio && (!oldData.dataInvio || oldData.dataInvio !== updatedData.dataInvio)) {
+        // Genera task automatiche basate sull'evento
+        const tasks = await automationService.processTrigger(
+          updatedPratica, 
+          stepId, 
+          updatedData, 
+          updatePratica
+        );
         
-        // Gestisci differentemente in base al tipo di step
-        if (stepId === 'inizioPratica') {
-          if (type === 'task') {
-            // Per Inizio Pratica, aggiungi come task
-            if (!updatedWorkflow[stepId].tasks) {
-              updatedWorkflow[stepId].tasks = [];
-            }
-            
-            updatedWorkflow[stepId].tasks.push({
-              text: noteText,
-              completed: false,
-              completedDate: null,
-              createdDate: new Date().toISOString() // Aggiungi data di creazione
-            });
-          } else {
-            // Aggiungi come nota normale
-            if (!updatedWorkflow[stepId].notes) {
-              updatedWorkflow[stepId].notes = [];
-            }
-            
-            updatedWorkflow[stepId].notes.push({
-              text: noteText, 
-              date: format(new Date(), 'yyyy-MM-dd')
-            });
-          }
-        } else {
-          // Per altri step, aggiungi come nota
-          if (!updatedWorkflow[stepId].notes) {
-            updatedWorkflow[stepId].notes = [];
-          }
-          
-          updatedWorkflow[stepId].notes.push({
-            text: noteText, 
-            date: format(new Date(), 'yyyy-MM-dd')
+        if (tasks.length > 0) {
+          setLastTaskEvent({
+            type: 'created',
+            trigger: stepId,
+            count: tasks.length
           });
+          setShowTaskNotification(true);
         }
-        
-        // Salva i dati aggiornati
-        updatePratica(praticaId, { workflow: updatedWorkflow });
-        
-        return {
-          ...pratica,
-          workflow: updatedWorkflow
-        };
       }
-      return pratica;
-    });
-    
-    setLocalPratiche(updatedPratiche);
+    }
   };
   
-  // Handler per eliminare una nota
-  const handleDeleteNote = async (praticaId, stepId, noteIndex) => {
-    const updatedPratiche = localPratiche.map(pratica => {
-      if (pratica.id === praticaId) {
-        const updatedWorkflow = { ...pratica.workflow };
-        
-        // Gestisci differentemente in base al tipo di step
-        if (stepId === 'inizioPratica' && updatedWorkflow[stepId].tasks) {
-          // Rimuovi la task all'indice specificato
-          const updatedTasks = [...updatedWorkflow[stepId].tasks];
-          updatedTasks.splice(noteIndex, 1);
-          updatedWorkflow[stepId].tasks = updatedTasks;
-        } else if (updatedWorkflow[stepId] && updatedWorkflow[stepId].notes) {
-          // Rimuovi la nota all'indice specificato
-          const updatedNotes = [...updatedWorkflow[stepId].notes];
-          updatedNotes.splice(noteIndex, 1);
-          updatedWorkflow[stepId].notes = updatedNotes;
-        }
-        
-        // Salva i dati aggiornati
-        updatePratica(praticaId, { workflow: updatedWorkflow });
-        
-        return {
-          ...pratica,
-          workflow: updatedWorkflow
-        };
-      }
-      return pratica;
-    });
-    
-    setLocalPratiche(updatedPratiche);
+  const handleDeleteDateTimeWrapper = (praticaId, stepId) => {
+    handleDeleteDateTime(praticaId, stepId, updatePratica, localPratiche, setLocalPratiche);
   };
   
-  // Handler per toggle checklist item
-  const handleToggleChecklistItem = async (praticaId, stepId, itemId, completed) => {
-    const updatedPratiche = localPratiche.map(pratica => {
-      if (pratica.id === praticaId) {
-        const updatedWorkflow = { ...pratica.workflow };
-        if (!updatedWorkflow[stepId]) {
-          updatedWorkflow[stepId] = { 
-            completed: false, 
-            checklist: {}, 
-            notes: [] 
-          };
-        }
-        
-        if (!updatedWorkflow[stepId].checklist) {
-          updatedWorkflow[stepId].checklist = {};
-        }
-        
-        updatedWorkflow[stepId].checklist[itemId] = {
-          completed,
-          date: completed ? format(new Date(), 'yyyy-MM-dd') : null
-        };
-        
-        // Salva i dati aggiornati
-        updatePratica(praticaId, { workflow: updatedWorkflow });
-        
-        return {
-          ...pratica,
-          workflow: updatedWorkflow
-        };
-      }
-      return pratica;
-    });
+  const handlePaymentChangeWrapper = async (praticaId, stepId, field, value) => {
+    // Traccia gli importi prima dell'aggiornamento
+    const pratica = localPratiche.find(p => p.id === praticaId);
+    const oldData = pratica?.workflow?.[stepId] || {};
     
-    setLocalPratiche(updatedPratiche);
+    // Esegui aggiornamento normale
+    await handlePaymentChange(praticaId, stepId, field, value, updatePratica, localPratiche, setLocalPratiche);
+    
+    // Controlla se importi sono stati modificati
+    if (stepId.includes('acconto') || stepId === 'saldo') {
+      const updatedPratica = localPratiche.find(p => p.id === praticaId);
+      const updatedData = updatedPratica.workflow?.[stepId] || {};
+      
+      // Se importo è stato aggiunto o modificato
+      if (field.includes('importoCommittente') && updatedData.importoCommittente > 0 && 
+          (!oldData.importoCommittente || oldData.importoCommittente !== updatedData.importoCommittente)) {
+        // Genera task automatiche basate sul pagamento
+        const tasks = await automationService.processTrigger(
+          updatedPratica, 
+          'pagamento', 
+          updatedData, 
+          updatePratica
+        );
+        
+        if (tasks.length > 0) {
+          setLastTaskEvent({
+            type: 'created',
+            trigger: 'pagamento',
+            count: tasks.length
+          });
+          setShowTaskNotification(true);
+        }
+      }
+    }
   };
   
-  // NUOVO HANDLER: Per toggle task item (per Inizio Pratica)
-  const handleToggleTaskItem = async (praticaId, stepId, taskIndex, completed) => {
-    const updatedPratiche = localPratiche.map(pratica => {
-      if (pratica.id === praticaId && pratica.workflow && pratica.workflow[stepId] && pratica.workflow[stepId].tasks) {
-        const updatedWorkflow = { ...pratica.workflow };
-        const updatedTasks = [...updatedWorkflow[stepId].tasks];
-        
-        // Aggiorna lo stato della task
-        updatedTasks[taskIndex] = {
-          ...updatedTasks[taskIndex],
-          completed: completed,
-          completedDate: completed ? new Date().toISOString() : null
-        };
-        
-        updatedWorkflow[stepId].tasks = updatedTasks;
-        
-        // Salva i dati aggiornati
-        updatePratica(praticaId, { workflow: updatedWorkflow });
-        
-        return {
-          ...pratica,
-          workflow: updatedWorkflow
-        };
-      }
-      return pratica;
-    });
-    
-    setLocalPratiche(updatedPratiche);
+  const handleChangeStatoWrapper = (praticaId, nuovoStato) => {
+    handleChangeStato(praticaId, nuovoStato, updatePratica, localPratiche, setLocalPratiche);
   };
   
-  // NUOVO HANDLER: Per aggiornare una nota o task
-  const handleUpdateNote = async (praticaId, stepId, noteIndex, newText, type = 'task') => {
-    const updatedPratiche = localPratiche.map(pratica => {
-      if (pratica.id === praticaId) {
-        const updatedWorkflow = { ...pratica.workflow };
-        
-        // Gestisci differentemente in base al tipo 
-        if (type === 'task' && updatedWorkflow[stepId].tasks) {
-          const updatedTasks = [...updatedWorkflow[stepId].tasks];
-          
-          // Aggiorna il testo della task
-          updatedTasks[noteIndex] = {
-            ...updatedTasks[noteIndex],
-            text: newText,
-            updatedAt: new Date().toISOString() // Aggiungi data di aggiornamento
-          };
-          
-          updatedWorkflow[stepId].tasks = updatedTasks;
-        } else if (updatedWorkflow[stepId] && updatedWorkflow[stepId].notes) {
-          // Aggiorna nota normale
-          const updatedNotes = [...updatedWorkflow[stepId].notes];
-          
-          updatedNotes[noteIndex] = {
-            ...updatedNotes[noteIndex],
-            text: newText,
-            date: new Date().toISOString() // Aggiorna la data alla data di modifica
-          };
-          
-          updatedWorkflow[stepId].notes = updatedNotes;
-        }
-        
-        // Salva i dati aggiornati
-        updatePratica(praticaId, { workflow: updatedWorkflow });
-        
-        return {
-          ...pratica,
-          workflow: updatedWorkflow
-        };
-      }
-      return pratica;
-    });
-    
-    setLocalPratiche(updatedPratiche);
+  // Handlers specifici per task
+  const handleSetTaskDueDateWrapper = (praticaId, stepId, taskIndex, dueDateInfo) => {
+    handleSetTaskDueDate(praticaId, stepId, taskIndex, dueDateInfo, updatePratica, localPratiche, setLocalPratiche);
   };
-  
-  // Handler per date/time change
-  const handleDateTimeChange = async (praticaId, stepId, field, value) => {
-    const updatedPratiche = localPratiche.map(pratica => {
-      if (pratica.id === praticaId) {
-        const updatedWorkflow = { ...pratica.workflow };
-        if (!updatedWorkflow[stepId]) {
-          updatedWorkflow[stepId] = { 
-            completed: false, 
-            dataInvio: null, 
-            oraInvio: null,
-            notes: [] 
-          };
-        }
-        
-        updatedWorkflow[stepId][field] = value;
-        
-        // Se abbiamo sia data che ora, combiniamo in un timestamp ISO
-        if (updatedWorkflow[stepId].dataInvio && updatedWorkflow[stepId].oraInvio) {
-          const [anno, mese, giorno] = updatedWorkflow[stepId].dataInvio.split('-');
-          const [ore, minuti] = updatedWorkflow[stepId].oraInvio.split(':');
-          
-          updatedWorkflow[stepId].dataOraInvio = new Date(
-            parseInt(anno),
-            parseInt(mese) - 1,
-            parseInt(giorno),
-            parseInt(ore),
-            parseInt(minuti)
-          ).toISOString();
-        }
-        
-        // Salva i dati aggiornati
-        updatePratica(praticaId, { workflow: updatedWorkflow });
-        
-        return {
-          ...pratica,
-          workflow: updatedWorkflow
-        };
-      }
-      return pratica;
-    });
-    
-    setLocalPratiche(updatedPratiche);
+
+  const handleRemoveTaskDueDateWrapper = (praticaId, stepId, taskIndex) => {
+    handleRemoveTaskDueDate(praticaId, stepId, taskIndex, updatePratica, localPratiche, setLocalPratiche);
   };
-  
-  // Handler per eliminare la data/ora
-  const handleDeleteDateTime = async (praticaId, stepId) => {
-    const updatedPratiche = localPratiche.map(pratica => {
-      if (pratica.id === praticaId) {
-        const updatedWorkflow = { ...pratica.workflow };
-        if (updatedWorkflow[stepId]) {
-          updatedWorkflow[stepId].dataInvio = null;
-          updatedWorkflow[stepId].oraInvio = null;
-          updatedWorkflow[stepId].dataOraInvio = null;
-          
-          // Salva i dati aggiornati
-          updatePratica(praticaId, { workflow: updatedWorkflow });
-        }
-        
-        return {
-          ...pratica,
-          workflow: updatedWorkflow
-        };
-      }
-      return pratica;
-    });
-    
-    setLocalPratiche(updatedPratiche);
-  };
-  
-  // Handler per gestire gli importi dei pagamenti
-  const handlePaymentChange = async (praticaId, stepId, field, value) => {
-    const updatedPratiche = localPratiche.map(pratica => {
-      if (pratica.id === praticaId) {
-        const updatedWorkflow = { ...pratica.workflow };
-        if (!updatedWorkflow[stepId]) {
-          updatedWorkflow[stepId] = {
-            completed: false,
-            importoBaseCommittente: 0,
-            applyCassaCommittente: true,
-            applyIVACommittente: true,
-            importoCommittente: 0,
-            
-            importoBaseCollaboratore: 0,
-            applyCassaCollaboratore: true,
-            importoCollaboratore: 0,
-            
-            notes: []
-          };
-        }
-        
-        // Aggiorna il valore specifico
-        if (field.includes('importoBase')) {
-          updatedWorkflow[stepId][field] = parseFloat(value) || 0;
-        } else if (field.includes('applyCassa') || field.includes('applyIVA')) {
-          updatedWorkflow[stepId][field] = value; // value è un boolean
-        }
-        
-        // Ricalcola gli importi totali
-        // Per committente
-        if (field.includes('Committente') || field.includes('applyCassaCommittente') || field.includes('applyIVACommittente')) {
-          const importoBase = updatedWorkflow[stepId].importoBaseCommittente || 0;
-          const applyCassa = updatedWorkflow[stepId].applyCassaCommittente !== false;
-          const applyIVA = updatedWorkflow[stepId].applyIVACommittente !== false;
-          
-          let totale = importoBase;
-          if (applyCassa) {
-            totale += totale * 0.05; // +5% cassa
-          }
-          if (applyIVA) {
-            totale += totale * 0.22; // +22% IVA
-          }
-          
-          updatedWorkflow[stepId].importoCommittente = totale;
-        }
-        
-        // Per collaboratore
-        if (field.includes('Collaboratore') || field.includes('applyCassaCollaboratore')) {
-          const importoBase = updatedWorkflow[stepId].importoBaseCollaboratore || 0;
-          const applyCassa = updatedWorkflow[stepId].applyCassaCollaboratore !== false;
-          
-          let totale = importoBase;
-          if (applyCassa) {
-            totale += totale * 0.05; // +5% cassa
-          }
-          
-          updatedWorkflow[stepId].importoCollaboratore = totale;
-        }
-        
-        updatedWorkflow[stepId][`${field}Date`] = new Date().toISOString(); // Aggiungi data dell'immissione
-        
-        // Salva i dati aggiornati
-        updatePratica(praticaId, { workflow: updatedWorkflow });
-        
-        return {
-          ...pratica,
-          workflow: updatedWorkflow
-        };
-      }
-      return pratica;
-    });
-    
-    setLocalPratiche(updatedPratiche);
+
+  const handleSyncTaskWithCalendarWrapper = (praticaId, stepId, taskIndex) => {
+    handleSyncTaskWithCalendar(praticaId, stepId, taskIndex, updatePratica, localPratiche, setLocalPratiche);
   };
   
   // Handler per generare PDF
   const handleGeneratePDF = async (filtroAgenziaPerPdf = '') => {
     await generatePDF(localPratiche, filtroAgenziaPerPdf);
     setShowExportOptions(false);
+  };
+  
+  // Componente per notifica creazione task automatiche
+  const TaskNotification = ({ event, onClose }) => {
+    if (!event) return null;
+    
+    let message = '';
+    switch (event.trigger) {
+      case 'incarico':
+        message = `${event.count} task create automaticamente dopo l'incarico`;
+        break;
+      case 'accessoAtti':
+        message = `${event.count} task create automaticamente dopo l'accesso atti`;
+        break;
+      case 'pagamento':
+        message = `${event.count} task create automaticamente dopo il pagamento`;
+        break;
+      case 'deadline':
+        message = `${event.count} task create automaticamente per scadenza pratica`;
+        break;
+      default:
+        message = `${event.count} task create automaticamente`;
+    }
+    
+    return (
+      <div className="fixed bottom-4 right-4 bg-green-50 border-l-4 border-green-500 p-4 rounded shadow-lg z-50 max-w-md">
+        <div className="flex">
+          <div className="flex-shrink-0">
+            <FaCalendarAlt className="h-5 w-5 text-green-500" />
+          </div>
+          <div className="ml-3">
+            <p className="text-sm text-green-700">{message}</p>
+            <p className="mt-1 text-xs text-green-700">Le task sono state aggiunte alla lista e sincronizzate con Google Calendar</p>
+          </div>
+          <button 
+            className="ml-auto text-green-500 hover:text-green-700"
+            onClick={onClose}
+          >
+            &times;
+          </button>
+        </div>
+      </div>
+    );
   };
   
   if (loading) {
@@ -531,16 +380,19 @@ function PratichePage() {
               </select>
             </div>
             
-            <div className="relative">
+            <div className="relative flex items-center space-x-2">
+              {/* Sostituisci il bottone con il componente CalendarAuthButton */}
+              <CalendarAuthButton />
+              
               <button
                 onClick={() => setShowExportOptions(!showExportOptions)}
-                className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center text-sm"
+                className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center text-sm"
               >
                 <FaFilePdf className="mr-1" size={14} /> Esporta PDF
               </button>
               
               {showExportOptions && (
-                <div className="absolute right-0 mt-1 bg-white shadow-lg rounded-md z-20 w-48">
+                <div className="absolute right-0 mt-1 bg-white shadow-lg rounded-md z-20 w-48 top-10">
                   <ul className="py-1">
                     <li>
                       <button 
@@ -591,16 +443,30 @@ function PratichePage() {
       <WorkflowTable 
         pratiche={praticheFiltered}
         onEditPratica={handleEditPratica}
-        onAddNote={handleAddNote}
-        onDeleteNote={handleDeleteNote}
-        onToggleChecklistItem={handleToggleChecklistItem}
-        onToggleTaskItem={handleToggleTaskItem} // NUOVO PROP
-        onUpdateNote={handleUpdateNote} // NUOVO PROP
-        onDateTimeChange={handleDateTimeChange}
-        onDeleteDateTime={handleDeleteDateTime}
-        onPaymentChange={handlePaymentChange}
-        onChangeStato={handleChangeStato}
+        onAddNote={handleAddNoteWrapper}
+        onDeleteNote={handleDeleteNoteWrapper}
+        onToggleChecklistItem={handleToggleChecklistItemWrapper}
+        onToggleTaskItem={handleToggleTaskItemWrapper}
+        onUpdateNote={handleUpdateNoteWrapper}
+        onDateTimeChange={handleDateTimeChangeWrapper}
+        onDeleteDateTime={handleDeleteDateTimeWrapper}
+        onPaymentChange={handlePaymentChangeWrapper}
+        onChangeStato={handleChangeStatoWrapper}
+        onCellClick={handleCellClickWrapper}
+        onSetTaskDueDate={handleSetTaskDueDateWrapper}
+        onRemoveTaskDueDate={handleRemoveTaskDueDateWrapper}
+        onSyncWithCalendar={handleSyncTaskWithCalendarWrapper}
+        activeCells={activeCells}
+        isGoogleAuthenticated={isAuthenticated}
       />
+      
+      {/* Notifica task automatiche */}
+      {showTaskNotification && (
+        <TaskNotification 
+          event={lastTaskEvent}
+          onClose={() => setShowTaskNotification(false)}
+        />
+      )}
     </div>
   );
 }

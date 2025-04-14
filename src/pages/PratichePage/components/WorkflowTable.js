@@ -1,16 +1,16 @@
-// WorkflowTable.js
+// src/pages/PratichePage/components/WorkflowTable.js
 import React, { useState } from 'react';
-import { workflowSteps } from './PraticheUtils';
+import { workflowSteps } from '../utils/praticheUtils';
 import { 
   HeaderCell, 
   DetailCell,
+  TaskCell,
   NoteCell, 
   ChecklistCell, 
   DateCell, 
   PaymentCell,
-  TaskCell,
   StateCell 
-} from './WorkflowCells';
+} from './cells';
 
 function WorkflowTable({ 
   pratiche,
@@ -54,7 +54,7 @@ function WorkflowTable({
       return step.lightColor;
     } else {
       // Le altre celle sono colorate solo se hanno contenuto
-      return hasContent ? step.lightColor : 'bg-white';
+      return hasContent ? step.lightColor : '';
     }
   };
 
@@ -83,6 +83,106 @@ function WorkflowTable({
     } else {
       // Se non è nella lista, usa il formato normale
       return <div className={`${label.length > 15 ? 'vertical-text-multiline' : 'vertical-text'}`}>{label}</div>;
+    }
+  };
+
+  // Determina se la cella ha contenuto
+  const cellHasContent = (stepData) => {
+    return (
+      (stepData.notes && stepData.notes.length > 0) ||
+      (stepData.tasks && stepData.tasks.length > 0) ||
+      (stepData.checklist && Object.values(stepData.checklist).some(item => item.completed)) ||
+      stepData.dataInvio ||
+      (stepData.importoBaseCommittente > 0) ||
+      (stepData.importoBaseCollaboratore > 0)
+    );
+  };
+
+  // Determina quale componente usare per la cella in base al tipo e all'ID
+  const getCellComponent = (step, pratica, stepData, isActive) => {
+    // Sempre usa i componenti specifici per intestazione e dettagli
+    if (step.id === 'intestazione') {
+      return <HeaderCell pratica={pratica} onEditPratica={onEditPratica} />;
+    } 
+    
+    if (step.id === 'dettagliPratica') {
+      return <DetailCell pratica={pratica} />;
+    }
+    
+    // Lista di celle che devono usare lo stesso comportamento di TaskCell
+    const taskLikeCells = ['inizioPratica', 'sopralluogo', 'espletamentoPratica1', 'presentazionePratica'];
+    
+    if (taskLikeCells.includes(step.id)) {
+      return (
+        <TaskCell
+          pratica={pratica}
+          stepId={step.id}
+          stepData={stepData}
+          isActive={isActive}
+          onCellClick={handleCellClick}
+          onAddNote={onAddNote}
+          onDeleteNote={onDeleteNote}
+          onToggleTaskItem={onToggleTaskItem}
+          onUpdateNote={onUpdateNote}
+        />
+      );
+    }
+    
+    // Per le altre celle, usa il componente appropriato basato sul tipo
+    switch (step.type) {
+      case 'checklist':
+        return (
+          <ChecklistCell
+            pratica={pratica}
+            stepId={step.id}
+            stepData={stepData}
+            step={step}
+            isActive={isActive}
+            onCellClick={handleCellClick}
+            onToggleChecklistItem={onToggleChecklistItem}
+          />
+        );
+      case 'date':
+        return (
+          <DateCell
+            pratica={pratica}
+            stepId={step.id}
+            stepData={stepData}
+            isActive={isActive}
+            onCellClick={handleCellClick}
+            onDateTimeChange={onDateTimeChange}
+            onDeleteDateTime={onDeleteDateTime}
+            showTimeField={step.id !== 'incarico'} // Nascondi campo ora per incarico
+          />
+        );
+      case 'payment':
+        return (
+          <PaymentCell
+            pratica={pratica}
+            stepId={step.id}
+            stepData={stepData}
+            step={step}
+            isActive={isActive}
+            onCellClick={handleCellClick}
+            onPaymentChange={onPaymentChange}
+            onPaymentKeyDown={(praticaId, stepId, field, value, cellId, e) => 
+              handlePaymentKeyDown(praticaId, stepId, field, value, cellId, e)
+            }
+          />
+        );
+      default:
+        return (
+          <NoteCell
+            pratica={pratica}
+            stepId={step.id}
+            stepData={stepData}
+            isActive={isActive}
+            onCellClick={handleCellClick}
+            onAddNote={onAddNote}
+            onDeleteNote={onDeleteNote}
+            onUpdateNote={onUpdateNote}
+          />
+        );
     }
   };
 
@@ -132,105 +232,35 @@ function WorkflowTable({
                   const isActive = activeCells[cellId];
                   
                   // Determina se la cella ha contenuto
-                  const hasContent = (
-                    (stepData.notes && stepData.notes.length > 0) ||
-                    (stepData.tasks && stepData.tasks.length > 0) ||
-                    (stepData.checklist && Object.values(stepData.checklist).some(item => item.completed)) ||
-                    stepData.dataInvio ||
-                    stepData.importoBaseCommittente > 0 ||
-                    stepData.importoBaseCollaboratore > 0
-                  );
+                  const hasContent = cellHasContent(stepData);
                   
-                  // Rendi il contenuto in base al tipo di step
-                  let cellContent;
-                  if (step.id === 'intestazione') {
-                    // Intestazione colonna con dati pratica
-                    cellContent = <HeaderCell pratica={pratica} onEditPratica={onEditPratica} />;
-                  } else if (step.id === 'dettagliPratica') {
-                    // Dettagli pratica colonna
-                    cellContent = <DetailCell pratica={pratica} />;
-                  } else if (step.type === 'task') {
-                    // Aggiunta del componente TaskCell per gestire le task
-                    cellContent = (
-                      <TaskCell
-                        pratica={pratica}
-                        stepId={step.id}
-                        stepData={stepData}
-                        isActive={isActive}
-                        onCellClick={handleCellClick}
-                        onAddNote={onAddNote}
-                        onDeleteNote={onDeleteNote}
-                        onToggleTaskItem={onToggleTaskItem}
-                        onUpdateNote={onUpdateNote}
-                      />
-                    );
-                  } else if (step.type === 'note') {
-                    cellContent = (
-                      <NoteCell
-                        pratica={pratica}
-                        stepId={step.id}
-                        stepData={stepData}
-                        isActive={isActive}
-                        onCellClick={handleCellClick}
-                        onAddNote={onAddNote}
-                        onDeleteNote={onDeleteNote}
-                        onUpdateNote={onUpdateNote}
-                      />
-                    );
-                  } else if (step.type === 'checklist') {
-                    cellContent = (
-                      <ChecklistCell
-                        pratica={pratica}
-                        stepId={step.id}
-                        stepData={stepData}
-                        step={step}
-                        isActive={isActive}
-                        onCellClick={handleCellClick}
-                        onToggleChecklistItem={onToggleChecklistItem}
-                      />
-                    );
-                  } else if (step.type === 'date') {
-                    cellContent = (
-                      <DateCell
-                        pratica={pratica}
-                        stepId={step.id}
-                        stepData={stepData}
-                        isActive={isActive}
-                        onCellClick={handleCellClick}
-                        onDateTimeChange={onDateTimeChange}
-                        onDeleteDateTime={onDeleteDateTime}
-                      />
-                    );
-                  } else if (step.type === 'payment') {
-                    cellContent = (
-                      <PaymentCell
-                        pratica={pratica}
-                        stepId={step.id}
-                        stepData={stepData}
-                        step={step}
-                        isActive={isActive}
-                        onCellClick={handleCellClick}
-                        onPaymentChange={onPaymentChange}
-                        onPaymentKeyDown={(praticaId, stepId, field, value, cellId, e) => 
-                          handlePaymentKeyDown(praticaId, stepId, field, value, cellId, e)
-                        }
-                      />
-                    );
+                  // Determina il colore di sfondo in base al tipo di cella e al contenuto
+                  let backgroundColor;
+                  if (step.id === 'intestazione' || step.id === 'dettagliPratica') {
+                    // Le celle intestazione e dettagli pratica sono sempre colorate
+                    backgroundColor = '';
+                  } else {
+                    // Le altre celle sono bianche se non hanno contenuto
+                    backgroundColor = hasContent ? '' : 'white';
                   }
                   
-                  // Applica il colore di sfondo per le celle
-                  const bgColor = renderCellBackground(step, stepData, hasContent);
+                  // Ottieni il componente appropriato per la cella
+                  const cellContent = getCellComponent(step, pratica, stepData, isActive);
+                  
+                  // Ottieni la classe di colore dal metodo renderCellBackground
+                  const bgColorClass = renderCellBackground(step, stepData, hasContent);
                   
                   return (
                     <td 
                       key={pratica.id}
-                      className={`border ${bgColor} align-top cursor-pointer column-practice`}
+                      className={`border align-top cursor-pointer column-practice ${bgColorClass}`}
                       style={{ 
                         borderWidth: '0.75px',
                         borderColor: '#000',
                         position: index === 0 ? 'sticky' : 'static',
                         top: index === 0 ? 0 : 'auto',
-                        zIndex: index === 0 ? 10 : 'auto'
+                        zIndex: index === 0 ? 10 : 'auto',
+                        backgroundColor
                       }}
                       onClick={(e) => {
                         // Evita di attivare il click se si sta cliccando su un input
