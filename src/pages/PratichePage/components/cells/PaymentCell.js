@@ -19,6 +19,10 @@ const PaymentCell = ({ pratica, stepId, stepData, step, isActive, onCellClick, o
   const [importoLordoCollaboratore, setImportoLordoCollaboratore] = useState(
     stepData.importoCollaboratore || 0
   );
+
+  const [importoLordoFirmatario, setImportoLordoFirmatario] = useState(
+    stepData.importoFirmatario || 0
+  );
   
   // Aggiorna gli stati locali quando cambiano gli importi esterni
   useEffect(() => {
@@ -28,11 +32,16 @@ const PaymentCell = ({ pratica, stepId, stepData, step, isActive, onCellClick, o
   useEffect(() => {
     setImportoLordoCollaboratore(stepData.importoCollaboratore || 0);
   }, [stepData.importoCollaboratore]);
+
+  useEffect(() => {
+    setImportoLordoFirmatario(stepData.importoFirmatario || 0);
+  }, [stepData.importoFirmatario]);
   
   // Determina se visualizzare le sezioni in base ai valori
   const hasCommittente = stepData.importoCommittente > 0;
   const hasCollaboratore = stepData.importoCollaboratore > 0;
-  const hasSomePayment = hasCommittente || hasCollaboratore;
+  const hasFirmatario = stepData.importoFirmatario > 0;
+  const hasSomePayment = hasCommittente || hasCollaboratore || hasFirmatario;
   const cellId = `${pratica.id}-${stepId}`;
   
   // Gestione cambio importo committente (LORDO)
@@ -66,7 +75,7 @@ const PaymentCell = ({ pratica, stepId, stepData, step, isActive, onCellClick, o
     onPaymentChange(pratica.id, stepId, 'importoBaseCommittente', importoBase);
   };
   
-  // Gestione cambio importo collaboratore (LORDO)
+  // Gestione cambio importo collaboratore (LORDO) - senza vincoli con il firmatario
   const handleCollaboratoreChange = (e) => {
     const importoLordo = parseFloat(e.target.value) || 0;
     setImportoLordoCollaboratore(importoLordo);
@@ -77,9 +86,25 @@ const PaymentCell = ({ pratica, stepId, stepData, step, isActive, onCellClick, o
       stepData.applyCassaCollaboratore !== false
     );
     
-    // Salva sia il valore base (netto) che il lordo
+    // Salva i valori
     onPaymentChange(pratica.id, stepId, 'importoBaseCollaboratore', importoBase);
     onPaymentChange(pratica.id, stepId, 'importoCollaboratore', importoLordo);
+  };
+
+  // Gestione cambio importo firmatario (LORDO) - senza vincoli con il collaboratore
+  const handleFirmatarioChange = (e) => {
+    const importoLordo = parseFloat(e.target.value) || 0;
+    setImportoLordoFirmatario(importoLordo);
+    
+    // Calcola la base (netto) a partire dal lordo
+    const importoBase = calcolaBaseCollaboratore(
+      importoLordo,
+      stepData.applyCassaFirmatario !== false
+    );
+    
+    // Salva i valori
+    onPaymentChange(pratica.id, stepId, 'importoBaseFirmatario', importoBase);
+    onPaymentChange(pratica.id, stepId, 'importoFirmatario', importoLordo);
   };
   
   // Gestione cambio spunta collaboratore
@@ -93,6 +118,19 @@ const PaymentCell = ({ pratica, stepId, stepData, step, isActive, onCellClick, o
     );
     
     onPaymentChange(pratica.id, stepId, 'importoBaseCollaboratore', importoBase);
+  };
+
+  // Gestione cambio spunta firmatario
+  const handleFirmatarioSpunteChange = (checked) => {
+    onPaymentChange(pratica.id, stepId, 'applyCassaFirmatario', checked);
+    
+    // Ricalcola l'importo base (netto) quando cambia la spunta, mantenendo lo stesso lordo
+    const importoBase = calcolaBaseCollaboratore(
+      importoLordoFirmatario,
+      checked
+    );
+    
+    onPaymentChange(pratica.id, stepId, 'importoBaseFirmatario', importoBase);
   };
   
   // Gestione keydown con aggiornamento
@@ -111,7 +149,7 @@ const PaymentCell = ({ pratica, stepId, stepData, step, isActive, onCellClick, o
         onPaymentChange(pratica.id, stepId, 'importoBaseCommittente', importoBase);
         onPaymentChange(pratica.id, stepId, 'importoCommittente', importoLordoCommittente);
         
-        // Dopo aver premuto Invio, vai automaticamente al campo del collaboratore se si tratta dell'importo committente
+        // Dopo aver premuto Invio, vai automaticamente al campo del collaboratore
         const collaboratoreInput = document.getElementById(`collaboratore-input-${pratica.id}-${stepId}`);
         if (collaboratoreInput) {
           collaboratoreInput.focus();
@@ -119,8 +157,8 @@ const PaymentCell = ({ pratica, stepId, stepData, step, isActive, onCellClick, o
           // Se non è possibile trovare il campo del collaboratore, disattiva la cella
           onCellClick(pratica.id, stepId, 'payment', false);
         }
-      } else {
-        // Aggiorna l'importo base del collaboratore e disattiva la cella
+      } else if (field === 'collaboratore') {
+        // Aggiorna l'importo base del collaboratore
         const importoBase = calcolaBaseCollaboratore(
           importoLordoCollaboratore,
           stepData.applyCassaCollaboratore !== false
@@ -129,7 +167,25 @@ const PaymentCell = ({ pratica, stepId, stepData, step, isActive, onCellClick, o
         onPaymentChange(pratica.id, stepId, 'importoBaseCollaboratore', importoBase);
         onPaymentChange(pratica.id, stepId, 'importoCollaboratore', importoLordoCollaboratore);
         
-        // Dopo aver premuto Invio sul campo del collaboratore, chiudi la cella
+        // Passa al campo del firmatario
+        const firmatarioInput = document.getElementById(`firmatario-input-${pratica.id}-${stepId}`);
+        if (firmatarioInput) {
+          firmatarioInput.focus();
+        } else {
+          // Se non è possibile trovare il campo del firmatario, disattiva la cella
+          onCellClick(pratica.id, stepId, 'payment', false);
+        }
+      } else if (field === 'firmatario') {
+        // Aggiorna l'importo base del firmatario
+        const importoBase = calcolaBaseCollaboratore(
+          importoLordoFirmatario,
+          stepData.applyCassaFirmatario !== false
+        );
+        
+        onPaymentChange(pratica.id, stepId, 'importoBaseFirmatario', importoBase);
+        onPaymentChange(pratica.id, stepId, 'importoFirmatario', importoLordoFirmatario);
+        
+        // Dopo aver premuto Invio sul campo del firmatario, chiudi la cella
         onCellClick(pratica.id, stepId, 'payment', false);
       }
     }
@@ -143,6 +199,11 @@ const PaymentCell = ({ pratica, stepId, stepData, step, isActive, onCellClick, o
   // Crea il testo per il tooltip - Collaboratore
   const getNettoCollaboratoreTooltip = () => {
     return `Netto: €${(stepData.importoBaseCollaboratore || 0).toFixed(2)}${stepData.applyCassaCollaboratore !== false ? " +5% cassa" : ""}`;
+  };
+
+  // Crea il testo per il tooltip - Firmatario
+  const getNettoFirmatarioTooltip = () => {
+    return `Netto: €${(stepData.importoBaseFirmatario || 0).toFixed(2)}${stepData.applyCassaFirmatario !== false ? " +5% cassa" : ""}`;
   };
   
   if (hasSomePayment) {
@@ -178,6 +239,7 @@ const PaymentCell = ({ pratica, stepId, stepData, step, isActive, onCellClick, o
                     className={`w-full p-0.5 text-xs border border-gray-300 rounded text-center ${step.lightColor}`}
                     placeholder="0,00"
                     autoFocus
+                    step="0.01"
                   />
                 </div>
                 
@@ -212,13 +274,13 @@ const PaymentCell = ({ pratica, stepId, stepData, step, isActive, onCellClick, o
               <div className="text-xs flex flex-col justify-center items-center">
                 {/* Importo con tooltip per netto */}
                 <span className="font-semibold tooltip">
-                  €{stepData.importoCommittente?.toLocaleString('it-IT', {minimumFractionDigits: 2}) || '0,00'}
+                  €{(stepData.importoCommittente || 0).toFixed(2)}
                   <span className="tooltiptext">{getNettoCommittenteTooltip()}</span>
                 </span>
-                {/* Mostra solo la data */}
-                {stepData.importoBaseCommittenteDate && (
+                {/* Mostra la data */}
+                {stepData.pagamentoCommittenteDate && (
                   <span className="text-xs text-gray-500">
-                    {format(new Date(stepData.importoBaseCommittenteDate), 'dd/MM/yy', { locale: it })}
+                    {format(new Date(stepData.pagamentoCommittenteDate), 'dd/MM/yy', { locale: it })}
                   </span>
                 )}
               </div>
@@ -254,6 +316,7 @@ const PaymentCell = ({ pratica, stepId, stepData, step, isActive, onCellClick, o
                     onFocus={(e) => e.target.select()}
                     className={`w-full p-0.5 text-xs border border-gray-300 rounded text-center ${step.lightColor}`}
                     placeholder="0,00"
+                    step="0.01"
                   />
                 </div>
                 
@@ -279,13 +342,81 @@ const PaymentCell = ({ pratica, stepId, stepData, step, isActive, onCellClick, o
               <div className="text-xs flex flex-col justify-center items-center">
                 {/* Importo con tooltip per netto */}
                 <span className="font-semibold tooltip">
-                  €{stepData.importoCollaboratore?.toLocaleString('it-IT', {minimumFractionDigits: 2}) || '0,00'}
+                  €{(stepData.importoCollaboratore || 0).toFixed(2)}
                   <span className="tooltiptext">{getNettoCollaboratoreTooltip()}</span>
                 </span>
-                {/* Mostra solo la data */}
-                {stepData.importoBaseCollaboratoreDate && (
+                {/* Mostra la data */}
+                {stepData.pagamentoCollaboratoreDate && (
                   <span className="text-xs text-gray-500">
-                    {format(new Date(stepData.importoBaseCollaboratoreDate), 'dd/MM/yy', { locale: it })}
+                    {format(new Date(stepData.pagamentoCollaboratoreDate), 'dd/MM/yy', { locale: it })}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* FIRMATARIO - mostrato solo se ha un valore o se è in modifica */}
+        {(hasFirmatario || isActive) && (
+          <div>
+            <label className="block text-xs font-semibold text-gray-700">Collaboratore Firmatario</label>
+            {isActive ? (
+              <div className="space-y-1">
+                {/* Importo LORDO (visualizzato all'utente) */}
+                <div className="flex items-center justify-center">
+                  <span className="mr-1 text-xs">€</span>
+                  <input
+                    id={`firmatario-input-${pratica.id}-${stepId}`}
+                    type="number"
+                    value={importoLordoFirmatario || ""}
+                    onChange={handleFirmatarioChange}
+                    onKeyDown={(e) => handleImportoKeyDown(e, 'firmatario')}
+                    onBlur={() => {
+                      // Aggiorna al blur
+                      const importoBase = calcolaBaseCollaboratore(
+                        importoLordoFirmatario,
+                        stepData.applyCassaFirmatario !== false
+                      );
+                      
+                      onPaymentChange(pratica.id, stepId, 'importoBaseFirmatario', importoBase);
+                      onPaymentChange(pratica.id, stepId, 'importoFirmatario', importoLordoFirmatario);
+                    }}
+                    onFocus={(e) => e.target.select()}
+                    className={`w-full p-0.5 text-xs border border-gray-300 rounded text-center ${step.lightColor}`}
+                    placeholder="0,00"
+                    step="0.01"
+                  />
+                </div>
+                
+                {/* Checkbox per cassa */}
+                <div className="flex justify-center items-center text-xs">
+                  <label className="inline-flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={stepData.applyCassaFirmatario !== false}
+                      onChange={(e) => handleFirmatarioSpunteChange(e.target.checked)}
+                      className="checkbox-small text-blue-600 rounded h-3 w-3"
+                    />
+                    <span className="ml-1 text-xs">+5%</span>
+                  </label>
+                </div>
+                
+                {/* Netto calcolato (mostrato solo nella modalità di modifica) */}
+                <div className="text-xs font-semibold">
+                  Netto: €{(stepData.importoBaseFirmatario || 0).toFixed(2)}
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs flex flex-col justify-center items-center">
+                {/* Importo con tooltip per netto */}
+                <span className="font-semibold tooltip">
+                  €{(stepData.importoFirmatario || 0).toFixed(2)}
+                  <span className="tooltiptext">{getNettoFirmatarioTooltip()}</span>
+                </span>
+                {/* Mostra la data */}
+                {stepData.pagamentoFirmatarioDate && (
+                  <span className="text-xs text-gray-500">
+                    {format(new Date(stepData.pagamentoFirmatarioDate), 'dd/MM/yy', { locale: it })}
                   </span>
                 )}
               </div>
@@ -325,6 +456,7 @@ const PaymentCell = ({ pratica, stepId, stepData, step, isActive, onCellClick, o
                 className={`w-full p-0.5 text-xs border border-gray-300 rounded text-center ${step.lightColor}`}
                 placeholder="0,00"
                 autoFocus
+                step="0.01"
               />
             </div>
             
@@ -383,6 +515,7 @@ const PaymentCell = ({ pratica, stepId, stepData, step, isActive, onCellClick, o
                 onFocus={(e) => e.target.select()}
                 className={`w-full p-0.5 text-xs border border-gray-300 rounded text-center ${step.lightColor}`}
                 placeholder="0,00"
+                step="0.01"
               />
             </div>
             
@@ -402,6 +535,56 @@ const PaymentCell = ({ pratica, stepId, stepData, step, isActive, onCellClick, o
             {/* Netto calcolato */}
             <div className="text-xs font-semibold">
               Netto: €{(stepData.importoBaseCollaboratore || 0).toFixed(2)}
+            </div>
+          </div>
+        </div>
+
+        {/* FIRMATARIO */}
+        <div>
+          <label className="block text-xs font-semibold text-gray-700">Collaboratore Firmatario</label>
+          <div className="space-y-1">
+            {/* Importo LORDO (visualizzato all'utente) */}
+            <div className="flex items-center justify-center">
+              <span className="mr-1 text-xs">€</span>
+              <input
+                id={`firmatario-input-${pratica.id}-${stepId}`}
+                type="number"
+                value={importoLordoFirmatario || ""}
+                onChange={handleFirmatarioChange}
+                onKeyDown={(e) => handleImportoKeyDown(e, 'firmatario')}
+                onBlur={() => {
+                  // Aggiorna al blur
+                  const importoBase = calcolaBaseCollaboratore(
+                    importoLordoFirmatario,
+                    stepData.applyCassaFirmatario !== false
+                  );
+                  
+                  onPaymentChange(pratica.id, stepId, 'importoBaseFirmatario', importoBase);
+                  onPaymentChange(pratica.id, stepId, 'importoFirmatario', importoLordoFirmatario);
+                }}
+                onFocus={(e) => e.target.select()}
+                className={`w-full p-0.5 text-xs border border-gray-300 rounded text-center ${step.lightColor}`}
+                placeholder="0,00"
+                step="0.01"
+              />
+            </div>
+            
+            {/* Checkbox */}
+            <div className="flex justify-center items-center text-xs">
+              <label className="inline-flex items-center">
+                <input
+                  type="checkbox"
+                  checked={stepData.applyCassaFirmatario !== false}
+                  onChange={(e) => handleFirmatarioSpunteChange(e.target.checked)}
+                  className="checkbox-small text-blue-600 rounded h-3 w-3"
+                />
+                <span className="ml-1 text-xs">+5%</span>
+              </label>
+            </div>
+            
+            {/* Netto calcolato */}
+            <div className="text-xs font-semibold">
+              Netto: €{(stepData.importoBaseFirmatario || 0).toFixed(2)}
             </div>
           </div>
         </div>

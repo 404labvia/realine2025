@@ -304,7 +304,7 @@ const TaskCell = ({
   return (
     <div 
       className="p-1 min-h-[35px] text-left h-full relative pb-8"
-      style={{ backgroundColor: hasTasks || hasNotes ? '' : 'white' }}
+      style={{ backgroundColor: hasTasks || hasNotes ? '' : 'transparent' }}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
@@ -595,7 +595,7 @@ const TaskCell = ({
         </div>
       ) : (
         // Mostra i bottoni per aggiungere task o nota solo al passaggio del mouse
-        <div className={`flex justify-between text-xs absolute bottom-1 left-1 right-1 transition-opacity ${isHovering ? 'opacity-100' : 'opacity-0'}`}>
+        <div className={`flex justify-between text-xs absolute bottom-1 left-1 right-1 transition-opacity ${isHovering ? 'opacity-100' : 'opacity-0'}`} style={{ backgroundColor: 'transparent' }}>
           <button
             className="text-gray-600 hover:text-gray-800"
             onClick={(e) => {

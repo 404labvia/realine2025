@@ -18,13 +18,17 @@ const EditPraticaForm = ({ praticaId, pratica, onClose, onSave, onDelete }) => {
     cliente: '',
     agenzia: '',
     collaboratore: '',
+    collaboratoreFirmatario: '',
     
     importoBaseCommittente: 0,
-    applyCassaCommittente: false, // Modificato: ora il valore di default è false
-    applyIVACommittente: true,
+    applyCassaCommittente: false,
+    applyIVACommittente: true, // Di default solo IVA selezionata
     
     importoBaseCollaboratore: 0,
-    applyCassaCollaboratore: false, // Modificato: ora il valore di default è false
+    applyCassaCollaboratore: false,
+    
+    importoBaseFirmatario: 0,
+    applyCassaFirmatario: false,
     
     dataInizio: '',
     dataFine: '',
@@ -51,6 +55,7 @@ const EditPraticaForm = ({ praticaId, pratica, onClose, onSave, onDelete }) => {
         cliente: pratica.cliente || '',
         agenzia: pratica.agenzia || '',
         collaboratore: pratica.collaboratore || '',
+        collaboratoreFirmatario: pratica.collaboratoreFirmatario || '',
         
         importoBaseCommittente: pratica.importoBaseCommittente || 0,
         applyCassaCommittente: pratica.applyCassaCommittente === true, // Se non esiste o false, sarà false
@@ -58,6 +63,9 @@ const EditPraticaForm = ({ praticaId, pratica, onClose, onSave, onDelete }) => {
         
         importoBaseCollaboratore: pratica.importoBaseCollaboratore || 0,
         applyCassaCollaboratore: pratica.applyCassaCollaboratore === true, // Se non esiste o false, sarà false
+        
+        importoBaseFirmatario: pratica.importoBaseFirmatario || 0,
+        applyCassaFirmatario: pratica.applyCassaFirmatario === true, // Se non esiste o false, sarà false
         
         dataInizio: pratica.dataInizio ? format(new Date(pratica.dataInizio), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
         dataFine: dataFine,
@@ -84,6 +92,11 @@ const EditPraticaForm = ({ praticaId, pratica, onClose, onSave, onDelete }) => {
       editPraticaData.importoBaseCollaboratore,
       editPraticaData.applyCassaCollaboratore
     );
+
+    const importoFirmatario = calcolaTotaleCollaboratore(
+      editPraticaData.importoBaseFirmatario,
+      editPraticaData.applyCassaFirmatario
+    );
     
     // Preparazione data fine con ora
     let dataFine = null;
@@ -109,6 +122,7 @@ const EditPraticaForm = ({ praticaId, pratica, onClose, onSave, onDelete }) => {
       cliente: editPraticaData.cliente,
       agenzia: editPraticaData.agenzia,
       collaboratore: editPraticaData.collaboratore,
+      collaboratoreFirmatario: editPraticaData.collaboratoreFirmatario,
       
       // Nuovi campi per importi
       importoBaseCommittente: parseFloat(editPraticaData.importoBaseCommittente) || 0,
@@ -119,6 +133,10 @@ const EditPraticaForm = ({ praticaId, pratica, onClose, onSave, onDelete }) => {
       importoBaseCollaboratore: parseFloat(editPraticaData.importoBaseCollaboratore) || 0,
       applyCassaCollaboratore: editPraticaData.applyCassaCollaboratore,
       importoCollaboratore: importoCollaboratore, // Calcolato dai campi precedenti
+
+      importoBaseFirmatario: parseFloat(editPraticaData.importoBaseFirmatario) || 0,
+      applyCassaFirmatario: editPraticaData.applyCassaFirmatario,
+      importoFirmatario: importoFirmatario, // Calcolato dai campi precedenti
       
       dataInizio,
       dataFine,
@@ -135,6 +153,11 @@ const EditPraticaForm = ({ praticaId, pratica, onClose, onSave, onDelete }) => {
       const updatedData = { ...prev, [field]: value };
       return updatedData;
     });
+  };
+
+  // Formatta l'importo per la visualizzazione (max 2 decimali)
+  const formatImporto = (importo) => {
+    return parseFloat(importo).toFixed(2);
   };
 
   return (
@@ -209,6 +232,22 @@ const EditPraticaForm = ({ praticaId, pratica, onClose, onSave, onDelete }) => {
               ))}
             </select>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Collaboratore Firmatario</label>
+            <select
+              value={editPraticaData.collaboratoreFirmatario}
+              onChange={(e) => setEditPraticaData({...editPraticaData, collaboratoreFirmatario: e.target.value})}
+              className="w-full p-1.5 text-sm border border-gray-300 rounded-md"
+            >
+              <option value="">Seleziona firmatario</option>
+              {[...new Set([
+                ...agenzieCollaboratori.map(ac => ac.collaboratore).filter(c => c),
+                ...collaboratoriAggiuntivi
+              ])].map(collaboratore => (
+                <option key={collaboratore} value={collaboratore}>{collaboratore}</option>
+              ))}
+            </select>
+          </div>
           
           {/* Importo Base Committente con checkbox */}
           <div>
@@ -221,9 +260,10 @@ const EditPraticaForm = ({ praticaId, pratica, onClose, onSave, onDelete }) => {
                   </div>
                   <input
                     type="number"
-                    value={editPraticaData.importoBaseCommittente}
+                    value={formatImporto(editPraticaData.importoBaseCommittente)}
                     onChange={(e) => handleEditPraticaImportoChange('importoBaseCommittente', parseFloat(e.target.value) || 0)}
                     className="pl-7 w-full p-1.5 text-sm border border-gray-300 rounded-md"
+                    step="0.01"
                   />
                 </div>
               </div>
@@ -268,9 +308,10 @@ const EditPraticaForm = ({ praticaId, pratica, onClose, onSave, onDelete }) => {
                   </div>
                   <input
                     type="number"
-                    value={editPraticaData.importoBaseCollaboratore}
+                    value={formatImporto(editPraticaData.importoBaseCollaboratore)}
                     onChange={(e) => handleEditPraticaImportoChange('importoBaseCollaboratore', parseFloat(e.target.value) || 0)}
                     className="pl-7 w-full p-1.5 text-sm border border-gray-300 rounded-md"
+                    step="0.01"
                   />
                 </div>
               </div>
@@ -290,6 +331,44 @@ const EditPraticaForm = ({ praticaId, pratica, onClose, onSave, onDelete }) => {
               Totale: €{calcolaTotaleCollaboratore(
                 editPraticaData.importoBaseCollaboratore,
                 editPraticaData.applyCassaCollaboratore
+              ).toFixed(2)}
+            </div>
+          </div>
+
+          {/* Importo Base Firmatario con checkbox */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Importo Base Firmatario</label>
+            <div className="flex items-center">
+              <div className="flex-1">
+                <div className="relative rounded-md shadow-sm">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <span className="text-gray-500 sm:text-sm">€</span>
+                  </div>
+                  <input
+                    type="number"
+                    value={formatImporto(editPraticaData.importoBaseFirmatario)}
+                    onChange={(e) => handleEditPraticaImportoChange('importoBaseFirmatario', parseFloat(e.target.value) || 0)}
+                    className="pl-7 w-full p-1.5 text-sm border border-gray-300 rounded-md"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+              <div className="ml-3 flex items-center">
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={editPraticaData.applyCassaFirmatario}
+                    onChange={(e) => handleEditPraticaImportoChange('applyCassaFirmatario', e.target.checked)}
+                    className="checkbox-small text-blue-600 rounded"
+                  />
+                  <span className="ml-1 text-xs">+5% Cassa</span>
+                </label>
+              </div>
+            </div>
+            <div className="mt-1 text-right text-sm font-semibold">
+              Totale: €{calcolaTotaleCollaboratore(
+                editPraticaData.importoBaseFirmatario,
+                editPraticaData.applyCassaFirmatario
               ).toFixed(2)}
             </div>
           </div>
