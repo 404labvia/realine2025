@@ -1,39 +1,20 @@
 // src/pages/Dashboard/hooks/useDashboardCalendar.js
 import { useState, useEffect, useCallback } from 'react';
 import { format, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays } from 'date-fns';
-import { signInWithGoogle, isGoogleCalendarAuthenticated } from '../../../firebase';
 
 export function useDashboardCalendar() {
   // Stati per il calendario
   const [currentDate, setCurrentDate] = useState(new Date());
   const [calendarView, setCalendarView] = useState('month');
-  const [googleEvents, setGoogleEvents] = useState([]);
+  const [events, setEvents] = useState([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [lastSync, setLastSync] = useState(null);
 
-  // Controlla l'autenticazione Google Calendar all'avvio
-  useEffect(() => {
-    const authenticated = isGoogleCalendarAuthenticated();
-    setIsAuthenticated(authenticated);
-    
-    if (authenticated) {
-      fetchEvents();
-    }
-  }, []);
-
-  // Funzione per sincronizzare eventi da Google Calendar
+  // Funzione per generare dati di esempio per il calendario
   const fetchEvents = useCallback(async () => {
-    if (!isGoogleCalendarAuthenticated()) {
-      return;
-    }
-    
     setIsLoadingEvents(true);
-    
-    try {
-      // In una implementazione reale, qui ci sarebbe la chiamata a Google Calendar API
-      // Per ora utilizziamo dati di esempio
 
+    try {
       // Mock data per eventi
       const mockEvents = [
         {
@@ -54,10 +35,17 @@ export function useDashboardCalendar() {
           description: 'Firma incarico professionale',
           location: 'Studio, Via del Mare 45'
         },
-        // Altri eventi mock...
+        {
+          id: '3',
+          title: 'Non disponibile',
+          start: new Date(2025, 2, 6, 15, 0), // 6 Marzo 2025, 15:00
+          end: new Date(2025, 2, 6, 17, 0),
+          color: '#D8E4BC', // Colore per altro
+          description: 'Non disponibile'
+        }
       ];
 
-      setGoogleEvents(mockEvents);
+      setEvents(mockEvents);
       setLastSync(new Date());
     } catch (error) {
       console.error('Errore nel recupero degli eventi:', error);
@@ -68,27 +56,8 @@ export function useDashboardCalendar() {
 
   // Carica gli eventi quando cambia la vista o la data
   useEffect(() => {
-    if (isAuthenticated) {
-      fetchEvents();
-    }
-  }, [fetchEvents, isAuthenticated, currentDate, calendarView]);
-
-  // Funzione per l'autenticazione con Google
-  const handleGoogleAuth = async () => {
-    try {
-      const result = await signInWithGoogle();
-      
-      if (result && result.token) {
-        setIsAuthenticated(true);
-        fetchEvents();
-      } else {
-        alert("Autenticazione non riuscita. Riprova.");
-      }
-    } catch (error) {
-      console.error("Errore durante l'autenticazione Google:", error);
-      alert("Si è verificato un errore durante l'autenticazione. Riprova.");
-    }
-  };
+    fetchEvents();
+  }, [fetchEvents]);
 
   // Funzioni di navigazione del calendario
   const navigatePrev = () => {
@@ -120,12 +89,10 @@ export function useDashboardCalendar() {
     setCurrentDate,
     calendarView,
     setCalendarView,
-    googleEvents,
-    isAuthenticated,
+    events,
     isLoadingEvents,
     lastSync,
     fetchEvents,
-    handleGoogleAuth,
     navigatePrev,
     navigateNext,
     navigateToday

@@ -10,17 +10,16 @@ import ChartFatturato from './components/ChartFatturato';
 import TaskNotification from './components/TaskNotification';
 import { useDashboardTasks } from './hooks/useDashboardTasks';
 import { useDashboardCalendar } from './hooks/useDashboardCalendar';
-import { signInWithGoogle, isGoogleCalendarAuthenticated } from '../../firebase';
 
 function Dashboard() {
   // Context e stati base
-  const { pratiche, loading } = usePratiche();
+  const { pratiche, loading, updatePratica } = usePratiche();
   const [filtroStatoDistribuzione, setFiltroStatoDistribuzione] = useState('In Corso');
   const [filtroStatoFatturato, setFiltroStatoFatturato] = useState('Tutte');
   const [showTaskDetails, setShowTaskDetails] = useState(null);
   const [showTaskNotification, setShowTaskNotification] = useState(false);
   const [lastTaskEvent, setLastTaskEvent] = useState(null);
-  
+
   // Utilizza i custom hooks
   const {
     pendingTasks,
@@ -33,19 +32,20 @@ function Dashboard() {
     filteredTasks,
     currentTasks,
     handleToggleTask
-  } = useDashboardTasks(pratiche, loading);
-  
+  } = useDashboardTasks(pratiche, loading, updatePratica);
+
   const {
     currentDate,
     setCurrentDate,
     calendarView,
     setCalendarView,
-    googleEvents,
-    isAuthenticated,
+    events,
     isLoadingEvents,
     lastSync,
     fetchEvents,
-    handleGoogleAuth
+    navigatePrev,
+    navigateNext,
+    navigateToday
   } = useDashboardCalendar();
 
   if (loading) {
@@ -55,14 +55,14 @@ function Dashboard() {
   return (
     <div className="container mx-auto">
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Dashboard</h1>
-      
+
       {/* Statistiche principali */}
       <StatistichePrincipali pratiche={pratiche} />
-      
+
       {/* Grid layout per task e calendario */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         {/* Task da completare */}
-        <TaskList 
+        <TaskList
           currentTasks={currentTasks}
           taskFilter={taskFilter}
           setTaskFilter={setTaskFilter}
@@ -72,56 +72,57 @@ function Dashboard() {
           handleToggleTask={handleToggleTask}
           onViewTaskDetails={(task) => setShowTaskDetails(task)}
         />
-        
+
         {/* Calendario */}
-        <DashboardCalendar 
+        <DashboardCalendar
           currentDate={currentDate}
           setCurrentDate={setCurrentDate}
           calendarView={calendarView}
           setCalendarView={setCalendarView}
-          googleEvents={googleEvents}
-          isAuthenticated={isAuthenticated}
+          events={events}
           isLoadingEvents={isLoadingEvents}
           lastSync={lastSync}
           fetchEvents={fetchEvents}
-          handleGoogleAuth={handleGoogleAuth}
           pendingTasks={pendingTasks}
+          navigatePrev={navigatePrev}
+          navigateNext={navigateNext}
+          navigateToday={navigateToday}
         />
       </div>
-      
+
       {/* Grafici */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <ChartAgenzie 
+        <ChartAgenzie
           pratiche={pratiche}
-          filtroStato={filtroStatoDistribuzione} 
-          setFiltroStato={setFiltroStatoDistribuzione} 
+          filtroStato={filtroStatoDistribuzione}
+          setFiltroStato={setFiltroStatoDistribuzione}
         />
-        <ChartFatturato 
+        <ChartFatturato
           pratiche={pratiche}
-          filtroStato={filtroStatoFatturato} 
-          setFiltroStato={setFiltroStatoFatturato} 
+          filtroStato={filtroStatoFatturato}
+          setFiltroStato={setFiltroStatoFatturato}
         />
       </div>
-      
+
       {/* Scadenze imminenti */}
-      <UpcomingDeadlines 
+      <UpcomingDeadlines
         deadlines={upcomingDeadlines}
         handleToggleTask={handleToggleTask}
         onViewTaskDetails={(task) => setShowTaskDetails(task)}
       />
-      
+
       {/* Modale dettagli task */}
       {showTaskDetails && (
-        <TaskDetails 
+        <TaskDetails
           task={showTaskDetails}
           onClose={() => setShowTaskDetails(null)}
           onComplete={handleToggleTask}
         />
       )}
-      
+
       {/* Notifica task automatiche */}
       {showTaskNotification && (
-        <TaskNotification 
+        <TaskNotification
           event={lastTaskEvent}
           onClose={() => setShowTaskNotification(false)}
         />
@@ -130,24 +131,46 @@ function Dashboard() {
   );
 }
 
-// Componente TaskDetails importato nel file index.js per semplicità
-// In un'implementazione completa dovrebbe essere un file separato
+// Componente TaskDetails
 function TaskDetails({ task, onClose, onComplete }) {
-  // ... Implementazione taskDetails (da spostare in un file dedicato)
+  if (!task) return null;
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white p-5 rounded-lg shadow-xl w-full max-w-md">
         <div className="flex justify-between items-start mb-4">
           <h2 className="text-lg font-semibold pr-4">{task.taskText}</h2>
-          <button 
+          <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"
           >
             ×
           </button>
         </div>
-        
+
         {/* Contenuto del TaskDetails */}
+        <div className="space-y-3">
+          <div className="flex items-center">
+            <span className="text-sm">
+              Pratica: <strong>{task.praticaIndirizzo}</strong>
+            </span>
+          </div>
+
+          <div className="flex items-center">
+            <span className="text-sm">
+              Cliente: <strong>{task.praticaCliente}</strong>
+            </span>
+          </div>
+
+          {task.dueDate && (
+            <div className="flex items-center">
+              <span className="text-sm">
+                Scadenza: <strong>{new Date(task.dueDate).toLocaleString('it-IT')}</strong>
+              </span>
+            </div>
+          )}
+        </div>
+
         <div className="mt-6 flex justify-end">
           <button
             onClick={onClose}

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { FaEnvelope, FaLock, FaSignInAlt } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
-import enhancedAuthService from '../services/EnhancedAuthService';
+import { loginWithEmailAndPassword, auth } from '../firebase';
 
 function Login() {
   const [email, setEmail] = useState('');
@@ -13,29 +13,29 @@ function Login() {
 
   // Controlla se l'utente è già loggato all'avvio
   useEffect(() => {
-    if (enhancedAuthService.isAppLoggedIn()) {
+    if (auth.currentUser) {
       navigate('/');
     }
   }, [navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       setError('Inserisci email e password');
       return;
     }
-    
+
     try {
       setLoading(true);
       setError(null);
-      
-      const result = await enhancedAuthService.loginWithEmailPassword(email, password);
-      
-      if (result.success) {
+
+      const user = await loginWithEmailAndPassword(email, password);
+
+      if (user) {
         navigate('/');
       } else {
-        setError(result.error || 'Errore durante il login. Controlla le credenziali.');
+        setError('Errore durante il login. Controlla le credenziali.');
       }
     } catch (error) {
       console.error("Errore login:", error);
@@ -52,13 +52,13 @@ function Login() {
           <h2 className="text-2xl font-bold text-gray-800">Realine Studio</h2>
           <p className="text-gray-600">Gestione Pratiche</p>
         </div>
-        
+
         {error && (
           <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4" role="alert">
             <p>{error}</p>
           </div>
         )}
-        
+
         <form onSubmit={handleLogin}>
           <div className="mb-4">
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="email">
@@ -79,7 +79,7 @@ function Login() {
               />
             </div>
           </div>
-          
+
           <div className="mb-6">
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="password">
               Password
@@ -99,7 +99,7 @@ function Login() {
               />
             </div>
           </div>
-          
+
           <div className="flex items-center justify-between">
             <button
               type="submit"

@@ -1,14 +1,14 @@
 // src/App.js
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, NavLink } from 'react-router-dom';
-import { 
-  MdHome, 
-  MdDescription, 
-  MdAttachMoney, 
-  MdChevronLeft, 
-  MdChevronRight, 
-  MdFormatListBulleted, 
-  MdLogout, 
+import {
+  MdHome,
+  MdDescription,
+  MdAttachMoney,
+  MdChevronLeft,
+  MdChevronRight,
+  MdFormatListBulleted,
+  MdLogout,
   MdAccountCircle
 } from 'react-icons/md';
 import { FaCalendarAlt, FaRobot } from 'react-icons/fa';
@@ -23,33 +23,33 @@ import AutomationConfigPage from './pages/AutomationConfigPage';
 import FinanzePage from './pages/FinanzePage';
 import LoginPage from './components/Login';
 
-// Importa il servizio di autenticazione migliorato
-import enhancedAuthService from './services/EnhancedAuthService';
-// Importa il nuovo componente per l'autenticazione Google Calendar
-import CalendarAuthButton from './components/CalendarAuthButton';
+// Importa il servizio di autenticazione
+import { auth, onAuthStateChange } from './firebase';
 
 function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  
+
   useEffect(() => {
     // Controlla se l'utente è già loggato all'app
     const checkAuth = () => {
-      const isLoggedIn = enhancedAuthService.isAppLoggedIn();
-      if (isLoggedIn) {
-        const appUser = enhancedAuthService.getAppUser();
-        setUser(appUser);
+      const authUser = auth.currentUser;
+      if (authUser) {
+        setUser({
+          email: authUser.email,
+          uid: authUser.uid
+        });
       } else {
         setUser(null);
       }
       setLoading(false);
     };
-    
+
     checkAuth();
-    
+
     // Aggiungi listener per cambiamenti nell'autenticazione
-    const unsubscribe = enhancedAuthService.auth.onAuthStateChanged((currentUser) => {
+    const unsubscribe = onAuthStateChange((currentUser) => {
       if (currentUser) {
         setUser({
           email: currentUser.email,
@@ -60,22 +60,18 @@ function App() {
       }
       setLoading(false);
     });
-    
+
     return () => unsubscribe();
   }, []);
-  
+
   const handleSignOut = async () => {
     try {
-      // Usa il servizio di autenticazione migliorato
-      const result = await enhancedAuthService.logoutFromApp();
-      if (!result.success) {
-        console.error("Errore durante il logout:", result.error);
-      }
+      await auth.signOut();
     } catch (error) {
       console.error("Errore durante il logout:", error);
     }
   };
-  
+
   // Schermata di caricamento
   if (loading) {
     return (
@@ -84,16 +80,16 @@ function App() {
       </div>
     );
   }
-  
+
   // Pagina di login se non autenticato
   if (!user) {
     return <LoginPage />;
   }
-  
+
   // Funzione per ottenere il titolo della pagina corrente
   const getPageTitle = () => {
     const path = window.location.pathname;
-    
+
     const titles = {
       '/': 'Dashboard',
       '/pratiche': 'Gestione Pratiche',
@@ -102,10 +98,10 @@ function App() {
       '/finanze': 'Gestione Finanziaria',
       '/automazioni': 'Configurazione Automazioni'
     };
-    
+
     return titles[path] || 'Realine Studio';
   };
-  
+
   return (
     <PraticheProvider>
       <div className="flex h-screen bg-gray-100">
@@ -115,10 +111,10 @@ function App() {
             <div className={`flex ${sidebarOpen ? 'justify-between' : 'justify-center'} w-full`}>
               {sidebarOpen ? (
                 <div className="flex flex-col items-center w-full">
-                  <img 
-                    src="/logo.png" 
-                    alt="Realine Studio Logo" 
-                    className="h-20 mb-3" 
+                  <img
+                    src="/logo.png"
+                    alt="Realine Studio Logo"
+                    className="h-20 mb-3"
                   />
                   <h1 className="text-xl font-bold text-gray-800">Realine Studio</h1>
                   <p className="text-xs text-gray-500">Gestione Pratiche</p>
@@ -128,7 +124,7 @@ function App() {
                   <div className="text-lg font-bold text-gray-800">R</div>
                 </div>
               )}
-              <button 
+              <button
                 className={`p-1 rounded-full hover:bg-gray-100 text-gray-600 ${sidebarOpen ? '' : 'mt-4'}`}
                 onClick={() => setSidebarOpen(!sidebarOpen)}
               >
@@ -136,10 +132,10 @@ function App() {
               </button>
             </div>
           </div>
-          
+
           <nav className="mt-6">
-            <NavLink 
-              to="/" 
+            <NavLink
+              to="/"
               className={({isActive}) =>
                 `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${
                   isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'
@@ -151,9 +147,9 @@ function App() {
               </span>
               {sidebarOpen && <span>Dashboard</span>}
             </NavLink>
-            
-            <NavLink 
-              to="/pratiche" 
+
+            <NavLink
+              to="/pratiche"
               className={({isActive}) =>
                 `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${
                   isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'
@@ -165,9 +161,9 @@ function App() {
               </span>
               {sidebarOpen && <span>Pratiche</span>}
             </NavLink>
-            
-            <NavLink 
-              to="/finanze" 
+
+            <NavLink
+              to="/finanze"
               className={({isActive}) =>
                 `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${
                   isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'
@@ -179,9 +175,9 @@ function App() {
               </span>
               {sidebarOpen && <span>Finanze</span>}
             </NavLink>
-            
-            <NavLink 
-              to="/calendario" 
+
+            <NavLink
+              to="/calendario"
               className={({isActive}) =>
                 `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${
                   isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'
@@ -193,9 +189,9 @@ function App() {
               </span>
               {sidebarOpen && <span>Calendario</span>}
             </NavLink>
-            
-            <NavLink 
-              to="/prezziario" 
+
+            <NavLink
+              to="/prezziario"
               className={({isActive}) =>
                 `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${
                   isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'
@@ -207,9 +203,9 @@ function App() {
               </span>
               {sidebarOpen && <span>Prezziario</span>}
             </NavLink>
-            
-            <NavLink 
-              to="/automazioni" 
+
+            <NavLink
+              to="/automazioni"
               className={({isActive}) =>
                 `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${
                   isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100'
@@ -222,7 +218,7 @@ function App() {
               {sidebarOpen && <span>Automazioni</span>}
             </NavLink>
           </nav>
-          
+
           {/* Sezione utente e logout */}
           {user && (
             <div className={`mt-auto mb-6 ${sidebarOpen ? 'px-4' : 'px-0 text-center'}`}>
@@ -257,16 +253,13 @@ function App() {
             </div>
           )}
         </aside>
-        
+
         {/* Contenuto principale */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Intestazione */}
           <header className="bg-white border-b p-4 flex items-center justify-between">
             <h1 className="text-xl font-semibold">{getPageTitle()}</h1>
             <div className="flex items-center space-x-3">
-              {/* Componente di autenticazione Calendar */}
-              <CalendarAuthButton />
-              
               <div className="flex items-center space-x-1">
                 <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
                   {user?.email?.charAt(0).toUpperCase() || 'U'}
@@ -275,7 +268,7 @@ function App() {
               </div>
             </div>
           </header>
-          
+
           {/* Contenuto pagina */}
           <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4">
             <Routes>

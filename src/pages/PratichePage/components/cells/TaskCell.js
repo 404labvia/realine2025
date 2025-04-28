@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { format, isBefore, addDays } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { FaTimes, FaClock, FaCalendarAlt, FaExclamationTriangle, FaBell } from 'react-icons/fa';
+import { FaTimes, FaClock, FaExclamationTriangle } from 'react-icons/fa';
 import { MdPriorityHigh } from 'react-icons/md';
 
 // Componente per la modifica di testo
@@ -57,7 +57,6 @@ const DueDatePicker = ({ dueDate, onSave, onCancel }) => {
   const [date, setDate] = useState(dueDate ? format(new Date(dueDate), 'yyyy-MM-dd') : '');
   const [time, setTime] = useState(dueDate ? format(new Date(dueDate), 'HH:mm') : '10:00');
   const [priority, setPriority] = useState('normal');
-  const [addToCalendar, setAddToCalendar] = useState(true);
   const [reminder, setReminder] = useState('60'); // 1 ora prima
 
   const handleSave = () => {
@@ -74,7 +73,6 @@ const DueDatePicker = ({ dueDate, onSave, onCancel }) => {
     onSave({
       dueDate: dueDateTime.toISOString(),
       priority,
-      addToCalendar,
       reminder: parseInt(reminder)
     });
   };
@@ -128,18 +126,6 @@ const DueDatePicker = ({ dueDate, onSave, onCancel }) => {
             <option value="1440">1 giorno prima</option>
             <option value="2880">2 giorni prima</option>
           </select>
-        </div>
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            id="addToCalendar"
-            checked={addToCalendar}
-            onChange={(e) => setAddToCalendar(e.target.checked)}
-            className="h-3 w-3 text-blue-600 rounded"
-          />
-          <label htmlFor="addToCalendar" className="ml-1 text-xs text-gray-700">
-            Aggiungi a Google Calendar
-          </label>
         </div>
         <div className="flex justify-end space-x-2 pt-2">
           <button
@@ -196,7 +182,7 @@ const DueDateDisplay = ({ dueDate, priority, onRemove, onEdit }) => {
           onClick={onEdit}
           className="text-blue-500 hover:text-blue-700"
         >
-          <FaCalendarAlt size={8} />
+          <FaClock size={8} />
         </button>
         <button
           onClick={onRemove}
@@ -220,9 +206,9 @@ const TaskCell = ({
   onDeleteNote,
   onToggleTaskItem,
   onUpdateNote,
-  onSetTaskDueDate, // Nuova prop per impostare la scadenza
-  onRemoveTaskDueDate, // Nuova prop per rimuovere la scadenza
-  onSyncWithCalendar // Nuova prop per sincronizzare con Google Calendar
+  onSetTaskDueDate,
+  onRemoveTaskDueDate,
+  onSyncWithCalendar // Mantenuto per compatibilità ma non sarà funzionale
 }) => {
   const [newTaskText, setNewTaskText] = useState('');
   const [newNoteText, setNewNoteText] = useState('');
@@ -416,14 +402,6 @@ const TaskCell = ({
                         </div>
                       )}
 
-                      {/* Icon for Google Calendar synced */}
-                      {task.googleCalendarEventId && (
-                        <div className="mt-0.5 text-xs text-gray-500 flex items-center">
-                          <FaCalendarAlt size={8} className="mr-0.5 text-green-600" />
-                          <span>Sincronizzato con Google Calendar</span>
-                        </div>
-                      )}
-
                       {/* Mostra la data */}
                       <div className="text-xs text-gray-500 text-left">
                         {task.completed && task.completedDate
@@ -448,20 +426,6 @@ const TaskCell = ({
                           title="Imposta scadenza"
                         >
                           <FaClock size={10} />
-                        </button>
-                      )}
-
-                      {/* Bottone per sincronizzare con Google Calendar */}
-                      {task.dueDate && !task.googleCalendarEventId && onSyncWithCalendar && (
-                        <button
-                          className="text-green-500 hover:text-green-700"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onSyncWithCalendar(pratica.id, stepId, i);
-                          }}
-                          title="Sincronizza con Google Calendar"
-                        >
-                          <FaCalendarAlt size={10} />
                         </button>
                       )}
 

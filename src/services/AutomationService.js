@@ -1,7 +1,6 @@
 // src/services/AutomationService.js
 import { addDays, format, parseISO } from 'date-fns';
 import { it } from 'date-fns/locale';
-import googleCalendarService from './GoogleCalendarService';
 
 class AutomationService {
   constructor() {
@@ -26,7 +25,7 @@ class AutomationService {
           generateText: (pratica) => `Inviare report avanzamento pratica a ${pratica.agenzia}`
         }
       ],
-      
+
       // Regole per l'automazione dopo l'accesso agli atti
       accessoAtti: [
         {
@@ -38,7 +37,7 @@ class AutomationService {
           generateText: (pratica) => `Verifica stato richiesta accesso atti per ${pratica.indirizzo}`
         }
       ],
-      
+
       // Regole per l'automazione dopo un pagamento
       pagamento: [
         {
@@ -47,7 +46,7 @@ class AutomationService {
           enabled: true,
           daysAfter: 3,
           priority: 'normal',
-          generateText: (pratica, triggerData) => 
+          generateText: (pratica, triggerData) =>
             `Verificare avvenuto pagamento di ${triggerData.importoCommittente}€ da ${pratica.cliente}`
         },
         {
@@ -56,13 +55,13 @@ class AutomationService {
           enabled: true,
           daysAfter: 7,
           priority: 'high',
-          condition: (pratica, triggerData) => 
+          condition: (pratica, triggerData) =>
             pratica.collaboratore && triggerData.importoCollaboratore > 0,
-          generateText: (pratica, triggerData) => 
+          generateText: (pratica, triggerData) =>
             `Pagare ${triggerData.importoCollaboratore}€ a ${pratica.collaboratore}`
         }
       ],
-      
+
       // Regole per l'automazione basata sulla scadenza finale della pratica
       deadline: [
         {
@@ -71,7 +70,7 @@ class AutomationService {
           enabled: true,
           daysAfter: -30, // giorni prima della scadenza
           priority: 'normal',
-          generateText: (pratica) => 
+          generateText: (pratica) =>
             `Preparare documentazione finale per ${pratica.indirizzo} (30gg alla scadenza)`
         },
         {
@@ -80,7 +79,7 @@ class AutomationService {
           enabled: true,
           daysAfter: -15, // giorni prima della scadenza
           priority: 'high',
-          generateText: (pratica) => 
+          generateText: (pratica) =>
             `Verifica avanzamento pratica ${pratica.indirizzo} (15gg alla scadenza)`
         },
         {
@@ -89,13 +88,13 @@ class AutomationService {
           enabled: true,
           daysAfter: -7, // giorni prima della scadenza
           priority: 'high',
-          generateText: (pratica) => 
+          generateText: (pratica) =>
             `URGENTE: Completare pratica ${pratica.indirizzo} (7gg alla scadenza)`
         }
       ]
     };
   }
-  
+
   /**
    * Ottiene le regole di automazione disponibili
    * @returns {Object} Le regole di automazione
@@ -103,9 +102,9 @@ class AutomationService {
   getAutomationRules() {
     return this.automationRules;
   }
-  
+
   /**
-   * Salva la configurazione delle regole di automazione 
+   * Salva la configurazione delle regole di automazione
    * @param {Object} newRules - Nuove regole di automazione
    */
   saveAutomationRules(newRules) {
@@ -113,9 +112,9 @@ class AutomationService {
     localStorage.setItem('automationRules', JSON.stringify(newRules));
     this.automationRules = newRules;
   }
-  
+
   /**
-   * Carica la configurazione delle regole di automazione 
+   * Carica la configurazione delle regole di automazione
    */
   loadAutomationRules() {
     const savedRules = localStorage.getItem('automationRules');
@@ -127,7 +126,7 @@ class AutomationService {
       }
     }
   }
-  
+
   /**
    * Genera task automatiche in base a un trigger
    * @param {Object} pratica - La pratica interessata
@@ -141,27 +140,27 @@ class AutomationService {
       console.warn(`Trigger non valido: ${trigger}`);
       return [];
     }
-    
+
     const now = new Date();
     const tasksToAdd = [];
-    
+
     // Per ogni regola di automazione associata al trigger
     this.automationRules[trigger].forEach(rule => {
       // Salta regole disabilitate
       if (!rule.enabled) return;
-      
+
       // Verifica condizioni personalizzate
       if (rule.condition && !rule.condition(pratica, triggerData)) {
         return;
       }
-      
+
       // Calcola la data di scadenza
       let dueDate;
-      
+
       if (trigger === 'deadline') {
         // Per deadline, usa la data di scadenza della pratica
         if (!pratica.dataFine) return;
-        
+
         dueDate = addDays(new Date(pratica.dataFine), rule.daysAfter);
         // Se la data è già passata, salta questa regola
         if (dueDate < now) return;
@@ -173,10 +172,10 @@ class AutomationService {
         }
         dueDate = addDays(baseDate, rule.daysAfter);
       }
-      
+
       // Genera il testo della task
       const taskText = rule.generateText(pratica, triggerData);
-      
+
       // Crea la task
       tasksToAdd.push({
         text: taskText,
@@ -190,12 +189,12 @@ class AutomationService {
         ruleId: rule.id
       });
     });
-    
+
     return tasksToAdd;
   }
-  
+
   /**
-   * Aggiunge task generate al workflow della pratica e le sincronizza
+   * Aggiunge task generate al workflow della pratica
    * @param {Object} pratica - La pratica
    * @param {Array} tasks - Task da aggiungere
    * @param {Function} updatePratica - Funzione per aggiornare la pratica
@@ -203,56 +202,36 @@ class AutomationService {
    */
   async addTasksToPratica(pratica, tasks, updatePratica) {
     if (!tasks || tasks.length === 0) return pratica.workflow || {};
-    
+
     // Crea o aggiorna il workflow
     const updatedWorkflow = { ...pratica.workflow } || {};
-    
+
     // Inizializza step inizioPratica se non esiste
     if (!updatedWorkflow.inizioPratica) {
-      updatedWorkflow.inizioPratica = { 
+      updatedWorkflow.inizioPratica = {
         tasks: [],
         notes: [],
-        completed: false 
+        completed: false
       };
     }
-    
+
     // Assicurati che l'array tasks esista
     if (!updatedWorkflow.inizioPratica.tasks) {
       updatedWorkflow.inizioPratica.tasks = [];
     }
-    
+
     // Aggiungi le nuove task
     const updatedTasks = [...updatedWorkflow.inizioPratica.tasks, ...tasks];
     updatedWorkflow.inizioPratica.tasks = updatedTasks;
-    
-    // Sincronizza con Google Calendar se possibile
-    if (googleCalendarService.isAuthenticated()) {
-      try {
-        const praticaInfo = `${pratica.codice || ''} ${pratica.indirizzo} - ${pratica.cliente}`;
-        
-        // Sincronizza ogni task
-        for (let i = 0; i < tasks.length; i++) {
-          const taskIndex = updatedWorkflow.inizioPratica.tasks.length - tasks.length + i;
-          const task = updatedWorkflow.inizioPratica.tasks[taskIndex];
-          
-          // Crea evento in Google Calendar
-          const eventId = await googleCalendarService.syncTaskWithCalendar(task, praticaInfo);
-          updatedWorkflow.inizioPratica.tasks[taskIndex].googleCalendarEventId = eventId;
-        }
-      } catch (error) {
-        console.error('Errore sincronizzazione con Google Calendar:', error);
-        // Continua comunque con l'aggiornamento
-      }
-    }
-    
+
     // Aggiorna la pratica
     if (updatePratica) {
       await updatePratica(pratica.id, { workflow: updatedWorkflow });
     }
-    
+
     return updatedWorkflow;
   }
-  
+
   /**
    * Processa un trigger e crea le task automatiche
    * @param {Object} pratica - La pratica
@@ -265,14 +244,14 @@ class AutomationService {
     try {
       // Genera le task basate sulle regole
       const tasksToAdd = this.generateTasksForTrigger(pratica, trigger, triggerData);
-      
+
       if (tasksToAdd.length === 0) {
         return [];
       }
-      
+
       // Aggiungi le task al workflow e aggiorna la pratica
       await this.addTasksToPratica(pratica, tasksToAdd, updatePratica);
-      
+
       return tasksToAdd;
     } catch (error) {
       console.error('Errore durante il processing del trigger:', error);

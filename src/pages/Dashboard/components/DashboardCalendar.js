@@ -1,22 +1,19 @@
-// src/pages/Dashboard/components/DashboardCalendar.js
 import React from 'react';
 import { format, isSameMonth, startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, isSameDay } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { FaChevronLeft, FaChevronRight, FaCalendarAlt, FaGoogle, FaSyncAlt } from 'react-icons/fa';
+import { FaChevronLeft, FaChevronRight, FaCalendarAlt, FaSyncAlt } from 'react-icons/fa';
 import { BsCalendarDay, BsCalendarMonth, BsCalendarWeek } from 'react-icons/bs';
 
-function DashboardCalendar({ 
-  currentDate, 
-  setCurrentDate, 
-  calendarView, 
-  setCalendarView, 
-  googleEvents, 
-  isAuthenticated, 
-  isLoadingEvents, 
-  lastSync, 
-  fetchEvents, 
-  handleGoogleAuth,
-  pendingTasks,
+function DashboardCalendar({
+  currentDate,
+  setCurrentDate,
+  calendarView,
+  setCalendarView,
+  events = [], // Fornisce un array vuoto come default
+  isLoadingEvents,
+  lastSync,
+  fetchEvents,
+  pendingTasks = [], // Fornisce un array vuoto come default
   navigatePrev,
   navigateNext,
   navigateToday
@@ -44,14 +41,14 @@ function DashboardCalendar({
     const monthEnd = endOfMonth(currentDate);
     const startDate = startOfWeek(monthStart, { locale: it });
     const endDate = endOfWeek(monthEnd, { locale: it });
-    
+
     const dateFormat = 'd';
     const dayFormat = 'EEEEEE';
     const monthYearFormat = 'MMMM yyyy';
-    
+
     const days = [];
     let day = startDate;
-    
+
     // Intestazioni dei giorni della settimana
     const daysOfWeek = [];
     for (let i = 0; i < 7; i++) {
@@ -67,15 +64,15 @@ function DashboardCalendar({
       for (let i = 0; i < 7; i++) {
         const cloneDay = day;
         const dateString = format(cloneDay, 'yyyy-MM-dd');
-        
+
         // Combina task, eventi e scadenze pratiche per la vista calendario
         const dayEvents = getEventsForDay(cloneDay);
-        
+
         days.push(
           <div
             key={dateString}
             className={`min-h-16 border p-1 ${
-              !isSameMonth(cloneDay, monthStart) ? 'bg-gray-100 text-gray-400' : 
+              !isSameMonth(cloneDay, monthStart) ? 'bg-gray-100 text-gray-400' :
               isSameDay(cloneDay, new Date()) ? 'bg-blue-50 border-blue-500' : ''
             }`}
           >
@@ -89,7 +86,7 @@ function DashboardCalendar({
             </div>
             <div className="overflow-y-auto max-h-12">
               {dayEvents.slice(0, 2).map((event) => (
-                <div 
+                <div
                   key={event.id}
                   className="text-xs mt-1 p-1 rounded truncate cursor-pointer"
                   style={{ backgroundColor: event.color }}
@@ -105,7 +102,7 @@ function DashboardCalendar({
             </div>
           </div>
         );
-        
+
         day = addDays(day, 1);
       }
     }
@@ -126,7 +123,7 @@ function DashboardCalendar({
   // Helper per ottenere gli eventi per un determinato giorno
   const getEventsForDay = (date) => {
     const dateString = format(date, 'yyyy-MM-dd');
-    
+
     // Task con scadenza in questo giorno
     const taskEvents = pendingTasks
       .filter(task => task.dueDate && format(new Date(task.dueDate), 'yyyy-MM-dd') === dateString)
@@ -140,12 +137,12 @@ function DashboardCalendar({
         type: 'task',
         task
       }));
-    
-    // Eventi da Google Calendar
-    const googleEventsForDay = googleEvents
+
+    // Eventi dall'applicazione
+    const appEventsForDay = events
       .filter(event => {
-        const eventDate = event.start ? 
-          new Date(event.start) : 
+        const eventDate = event.start ?
+          new Date(event.start) :
           null;
         return eventDate && format(eventDate, 'yyyy-MM-dd') === dateString;
       })
@@ -154,53 +151,53 @@ function DashboardCalendar({
         title: event.title || event.summary,
         start: event.start ? new Date(event.start) : new Date(),
         color: event.color || '#9CA3AF',
-        type: 'google',
-        googleEvent: event
+        type: 'app',
+        event
       }));
-    
-    return [...taskEvents, ...googleEventsForDay];
+
+    return [...taskEvents, ...appEventsForDay];
   };
 
   return (
     <div className="bg-white rounded-lg shadow">
       <div className="flex items-center justify-between p-4 border-b">
         <div className="flex items-center space-x-2">
-          <button 
+          <button
             className="p-2 border border-gray-300 rounded-md hover:bg-gray-100"
             onClick={handlePrev}
           >
             <FaChevronLeft />
           </button>
-          <button 
+          <button
             className="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-100"
             onClick={handleToday}
           >
             Oggi
           </button>
-          <button 
+          <button
             className="p-2 border border-gray-300 rounded-md hover:bg-gray-100"
             onClick={handleNext}
           >
             <FaChevronRight />
           </button>
         </div>
-        
+
         <div className="flex items-center space-x-1">
-          <button 
+          <button
             className={`p-2 rounded-md ${calendarView === 'day' ? 'bg-blue-600 text-white' : 'hover:bg-gray-100'}`}
             onClick={() => setCalendarView('day')}
             title="Vista giornaliera"
           >
             <BsCalendarDay />
           </button>
-          <button 
+          <button
             className={`p-2 rounded-md ${calendarView === 'week' ? 'bg-blue-600 text-white' : 'hover:bg-gray-100'}`}
             onClick={() => setCalendarView('week')}
             title="Vista settimanale"
           >
             <BsCalendarWeek />
           </button>
-          <button 
+          <button
             className={`p-2 rounded-md ${calendarView === 'month' ? 'bg-blue-600 text-white' : 'hover:bg-gray-100'}`}
             onClick={() => setCalendarView('month')}
             title="Vista mensile"
@@ -208,28 +205,17 @@ function DashboardCalendar({
             <BsCalendarMonth />
           </button>
         </div>
-        
-        {!isAuthenticated ? (
-          <button 
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
-            onClick={handleGoogleAuth}
-          >
-            <FaGoogle className="mr-2" />
-            <span className="hidden md:inline">Connetti Google Calendar</span>
-            <span className="inline md:hidden">Calendar</span>
-          </button>
-        ) : (
-          <button 
-            className="p-2 border border-gray-300 rounded-md hover:bg-gray-100 text-gray-500"
-            onClick={fetchEvents}
-            disabled={isLoadingEvents}
-            title="Sincronizza eventi"
-          >
-            <FaSyncAlt size={14} className={isLoadingEvents ? 'animate-spin' : ''} />
-          </button>
-        )}
+
+        <button
+          className="p-2 border border-gray-300 rounded-md hover:bg-gray-100 text-gray-500"
+          onClick={fetchEvents}
+          disabled={isLoadingEvents}
+          title="Aggiorna eventi"
+        >
+          <FaSyncAlt size={14} className={isLoadingEvents ? 'animate-spin' : ''} />
+        </button>
       </div>
-      
+
       <div className="p-4 overflow-x-auto h-64">
         {isLoadingEvents ? (
           <div className="flex justify-center items-center h-full">
@@ -240,7 +226,7 @@ function DashboardCalendar({
           renderMonthView()
         )}
       </div>
-      
+
       {lastSync && (
         <div className="px-4 pb-2 text-xs text-gray-500 text-right">
           Ultimo aggiornamento: {format(lastSync, 'HH:mm', { locale: it })}
