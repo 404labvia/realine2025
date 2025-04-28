@@ -1,11 +1,9 @@
-// src/pages/PratichePage/handlers/index.js
 import { handleAddNote, handleDeleteNote, handleUpdateNote } from './noteHandlers';
 import { 
   handleToggleTaskItem, 
   handleSetTaskDueDate, 
   handleRemoveTaskDueDate, 
-  handleSyncTaskWithCalendar,
-  generateAutomaticTasks 
+  handleSyncTaskWithCalendar
 } from './taskHandlers';
 import { handlePaymentChange } from './paymentHandlers';
 import { handleDateTimeChange, handleDeleteDateTime } from './dateHandlers';
@@ -76,7 +74,6 @@ export {
   handleSetTaskDueDate,
   handleRemoveTaskDueDate,
   handleSyncTaskWithCalendar,
-  generateAutomaticTasks,
   
   // Handlers pagamenti
   handlePaymentChange,

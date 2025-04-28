@@ -1,41 +1,212 @@
-// src/services/EnhancedAuthService.js
 import { 
   getAuth, 
-  GoogleAuthProvider, 
+  GoogleAuthProvider,
   signInWithPopup,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut
 } from "firebase/auth";
 
-// Costanti per l'API di Google Calendar
-const GOOGLE_API_BASE_URL = 'https://www.googleapis.com/calendar/v3';
-
 class EnhancedAuthService {
   constructor() {
     this.auth = getAuth();
     
-    // Storage keys diversi per separare le autenticazioni
+    // Storage keys per separare le autenticazioni
     this.APP_AUTH_KEY = 'realineAppAuth';
-    this.CALENDAR_AUTH_KEY = 'googleCalendarAuth';
+    this.CALENDAR_AUTH_KEY = 'googleCalendarToken';
     
-    // Inizializza stato calendario
+    // Gestione token calendario
     this.calendarToken = null;
+    this.calendarRefreshToken = null;
     this.calendarExpiresAt = null;
     this.calendarUserEmail = null;
-    this.calendarId = 'primary'; // Default calendar
+    this.calendarId = 'primary';
     
-    // Carica token di calendario dalla localStorage se disponibile
+    // Carica il token calendario dalla localStorage
     this.loadCalendarToken();
+    
+    // Setup autorefresh del token
+    this.setupAutoRefresh();
   }
   
-  // -------- METODI PER AUTENTICAZIONE APP (FIREBASE) --------
+  // Carica il token del calendario da localStorage
+  loadCalendarToken() {
+    try {
+      const tokenData = localStorage.getItem(this.CALENDAR_AUTH_KEY);
+      if (tokenData) {
+        const parsed = JSON.parse(tokenData);
+        this.calendarToken = parsed.accessToken;
+        this.calendarRefreshToken = parsed.refreshToken;
+        this.calendarExpiresAt = parsed.expiresAt;
+        this.calendarUserEmail = parsed.userEmail;
+        
+        // Se il token sta per scadere, refresha
+        if (this.shouldRefreshToken()) {
+          this.refreshCalendarToken();
+        }
+      }
+    } catch (error) {
+      console.error('Errore nel caricare il token del calendario:', error);
+      this.clearCalendarToken();
+    }
+  }
   
-  // Login all'app con email e password
+  // Salva il token del calendario (separato dall'app)
+  saveCalendarToken(accessToken, refreshToken, userEmail, expiresIn = 3600) {
+    const expiresAt = Date.now() + (expiresIn * 1000);
+    this.calendarToken = accessToken;
+    this.calendarRefreshToken = refreshToken;
+    this.calendarExpiresAt = expiresAt;
+    this.calendarUserEmail = userEmail;
+    
+    localStorage.setItem(this.CALENDAR_AUTH_KEY, JSON.stringify({
+      accessToken,
+      refreshToken,
+      expiresAt,
+      userEmail,
+      timestamp: Date.now()
+    }));
+  }
+  
+  // Controlla se il token dovrebbe essere refreshato (< 5 minuti alla scadenza)
+  shouldRefreshToken() {
+    if (!this.calendarExpiresAt) return false;
+    const fiveMinutes = 5 * 60 * 1000;
+    return Date.now() >= (this.calendarExpiresAt - fiveMinutes);
+  }
+  
+  // Setup refresh automatico del token
+  setupAutoRefresh() {
+    setInterval(() => {
+      if (this.shouldRefreshToken() && this.calendarRefreshToken) {
+        this.refreshCalendarToken();
+      }
+    }, 60000); // Controlla ogni minuto
+  }
+  
+  // Refresh del token Calendar
+  async refreshCalendarToken() {
+    try {
+      const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: process.env.REACT_APP_GOOGLE_CLIENT_ID,
+          client_secret: process.env.REACT_APP_GOOGLE_CLIENT_SECRET,
+          refresh_token: this.calendarRefreshToken,
+          grant_type: 'refresh_token',
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data.access_token) {
+        this.saveCalendarToken(
+          data.access_token,
+          this.calendarRefreshToken, // mantieni il refresh token esistente
+          this.calendarUserEmail,
+          data.expires_in
+        );
+        return true;
+      }
+      
+      throw new Error('Token refresh failed');
+    } catch (error) {
+      console.error('Errore refresh token calendario:', error);
+      return false;
+    }
+  }
+  
+  // Pulisce il token del calendario
+  clearCalendarToken() {
+    this.calendarToken = null;
+    this.calendarRefreshToken = null;
+    this.calendarExpiresAt = null;
+    this.calendarUserEmail = null;
+    localStorage.removeItem(this.CALENDAR_AUTH_KEY);
+  }
+  
+  // Verifica se l'utente è autenticato con Google Calendar
+  isCalendarAuthenticated() {
+    return this.calendarToken && 
+           this.calendarRefreshToken &&
+           Date.now() < this.calendarExpiresAt && 
+           this.calendarUserEmail !== null;
+  }
+  
+  // Ottieni il token per le richieste a Google Calendar
+  getCalendarToken() {
+    if (this.shouldRefreshToken()) {
+      this.refreshCalendarToken();
+    }
+    return this.calendarToken;
+  }
+  
+  // Ottieni l'email dell'utente del calendario
+  getCalendarUserEmail() {
+    return this.calendarUserEmail;
+  }
+  
+  // Autentica specificamente per Calendar
+  async authenticateCalendar(preferredEmail = 'badalucco.g@gmail.com') {
+    try {
+      const googleProvider = new GoogleAuthProvider();
+      
+      // Aggiungi scope per Google Calendar
+      googleProvider.addScope('https://www.googleapis.com/auth/calendar');
+      googleProvider.addScope('https://www.googleapis.com/auth/calendar.events');
+      
+      // Preferisci account specifico
+      googleProvider.setCustomParameters({
+        login_hint: preferredEmail,
+        prompt: 'consent',
+        access_type: 'offline', // Necessario per refresh token
+        include_granted_scopes: true
+      });
+      
+      const result = await signInWithPopup(this.auth, googleProvider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      
+      if (credential?.accessToken) {
+        // Salva sia access token che refresh token
+        this.saveCalendarToken(
+          credential.accessToken,
+          credential._refreshToken, // Google fornisce il refresh token
+          result.user.email,
+          3600 // Default expiry time
+        );
+        
+        return {
+          success: true,
+          user: result.user,
+          token: credential.accessToken
+        };
+      }
+      
+      throw new Error('Token non ottenuto');
+    } catch (error) {
+      console.error('Errore di autenticazione con Google Calendar:', error);
+      return {
+        success: false,
+        error: error.message || 'Errore di autenticazione'
+      };
+    }
+  }
+  
+  // Disconnetti solo da Google Calendar
+  disconnectCalendar() {
+    this.clearCalendarToken();
+    return { success: true };
+  }
+  
+  // ----- METODI PER AUTENTICAZIONE APP -----
+  
+  // Login con email e password
   async loginWithEmailPassword(email, password) {
     try {
       const userCredential = await signInWithEmailAndPassword(this.auth, email, password);
       
-      // Salva info utente app in storage separato
       localStorage.setItem(this.APP_AUTH_KEY, JSON.stringify({
         email: userCredential.user.email,
         uid: userCredential.user.uid,
@@ -55,17 +226,18 @@ class EnhancedAuthService {
     }
   }
   
-  // Logout dall'app (senza toccare l'auth di Google Calendar)
+  // Logout dall'app (e opzionalmente da Calendar)
   async logoutFromApp() {
     try {
       await firebaseSignOut(this.auth);
-      
-      // Rimuovi solo le info dell'app
       localStorage.removeItem(this.APP_AUTH_KEY);
+      
+      // Disconnetti anche da Calendar
+      this.disconnectCalendar();
       
       return { success: true };
     } catch (error) {
-      console.error('Errore durante il logout dall\'app:', error);
+      console.error('Errore durante il logout:', error);
       return { 
         success: false, 
         error: error.message || 'Errore durante il logout'
@@ -90,187 +262,6 @@ class EnhancedAuthService {
     } catch (error) {
       console.error('Errore nel recupero dati utente app:', error);
       return null;
-    }
-  }
-  
-  // -------- METODI PER AUTENTICAZIONE GOOGLE CALENDAR --------
-  
-  // Carica il token di calendario da localStorage
-  loadCalendarToken() {
-    try {
-      const tokenData = localStorage.getItem(this.CALENDAR_AUTH_KEY);
-      if (tokenData) {
-        const parsed = JSON.parse(tokenData);
-        this.calendarToken = parsed.accessToken;
-        this.calendarExpiresAt = parsed.expiresAt;
-        this.calendarUserEmail = parsed.userEmail;
-      }
-    } catch (error) {
-      console.error('Errore nel caricare il token del calendario:', error);
-      this.clearCalendarToken();
-    }
-  }
-  
-  // Salva il token del calendario in localStorage (separato dall'app)
-  saveCalendarToken(accessToken, userEmail, expiresIn = 3600) {
-    const expiresAt = Date.now() + (expiresIn * 1000);
-    this.calendarToken = accessToken;
-    this.calendarExpiresAt = expiresAt;
-    this.calendarUserEmail = userEmail;
-    
-    localStorage.setItem(this.CALENDAR_AUTH_KEY, JSON.stringify({
-      accessToken,
-      expiresAt,
-      userEmail,
-      timestamp: Date.now()
-    }));
-  }
-  
-  // Pulisce il token del calendario
-  clearCalendarToken() {
-    this.calendarToken = null;
-    this.calendarExpiresAt = null;
-    this.calendarUserEmail = null;
-    localStorage.removeItem(this.CALENDAR_AUTH_KEY);
-  }
-  
-  // Controlla se l'utente è autenticato a Google Calendar
-  isCalendarAuthenticated() {
-    return this.calendarToken && 
-           Date.now() < this.calendarExpiresAt && 
-           this.calendarUserEmail !== null;
-  }
-  
-  // Ottieni il token per le richieste a Google Calendar
-  getCalendarToken() {
-    if (this.isCalendarAuthenticated()) {
-      return this.calendarToken;
-    }
-    return null;
-  }
-  
-  // Ottieni l'email dell'utente del calendario
-  getCalendarUserEmail() {
-    return this.calendarUserEmail;
-  }
-  
-  // Esegue l'autenticazione con Google specificatamente per Calendar
-  // E' separata dall'autenticazione dell'app
-  async authenticateCalendar(preferredEmail = 'badalucco.g@gmail.com') {
-    try {
-      // Crea un nuovo provider ad ogni autenticazione per evitare problemi di cache
-      const googleProvider = new GoogleAuthProvider();
-      
-      // Aggiungi scope per Google Calendar
-      googleProvider.addScope('https://www.googleapis.com/auth/calendar');
-      googleProvider.addScope('https://www.googleapis.com/auth/calendar.events');
-      
-      // Impostiamo i parametri per preferire un account specifico 
-      // e forzare la selezione dell'account
-      googleProvider.setCustomParameters({
-        login_hint: preferredEmail,   // Suggerisce l'account da utilizzare
-        prompt: 'select_account'      // Forza la visualizzazione della selezione account
-      });
-      
-      // Apri popup di autenticazione 
-      // Questo è separato dall'autenticazione dell'app
-      const result = await signInWithPopup(this.auth, googleProvider);
-      
-      // Ottieni il token di accesso
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      const token = credential.accessToken;
-      const user = result.user;
-      
-      if (token) {
-        // Salva il token del calendario separatamente dall'auth dell'app
-        this.saveCalendarToken(token, user.email);
-        
-        return {
-          success: true,
-          user: user,
-          token: token
-        };
-      } else {
-        throw new Error('Token di calendario non ottenuto');
-      }
-    } catch (error) {
-      console.error('Errore di autenticazione con Google Calendar:', error);
-      
-      // Gestione più dettagliata degli errori
-      let errorMessage = 'Errore di autenticazione sconosciuto';
-      
-      switch (error.code) {
-        case 'auth/popup-blocked':
-          errorMessage = 'Il popup è stato bloccato dal browser. Abilita i popup per questo sito.';
-          break;
-        case 'auth/popup-closed-by-user':
-          errorMessage = 'Autenticazione annullata. Il popup è stato chiuso prima di completare il processo.';
-          break;
-        case 'auth/cancelled-popup-request':
-          errorMessage = 'Richiesta annullata. È già in corso un altro tentativo di autenticazione.';
-          break;
-        default:
-          errorMessage = `Errore: ${error.message || 'Dettagli non disponibili'}`;
-      }
-      
-      return {
-        success: false,
-        error: errorMessage,
-        errorCode: error.code
-      };
-    }
-  }
-  
-  // Disconnetti solo da Google Calendar (senza toccare l'auth dell'app)
-  disconnectCalendar() {
-    this.clearCalendarToken();
-    return { success: true };
-  }
-  
-  // -------- METODI PER API GOOGLE CALENDAR --------
-  
-  // Imposta il calendario da utilizzare
-  setCalendarId(calendarId) {
-    this.calendarId = calendarId;
-  }
-  
-  // Esegue una richiesta API a Google Calendar
-  async makeCalendarRequest(endpoint, method = 'GET', data = null) {
-    try {
-      const accessToken = this.getCalendarToken();
-      if (!accessToken) {
-        throw new Error('Token di accesso al calendario non disponibile');
-      }
-      
-      const options = {
-        method,
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        }
-      };
-      
-      if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
-        options.body = JSON.stringify(data);
-      }
-      
-      const response = await fetch(`${GOOGLE_API_BASE_URL}${endpoint}`, options);
-      
-      if (!response.ok) {
-        // Se il token è scaduto (401) potremmo gestire il refresh
-        if (response.status === 401) {
-          this.clearCalendarToken();
-          throw new Error('Token scaduto, necessaria riautenticazione');
-        }
-        
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || `Errore ${response.status}: ${response.statusText}`);
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('Errore nella richiesta API a Google Calendar:', error);
-      throw error;
     }
   }
 }
