@@ -1,192 +1,230 @@
-import React from 'react';
-import { Bar } from 'react-chartjs-2';
-import GaugeChart from 'react-gauge-chart';
-import { MdAccountBalance, MdAttachMoney, MdMoneyOff } from 'react-icons/md';
+import React, { useMemo } from 'react';
+import { usePratiche } from '../../contexts/PraticheContext';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadialBarChart, RadialBar, PolarAngleAxis, Cell } from 'recharts'; // Added Cell for Bar colors
+import { Euro, Activity, TrendingUp } from 'lucide-react';
+import {
+  calcolaStatistichePrincipali
+} from '../../pages/Dashboard/utils/dashboardCalculations';
 
-// Componente semplificato per il tachimetro senza tacche
-const CustomGauge = ({ percentage, value }) => {
-  return (
-    <div className="relative">
-      <GaugeChart 
-        id="gauge-chart"
-        nrOfLevels={3}
-        colors={["#FF5F6D", "#FFC371", "#66BB6A"]}
-        arcWidth={0.3}
-        percent={percentage / 100}
-        textColor="#333"
-        needleColor="#464A4F"
-        needleBaseColor="#464A4F"
-        hideText={true}
-      />
-      <div className="text-center mt-2">
-        <div className="text-xl font-bold">{percentage.toFixed(2)}%</div>
-        <div className="text-sm text-gray-500">% Margine</div>
-        <div className="text-2xl font-bold text-gray-800 mt-2">
-          €{value.toLocaleString('it-IT')}
-        </div>
-        <div className="text-sm text-gray-500">Profitto</div>
-      </div>
-    </div>
-  );
+// Helper function to format currency
+const formatCurrency = (value) => {
+  // Ensure value is treated as a number, default to 0 if not valid
+  const numericValue = Number(value);
+  return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(isNaN(numericValue) ? 0 : numericValue);
 };
 
-function SituazioneFinanziaria({ finanze }) {
-  // Prepare chart data for monthly income and expenses
-  const mesiLabels = [
-    'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
-    'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'
-  ];
-  
-  const entrateUsciteChartData = {
-    labels: mesiLabels,
-    datasets: [
-      {
-        type: 'bar',
-        label: 'Entrate',
-        data: Object.values(finanze.pagamentiPerMese),
-        backgroundColor: 'rgba(255, 159, 64, 0.7)',
-        borderColor: 'rgb(255, 159, 64)',
-        borderWidth: 1,
-        order: 2
-      },
-      {
-        type: 'bar',
-        label: 'Uscite',
-        data: Object.values(finanze.pagamentiCollaboratoriPerMese),
-        backgroundColor: 'rgba(201, 203, 207, 0.7)',
-        borderColor: 'rgb(201, 203, 207)',
-        borderWidth: 1,
-        order: 2
-      },
-      {
-        type: 'line',
-        label: 'Profitto',
-        data: Object.values(finanze.profittoPerMese),
-        borderColor: 'rgb(75, 192, 192)',
-        borderWidth: 2,
-        pointBackgroundColor: 'rgb(75, 192, 192)',
-        tension: 0.1,
-        order: 1
-      }
-    ]
-  };
-  
-  const entrateUsciteChartOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: 'top',
-      },
-      title: {
-        display: true,
-        text: 'Entrate e uscite'
-      },
-      subtitle: {
-        display: true,
-        text: 'Ultimi 6 mesi',
-        position: 'bottom'
-      },
-      tooltip: {
-        callbacks: {
-          label: function(context) {
-            let label = context.dataset.label || '';
-            if (label) {
-              label += ': ';
-            }
-            if (context.parsed.y !== null) {
-              label += new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(context.parsed.y);
-            }
-            return label;
-          }
-        }
-      }
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        grid: {
-          display: true
-        },
-        ticks: {
-          // Include € in the ticks
-          callback: function(value) {
-            return '€' + value;
-          }
-        }
-      }
+
+// Helper function to format percentage
+const formatPercentage = (value) => {
+  const numericValue = Number(value);
+  return `${(isNaN(numericValue) ? 0 : numericValue).toFixed(1)}%`;
+};
+
+// Define colors for cards and bars (approximating Tailwind shades)
+const COLORS = {
+  incassato: '#3b82f6', // Blue (Tailwind blue-500/600 area for stronger color)
+  inCorso: '#f59e0b', // Yellow/Amber (Tailwind yellow-500/amber-500 area)
+  daRicevere: '#10b981', // Green (Tailwind green-500/emerald-500 area)
+  margine: '#8884d8' // Default Recharts color for gauge
+};
+
+// Main component for Financial Situation
+function SituazioneFinanziaria() {
+  const { pratiche } = usePratiche();
+
+  // Calculate financial metrics
+  const {
+    incassatoTotale, // Renamed from fatturatoTotale
+    valorePraticheInCorso,
+    totaleDaRicevere,
+    margineLordo, // Added for gauge display
+    marginePercentuale
+  } = useMemo(() => {
+    if (!pratiche || pratiche.length === 0) {
+      return {
+        incassatoTotale: 0,
+        valorePraticheInCorso: 0,
+        totaleDaRicevere: 0,
+        costiTotali: 0,
+        margineLordo: 0,
+        marginePercentuale: 0,
+      };
     }
+
+    const stats = calcolaStatistichePrincipali(pratiche);
+
+    const calculatedIncassato = stats.fatturatoTotale || 0; // Keep using fatturatoTotale from stats
+    const calculatedValoreInCorso = stats.valoreInCorso || 0;
+    const calculatedDaRicevere = stats.totaleDaRicevere || 0;
+
+    // Calculate total costs from all pratiche, ensuring 'costo' is treated as a number
+    const costi = pratiche.reduce((acc, p) => acc + (Number(p.costo) || 0), 0);
+
+
+    // Calculate Profit (Margine Lordo) and Percentage
+    // Profit = Incassato - Costi Totali
+    const profitto = calculatedIncassato - costi; // Profit can be negative
+    // Margin % = (Profit / Incassato) * 100. Handle division by zero.
+    const marginePerc = calculatedIncassato !== 0 ? (profitto / calculatedIncassato) * 100 : 0;
+
+
+    return {
+      incassatoTotale: calculatedIncassato,
+      valorePraticheInCorso: calculatedValoreInCorso,
+      totaleDaRicevere: calculatedDaRicevere,
+      costiTotali: costi,
+      margineLordo: profitto, // Return the calculated profit
+      marginePercentuale: marginePerc,
+    };
+  }, [pratiche]);
+
+  // Data for the Bar Chart - Updated names and added colors
+  const barChartData = useMemo(() => [
+    { name: 'Incassato', Valore: incassatoTotale, fill: COLORS.incassato },
+    { name: 'Valore In Corso', Valore: valorePraticheInCorso, fill: COLORS.inCorso },
+    { name: 'Da Ricevere', Valore: totaleDaRicevere, fill: COLORS.daRicevere },
+  ], [incassatoTotale, valorePraticheInCorso, totaleDaRicevere]);
+
+  // Data for the Radial Bar Chart (Gauge simulation) - Represents margin %
+  const gaugeData = useMemo(() => [
+    // Clamp percentage for visual representation (0-100)
+    // Note: The visual gauge shows 0-100, but the text label shows the actual percentage.
+    { name: 'Margine %', value: Math.max(0, Math.min(100, marginePercentuale)), fill: COLORS.margine },
+  ],[marginePercentuale]);
+
+  // Style for the Radial Bar Chart label
+  const radialProfitStyle = { // Style for the main profit value (€)
+    fontSize: '1.5rem',
+    fontWeight: 'bold',
+    fill: '#333',
+  };
+  const radialPercentageStyle = { // Style for the percentage value (%)
+    fontSize: '1rem',
+    fill: '#666',
   };
 
+
   return (
-    <div className="bg-white p-6 rounded-lg shadow mb-8">
-      <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-        <MdAccountBalance className="text-blue-600 mr-2 text-2xl" />
-        Situazione Finanziaria Realine Studio
-      </h2>
-      
-      <div className="grid grid-cols-1 lg:grid-cols-6 gap-6">
-        {/* Prima colonna - Sommario finanziario (2/6) */}
-        <div className="space-y-4 lg:col-span-2">
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <h3 className="text-lg font-medium text-gray-800 mb-2 flex items-center">
-              <MdAttachMoney className="text-green-600 mr-2" />
-              Entrate <span className="text-sm text-gray-600 ml-2">(riepilogo finanziario)</span>
-            </h3>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center pb-2 border-b border-gray-200">
-                <span className="text-gray-600">Pagamenti Ricevuti:</span>
-                <span className="font-semibold text-green-600">€{finanze.totalePagamenti.toLocaleString('it-IT')}</span>
-              </div>
-              <div className="flex justify-between items-center pb-2 border-b border-gray-200">
-                <span className="text-gray-600">Da Ricevere:</span>
-                <span className="font-semibold text-red-600">€{finanze.totaleDaPagare.toLocaleString('it-IT')}</span>
-              </div>
-              <div className="flex justify-between items-center pt-2">
-                <span className="text-gray-700 font-medium">Totale:</span>
-                <span className="font-bold text-gray-800">€{(finanze.totalePagamenti + finanze.totaleDaPagare).toLocaleString('it-IT')}</span>
-              </div>
+    <div className="bg-white shadow-lg rounded-lg w-full p-6">
+      <div className="mb-6">
+        <h3 className="text-xl font-semibold text-gray-700">Situazione Finanziaria</h3>
+      </div>
+      <div className="space-y-6">
+        {/* Key Metrics Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+          {/* Incassato Card - Updated Title */}
+          <div className="bg-blue-50 rounded-md shadow-sm overflow-hidden p-4">
+            <div className="flex flex-row items-center justify-between space-y-0 pb-2">
+              {/* Updated Title */}
+              <div className="text-sm font-medium text-blue-800">Incassato</div>
+              <Euro className="h-5 w-5 text-blue-600" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-blue-900 truncate">{formatCurrency(incassatoTotale)}</div>
             </div>
           </div>
-          
-          <div className="bg-green-50 p-4 rounded-lg">
-            <h3 className="text-lg font-medium text-gray-800 mb-2 flex items-center">
-              <MdMoneyOff className="text-red-600 mr-2" />
-              Uscite <span className="text-sm text-gray-600 ml-2">(pagamenti collaboratori)</span>
-            </h3>
-            <div className="space-y-3">
-              <div className="flex justify-between items-center pb-2 border-b border-gray-200">
-                <span className="text-gray-600">Totale Dovuto:</span>
-                <span className="font-semibold text-red-600">€{finanze.totaliCollaboratori.totale.toLocaleString('it-IT')}</span>
-              </div>
-              <div className="flex justify-between items-center pb-2 border-b border-gray-200">
-                <span className="text-gray-600">Già Pagato:</span>
-                <span className="font-semibold text-green-600">€{finanze.totaliCollaboratori.pagato.toLocaleString('it-IT')}</span>
-              </div>
-              <div className="flex justify-between items-center pt-2">
-                <span className="text-gray-700 font-medium">Da Pagare:</span>
-                <span className="font-bold text-red-600">€{finanze.totaliCollaboratori.daPagare.toLocaleString('it-IT')}</span>
-              </div>
+          {/* Valore Pratiche in Corso Card */}
+          <div className="bg-yellow-50 rounded-md shadow-sm overflow-hidden p-4">
+            <div className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <div className="text-sm font-medium text-yellow-800">Valore Pratiche in Corso</div>
+              <Activity className="h-5 w-5 text-yellow-600" />
+            </div>
+            <div>
+              {/* Corrected variable name here */}
+              <div className="text-2xl font-bold text-yellow-900 truncate">{formatCurrency(valorePraticheInCorso)}</div>
+            </div>
+          </div>
+          {/* Totale Da Ricevere Card */}
+          <div className="bg-green-50 rounded-md shadow-sm overflow-hidden p-4">
+            <div className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <div className="text-sm font-medium text-green-800">Totale Da Ricevere</div>
+              <TrendingUp className="h-5 w-5 text-green-600" />
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-green-900 truncate">{formatCurrency(totaleDaRicevere)}</div>
             </div>
           </div>
         </div>
-        
-        {/* Seconda colonna - Entrate e Uscite per mese (3/6) */}
-        <div className="lg:col-span-3 h-96">
-          <Bar 
-            data={entrateUsciteChartData} 
-            options={entrateUsciteChartOptions} 
-          />
-        </div>
-        
-        {/* Terza colonna - Tachimetro (1/6) */}
-        <div className="lg:col-span-1">
-          <div className="bg-yellow-50 p-4 rounded-lg h-full flex items-center justify-center">
-            <div className="w-full">
-              <CustomGauge 
-                percentage={finanze.esposizioneFinanziaria.margineOperativoPercentuale} 
-                value={Math.abs(finanze.esposizioneFinanziaria.margineOperativo)} 
-              />
-            </div>
+
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+          {/* Bar Chart - Updated */}
+          <div className="lg:col-span-2 bg-gray-50 p-4 rounded-lg shadow">
+            <h3 className="text-lg font-medium mb-4 text-gray-600">Panoramica Finanziaria</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={barChartData}
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                {/* Updated XAxis dataKey to use the new name */}
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis
+                    tickFormatter={(value) => typeof value === 'number' ? formatCurrency(value) : value}
+                    tick={{ fontSize: 12 }}
+                    width={100}
+                 />
+                <Tooltip
+                    formatter={(value) => formatCurrency(value)}
+                 />
+                <Legend wrapperStyle={{ fontSize: "12px", paddingTop: '10px' }} />
+                {/* Use Cell to apply individual colors to bars */}
+                <Bar dataKey="Valore" name="Valore (€)" barSize={40} radius={[4, 4, 0, 0]}>
+                   {barChartData.map((entry, index) => (
+                     <Cell key={`cell-${index}`} fill={entry.fill} />
+                   ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Gauge Chart (Simulated with RadialBarChart) - Updated */}
+          <div className="flex flex-col items-center justify-center bg-gray-50 p-4 rounded-lg shadow">
+             {/* Updated Title */}
+             <h3 className="text-lg font-medium mb-4 text-gray-600">Profitto & Margine</h3>
+             <ResponsiveContainer width="100%" height={300}>
+                <RadialBarChart
+                    cx="50%"
+                    cy="55%"
+                    innerRadius="50%"
+                    outerRadius="90%"
+                    barSize={30}
+                    data={gaugeData} // Data now represents margin %
+                    startAngle={180}
+                    endAngle={-180}
+                >
+                    <PolarAngleAxis
+                        type="number"
+                        domain={[0, 100]} // Visual scale is 0-100%
+                        angleAxisId={0}
+                        tick={false}
+                    />
+                    <RadialBar
+                        minAngle={15}
+                        background={{ fill: '#e9ecef' }}
+                        clockWise={true}
+                        dataKey="value" // Binds to the 'value' in gaugeData (margin %)
+                        cornerRadius={15}
+                        angleAxisId={0}
+                        fill={COLORS.margine} // Use the defined margin color for the bar
+                    />
+                    {/* Custom label in the center - Updated */}
+                    {/* Profit Value (€) */}
+                    <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" style={radialProfitStyle}>
+                        {formatCurrency(margineLordo)}
+                    </text>
+                    {/* Margin Percentage (%) */}
+                     <text x="50%" y="65%" textAnchor="middle" dominantBaseline="middle" style={radialPercentageStyle}>
+                        ({formatPercentage(marginePercentuale)})
+                    </text>
+                    {/* Label Text */}
+                     <text x="50%" y="80%" textAnchor="middle" dominantBaseline="middle" className="text-xs text-gray-500">
+                        Profitto (Margine %)
+                    </text>
+                    {/* Tooltip shows the percentage value of the radial bar */}
+                    <Tooltip formatter={(value) => `Margine: ${formatPercentage(value)}`} />
+                </RadialBarChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>

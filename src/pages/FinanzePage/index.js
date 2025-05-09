@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+// src/pages/FinanzePage/index.js
+import React, { useState, useRef, useEffect, useMemo } from 'react'; // Import useMemo
 import { usePratiche } from '../../contexts/PraticheContext';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -16,395 +17,447 @@ import UltimiPagamenti from './UltimiPagamenti';
 // Importa la configurazione di Chart.js
 import './ChartConfig';
 
+// Struttura iniziale dei soci (per percentuali e nomi)
+const sociConfig = {
+    titolare: {
+        id: 'alessandro_de_antoni', // ID univoco
+        nome: 'Alessandro de Antoni',
+        percentuale: 0.79
+    },
+    soci: [
+        { id: 'roberto_ritorto', nome: 'Roberto Ritorto', percentuale: 0.07 },
+        { id: 'andrea_pardini', nome: 'Andrea Pardini', percentuale: 0.07 },
+        { id: 'andrea_proscia', nome: 'Andrea Proscia', percentuale: 0.07 }
+    ]
+};
+
+// --- Funzioni Helper spostate fuori dal componente per chiarezza ---
+
+// Calcola incassi committente EFFETTIVI (con completedDate) per una pratica
+const calcolaIncassiEffettiviCommittentePratica = (pratica) => {
+    let incassi = 0;
+    if (pratica?.workflow) { // Aggiunto controllo esistenza workflow
+        const passi = ['acconto1', 'acconto2', 'saldo'];
+        passi.forEach(passo => {
+            if (pratica.workflow[passo]?.importoCommittente > 0 && pratica.workflow[passo]?.completedDate) {
+                incassi += pratica.workflow[passo].importoCommittente;
+            }
+        });
+    }
+    return incassi;
+};
+
+// Calcola pagamenti collaboratori/firmatari EFFETTIVI (con completedDate) per una pratica
+ const calcolaPagamentiEffettiviCollaboratoriPratica = (pratica) => {
+    let pagamenti = 0;
+    if (pratica?.workflow) { // Aggiunto controllo esistenza workflow
+        const passi = ['acconto1', 'acconto2', 'saldo'];
+        passi.forEach(passo => {
+            if (pratica.workflow[passo]?.importoCollaboratore > 0 && pratica.workflow[passo]?.completedDate) {
+                pagamenti += pratica.workflow[passo].importoCollaboratore;
+            }
+            if (pratica.workflow[passo]?.importoFirmatario > 0 && pratica.workflow[passo]?.completedDate) {
+                pagamenti += pratica.workflow[passo].importoFirmatario;
+            }
+        });
+    }
+    return pagamenti;
+ };
+
+// Calcola pagamenti collaboratori/firmatari TOTALI PREVISTI (importi inseriti negli step)
+const calcolaPagamentiInseritiCollaboratoriPratica = (pratica) => {
+    let pagamenti = 0;
+    if (pratica?.workflow) { // Aggiunto controllo esistenza workflow
+        const passi = ['acconto1', 'acconto2', 'saldo'];
+        passi.forEach(passo => {
+            if (pratica.workflow[passo]?.importoCollaboratore > 0) {
+                pagamenti += pratica.workflow[passo].importoCollaboratore;
+            }
+            if (pratica.workflow[passo]?.importoFirmatario > 0) {
+                pagamenti += pratica.workflow[passo].importoFirmatario;
+            }
+        });
+    }
+    return pagamenti;
+};
+
+// Logica Calcolo Profitto Pratica per Distribuzione Soci (basata su importi BASE)
+const calcolaProfittoPraticaPerSoci = (pratica) => {
+    const baseCommittente = pratica?.importoBaseCommittente || 0; // Aggiunto controllo esistenza pratica
+    if (baseCommittente <= 0) {
+        return 0;
+    }
+    const baseCollaboratore = pratica.importoBaseCollaboratore || 0;
+    const baseFirmatario = pratica.importoBaseFirmatario || 0;
+    const profitto = baseCommittente - (baseCollaboratore + baseFirmatario);
+    return profitto > 0 ? profitto : 0;
+};
+
+// Valore iniziale vuoto per finanze (usato durante il loading o se pratiche non è ancora definito)
+const initialFinanzeState = {
+  totalePagamenti: 0,
+  totaleDaPagare: 0,
+  pagamentiPerMese: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0 },
+  pagamentiCollaboratoriPerMese: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0 },
+  profittoPerMese: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0 },
+  totaliCollaboratori: { totale: 0, pagato: 0, daPagare: 0 },
+  esposizioneFinanziaria: { margineOperativo: 0, margineOperativoPercentuale: 0, margineNetto: 0 },
+  pagamentiCollaboratori: {},
+  profittoSoci: {
+    titolare: { ...sociConfig.titolare, totale: 0, pagato: 0, pratiche: [] },
+    soci: sociConfig.soci.map(s => ({ ...s, totale: 0, pagato: 0, pratiche: [] }))
+  },
+  pagamentiRecenti: [],
+};
+
+
 function FinanzePage() {
-  const { pratiche, loading } = usePratiche();
+  // --- 1. Hooks ---
+  const { pratiche, loading, updatePratica } = usePratiche();
   const [filtroMese, setFiltroMese] = useState('');
   const [filtroAnno, setFiltroAnno] = useState(new Date().getFullYear().toString());
   const reportRef = useRef(null);
-  
-  if (loading) {
-    return <div className="flex justify-center items-center h-full">Caricamento...</div>;
-  }
-  
-  // Get unique years from pratiche
-  const anni = [...new Set(pratiche.map(pratica => 
-    new Date(pratica.dataInizio).getFullYear()
-  ))].sort((a, b) => b - a);
+  const [pagamentiProfittiSoci, setPagamentiProfittiSoci] = useState({});
 
-  // Calculate financial data
-  const calcolaFinanze = () => {
-    let totalePagamenti = 0;
-    let totaleDaPagare = 0;
-    let pagamentiPerMese = {
-      1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 
-      7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0
-    };
-    
-    let pagamentiCollaboratoriPerMese = {
-      1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 
-      7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0
-    };
-    
-    // Per l'esposizione finanziaria
-    let totaleCommittenti = 0;
-    let totalePagatoCommittenti = 0;
-    let totaleCollaboratori = 0;
-    let totalePagatoCollaboratori = 0;
-    
-    let pagamentiCollaboratori = {};
+  // Carica stato pagamenti soci da localStorage
+  useEffect(() => {
+    const savedState = localStorage.getItem('pagamentiProfittiSociState');
+    if (savedState) {
+      try {
+        setPagamentiProfittiSoci(JSON.parse(savedState));
+      } catch (e) { console.error("Errore caricamento stato pagamenti soci:", e); }
+    }
+  }, []); // Esegui solo al mount
+
+  // Salva stato pagamenti soci in localStorage
+  useEffect(() => {
+    localStorage.setItem('pagamentiProfittiSociState', JSON.stringify(pagamentiProfittiSoci));
+  }, [pagamentiProfittiSoci]); // Esegui quando pagamentiProfittiSoci cambia
+
+
+  // --- 2. Funzione di Calcolo Finanze (definita all'interno per accedere a state/props se necessario) ---
+  // Questa funzione ora dipende da pratiche, filtroAnno, filtroMese, pagamentiProfittiSoci
+  const calcolaFinanze = (praticheData, annoFiltro, meseFiltro, profittiPagatiState) => {
+    // Se non ci sono pratiche (es. durante il caricamento iniziale), ritorna lo stato iniziale
+    if (!praticheData || praticheData.length === 0) {
+        return initialFinanzeState;
+    }
+
+    let totalePagamentiCommittenteEffettivi = 0;
+    let totaleDaPagareCommittente = 0;
+    let pagamentiPerMese = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0 };
+    let pagamentiCollaboratoriPerMese = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0 };
+    let totalePagatoCollaboratoriEffettivo = 0;
+    let totaleDovutoCollaboratori = 0;
+    let pagamentiCollaboratoriMap = {};
     let pagamentiRecenti = [];
-    
-    const praticheFiltered = pratiche.filter(pratica => {
-      const dataInizio = new Date(pratica.dataInizio);
-      const anno = dataInizio.getFullYear().toString();
-      const mese = (dataInizio.getMonth() + 1).toString();
-      
-      return (!filtroAnno || anno === filtroAnno) && 
-             (!filtroMese || mese === filtroMese);
-    });
-    
-    praticheFiltered.forEach(pratica => {
-      const importoTotale = pratica.importoTotale || 0;
-      const importoCollaboratoreTotale = pratica.importoCollaboratore || 0;
-      
-      // Aggiungi al totale dei committenti e collaboratori
-      totaleCommittenti += importoTotale;
-      totaleCollaboratori += importoCollaboratoreTotale;
-      
-      // Calculate received payments - supporta sia la vecchia struttura "steps" che la nuova "workflow"
-      let importoRicevuto = 0;
-      let importoCollaboratorePagato = 0;
-      
-      // Controlla se la pratica usa la struttura "workflow"
-      if (pratica.workflow) {
-        // Leggi i dati dalla struttura workflow
-        const passiPagamento = ['acconto1', 'acconto2', 'saldo'];
-        
-        passiPagamento.forEach(passo => {
-          // Importi committente
-          if (pratica.workflow[passo] && pratica.workflow[passo].importoCommittente > 0) {
-            const importoCommittente = pratica.workflow[passo].importoCommittente;
-            importoRicevuto += importoCommittente;
-            
-            // Aggiungi ai pagamenti mensili se c'è una data di completamento
-            // altrimenti usa la data di inizio pratica
-            let dataPagamento;
-            
-            if (pratica.workflow[passo].completedDate) {
-              dataPagamento = new Date(pratica.workflow[passo].completedDate);
-            } else {
-              // Se non c'è data di completamento, usa la data di inizio pratica
-              dataPagamento = new Date(pratica.dataInizio);
-            }
-            
-            if (dataPagamento && (dataPagamento.getFullYear().toString() === filtroAnno || !filtroAnno)) {
-              const mese = dataPagamento.getMonth() + 1;
-              pagamentiPerMese[mese] += importoCommittente;
-            }
-            
-            // Aggiungi ai pagamenti recenti
-            pagamentiRecenti.push({
-              id: `${pratica.id}-${passo}`,
-              data: new Date(pratica.workflow[passo].completedDate || pratica.dataInizio),
-              pratica: pratica.indirizzo,
-              comune: pratica.comune,
-              committente: pratica.cliente,
-              tipo: passo === 'acconto1' ? 'Acconto 1 (30%)' : 
-                   passo === 'acconto2' ? 'Acconto 2 (30%)' : 'Saldo (40%)',
-              importo: importoCommittente
-            });
-          }
-          
-          // Importi collaboratore
-          if (pratica.workflow[passo] && pratica.workflow[passo].importoCollaboratore > 0) {
-            const importoCollab = pratica.workflow[passo].importoCollaboratore;
-            importoCollaboratorePagato += importoCollab;
-            
-            // Aggiungi ai pagamenti collaboratori mensili
-            let dataPagamento;
-            
-            if (pratica.workflow[passo].completedDate) {
-              dataPagamento = new Date(pratica.workflow[passo].completedDate);
-            } else {
-              dataPagamento = new Date(pratica.dataInizio);
-            }
-            
-            if (dataPagamento && (dataPagamento.getFullYear().toString() === filtroAnno || !filtroAnno)) {
-              const mese = dataPagamento.getMonth() + 1;
-              pagamentiCollaboratoriPerMese[mese] += importoCollab;
-            }
-          }
-        });
-      } 
-      // Altrimenti usa la vecchia struttura "steps"
-      else if (pratica.steps) {
-        if (pratica.steps.acconto1?.completed && pratica.steps.acconto1?.importo) {
-          importoRicevuto += pratica.steps.acconto1.importo;
-          
-          let dataAcconto;
-          if (pratica.steps.acconto1.completedDate) {
-            dataAcconto = new Date(pratica.steps.acconto1.completedDate);
-          } else {
-            dataAcconto = new Date(pratica.dataInizio);
-          }
-          
-          if (dataAcconto && (dataAcconto.getFullYear().toString() === filtroAnno || !filtroAnno)) {
-            const mese = dataAcconto.getMonth() + 1;
-            pagamentiPerMese[mese] += pratica.steps.acconto1.importo;
-          }
-          
-          pagamentiRecenti.push({
-            id: `${pratica.id}-acconto1`,
-            data: new Date(pratica.steps.acconto1.completedDate || pratica.dataInizio),
-            pratica: pratica.indirizzo,
-            comune: pratica.comune,
-            committente: pratica.cliente,
-            tipo: 'Acconto 1 (30%)',
-            importo: pratica.steps.acconto1.importo
-          });
-        }
-        
-        if (pratica.steps.acconto2?.completed && pratica.steps.acconto2?.importo) {
-          importoRicevuto += pratica.steps.acconto2.importo;
-          
-          let dataAcconto;
-          if (pratica.steps.acconto2.completedDate) {
-            dataAcconto = new Date(pratica.steps.acconto2.completedDate);
-          } else {
-            dataAcconto = new Date(pratica.dataInizio);
-          }
-          
-          if (dataAcconto && (dataAcconto.getFullYear().toString() === filtroAnno || !filtroAnno)) {
-            const mese = dataAcconto.getMonth() + 1;
-            pagamentiPerMese[mese] += pratica.steps.acconto2.importo;
-          }
-          
-          pagamentiRecenti.push({
-            id: `${pratica.id}-acconto2`,
-            data: new Date(pratica.steps.acconto2.completedDate || pratica.dataInizio),
-            pratica: pratica.indirizzo,
-            comune: pratica.comune,
-            committente: pratica.cliente,
-            tipo: 'Acconto 2 (30%)',
-            importo: pratica.steps.acconto2.importo
-          });
-        }
-        
-        if (pratica.steps.saldo?.completed && pratica.steps.saldo?.importo) {
-          importoRicevuto += pratica.steps.saldo.importo;
-          
-          let dataSaldo;
-          if (pratica.steps.saldo.completedDate) {
-            dataSaldo = new Date(pratica.steps.saldo.completedDate);
-          } else {
-            dataSaldo = new Date(pratica.dataInizio);
-          }
-          
-          if (dataSaldo && (dataSaldo.getFullYear().toString() === filtroAnno || !filtroAnno)) {
-            const mese = dataSaldo.getMonth() + 1;
-            pagamentiPerMese[mese] += pratica.steps.saldo.importo;
-          }
-          
-          pagamentiRecenti.push({
-            id: `${pratica.id}-saldo`,
-            data: new Date(pratica.steps.saldo.completedDate || pratica.dataInizio),
-            pratica: pratica.indirizzo,
-            comune: pratica.comune,
-            committente: pratica.cliente,
-            tipo: 'Saldo (40%)',
-            importo: pratica.steps.saldo.importo
-          });
-        }
-      }
-      
-      // Add to total
-      totalePagamenti += importoRicevuto;
-      totaleDaPagare += (importoTotale - importoRicevuto);
-      
-      // Aggiorna i totali per l'esposizione finanziaria
-      totalePagatoCommittenti += importoRicevuto;
-      totalePagatoCollaboratori += importoCollaboratorePagato;
-      
-      // Calculate collaborator payments
-      if (pratica.collaboratore) {
-        if (!pagamentiCollaboratori[pratica.collaboratore]) {
-          pagamentiCollaboratori[pratica.collaboratore] = {
-            totale: 0,
-            pagato: 0,
-            daPagare: 0
-          };
-        }
-        
-        // Usiamo l'importoCollaboratore dal form della pratica come totale
-        pagamentiCollaboratori[pratica.collaboratore].totale += importoCollaboratoreTotale;
-        pagamentiCollaboratori[pratica.collaboratore].pagato += importoCollaboratorePagato;
-        pagamentiCollaboratori[pratica.collaboratore].daPagare = 
-          pagamentiCollaboratori[pratica.collaboratore].totale - pagamentiCollaboratori[pratica.collaboratore].pagato;
-      }
-    });
-    
-    // Ordina i pagamenti recenti per data (più recenti prima)
-    pagamentiRecenti.sort((a, b) => b.data - a.data);
-    
-    // Calcola totali per i collaboratori
-    const totaliCollaboratori = {
-      totale: Object.values(pagamentiCollaboratori).reduce((sum, collab) => sum + collab.totale, 0),
-      pagato: Object.values(pagamentiCollaboratori).reduce((sum, collab) => sum + collab.pagato, 0),
-      daPagare: Object.values(pagamentiCollaboratori).reduce((sum, collab) => sum + collab.daPagare, 0),
+
+    // Resetta i totali dei soci prima di ricalcolare
+    const profittoSociCalcolato = {
+        titolare: { ...sociConfig.titolare, totale: 0, pagato: 0, pratiche: [] },
+        soci: sociConfig.soci.map(s => ({ ...s, totale: 0, pagato: 0, pratiche: [] }))
     };
-    
-    // Calcola il profitto per mese (entrate - uscite)
+
+    praticheData.forEach(pratica => {
+      // Assicurati che la pratica non sia null/undefined
+      if (!pratica) return;
+
+      const importoTotaleCommittentePratica = pratica.importoTotale || 0;
+      const importoTotaleCollaboratorePratica = pratica.importoCollaboratore || 0;
+      const importoTotaleFirmatarioPratica = pratica.importoFirmatario || 0;
+
+      const importoRicevutoCommittenteEffettivo = calcolaIncassiEffettiviCommittentePratica(pratica);
+      const importoPagatoCollaboratoriEffettivo = calcolaPagamentiEffettiviCollaboratoriPratica(pratica);
+
+      let importoPagatoCollaboratoreStep = 0;
+      let importoPagatoFirmatarioStep = 0;
+
+      // Popola pagamenti mensili e recenti e calcola importi step
+      if (pratica.workflow) {
+          const passi = ['acconto1', 'acconto2', 'saldo'];
+          passi.forEach(passo => {
+              const stepData = pratica.workflow[passo];
+              if(stepData){
+                  // Entrate Mensili (effettive)
+                  if (stepData.importoCommittente > 0 && stepData.completedDate) {
+                      try {
+                          const dataPagamento = new Date(stepData.completedDate);
+                          if (!annoFiltro || dataPagamento.getFullYear().toString() === annoFiltro) {
+                              pagamentiPerMese[dataPagamento.getMonth() + 1] += stepData.importoCommittente;
+                              if (!meseFiltro || (dataPagamento.getMonth() + 1).toString() === meseFiltro) {
+                                  pagamentiRecenti.push({
+                                      id: `${pratica.id}-${passo}-comm`, data: dataPagamento, pratica: pratica.indirizzo, comune: pratica.comune, committente: pratica.cliente, tipo: passo, importo: stepData.importoCommittente
+                                  });
+                              }
+                          }
+                      } catch (e) { console.error("Data pagamento committente non valida:", stepData.completedDate, e); }
+                  }
+                  // Uscite Mensili (previste/inserite) e somma per importi step
+                  let importoUscitaStep = 0;
+                  if(stepData.importoCollaboratore > 0){
+                      importoPagatoCollaboratoreStep += stepData.importoCollaboratore;
+                      importoUscitaStep += stepData.importoCollaboratore;
+                  }
+                  if(stepData.importoFirmatario > 0){
+                      importoPagatoFirmatarioStep += stepData.importoFirmatario;
+                      importoUscitaStep += stepData.importoFirmatario;
+                  }
+                  // Aggiungi alle uscite mensili
+                  if(importoUscitaStep > 0){
+                      try {
+                          // Usa la data di completamento se disponibile, altrimenti la data di inizio pratica
+                          const dataRiferimento = stepData.completedDate ? new Date(stepData.completedDate) : new Date(pratica.dataInizio);
+                           if (!annoFiltro || dataRiferimento.getFullYear().toString() === annoFiltro) {
+                               pagamentiCollaboratoriPerMese[dataRiferimento.getMonth() + 1] += importoUscitaStep;
+                           }
+                      } catch(e) { console.error("Data riferimento uscita non valida:", stepData.completedDate, pratica.dataInizio, e); }
+                  }
+              }
+          });
+      }
+
+
+      // Aggiorna totali generali
+      totalePagamentiCommittenteEffettivi += importoRicevutoCommittenteEffettivo;
+      totaleDaPagareCommittente += Math.max(0, importoTotaleCommittentePratica - importoRicevutoCommittenteEffettivo);
+      totaleDovutoCollaboratori += (importoTotaleCollaboratorePratica + importoTotaleFirmatarioPratica);
+      totalePagatoCollaboratoriEffettivo += importoPagatoCollaboratoriEffettivo;
+
+
+      // Calcola profitto della pratica per soci (basato su importi BASE)
+      const profittoPraticaCorrente = calcolaProfittoPraticaPerSoci(pratica);
+      const isPraticaCompletata = pratica.stato === 'Completata';
+
+      // Distribuisci profitto e traccia pagamenti ai soci per questa pratica
+      if (profittoPraticaCorrente > 0) {
+          // Titolare
+          const quotaTitolare = profittoPraticaCorrente * profittoSociCalcolato.titolare.percentuale;
+          const isTitolarePagato = profittiPagatiState[pratica.id]?.[profittoSociCalcolato.titolare.id] === true;
+
+          if (isPraticaCompletata) {
+              profittoSociCalcolato.titolare.totale += quotaTitolare;
+              if (isTitolarePagato) {
+                  profittoSociCalcolato.titolare.pagato += quotaTitolare;
+              }
+          }
+          profittoSociCalcolato.titolare.pratiche.push({
+              id: pratica.id, codice: pratica.codice, indirizzo: pratica.indirizzo, cliente: pratica.cliente, stato: pratica.stato, quota: quotaTitolare, pagato: isTitolarePagato // Lo stato 'pagato' qui riflette lo stato AL MOMENTO del calcolo
+          });
+
+          // Altri Soci
+          profittoSociCalcolato.soci.forEach(socio => {
+              const quotaSocio = profittoPraticaCorrente * socio.percentuale;
+              const isSocioPagato = profittiPagatiState[pratica.id]?.[socio.id] === true;
+
+               if (isPraticaCompletata) {
+                    socio.totale += quotaSocio;
+                    if (isSocioPagato) {
+                        socio.pagato += quotaSocio;
+                    }
+               }
+               socio.pratiche.push({
+                  id: pratica.id, codice: pratica.codice, indirizzo: pratica.indirizzo, cliente: pratica.cliente, stato: pratica.stato, quota: quotaSocio, pagato: isSocioPagato // Lo stato 'pagato' qui riflette lo stato AL MOMENTO del calcolo
+              });
+          });
+      }
+
+      // Aggiorna mappa per PagamentiCollaboratori component
+      if (pratica.collaboratore) {
+        if (!pagamentiCollaboratoriMap[pratica.collaboratore]) {
+          pagamentiCollaboratoriMap[pratica.collaboratore] = { totale: 0, pagato: 0 };
+        }
+        pagamentiCollaboratoriMap[pratica.collaboratore].totale += importoTotaleCollaboratorePratica;
+        pagamentiCollaboratoriMap[pratica.collaboratore].pagato += importoPagatoCollaboratoreStep;
+      }
+       if (pratica.collaboratoreFirmatario) {
+         if (!pagamentiCollaboratoriMap[pratica.collaboratoreFirmatario]) {
+           pagamentiCollaboratoriMap[pratica.collaboratoreFirmatario] = { totale: 0, pagato: 0 };
+         }
+         pagamentiCollaboratoriMap[pratica.collaboratoreFirmatario].totale += importoTotaleFirmatarioPratica;
+         pagamentiCollaboratoriMap[pratica.collaboratoreFirmatario].pagato += importoPagatoFirmatarioStep;
+       }
+
+    }); // Fine ciclo forEach pratiche
+
+    // Calcola totali finali per i collaboratori (per PagamentiCollaboratori)
+    const totaliCollaboratoriMap = Object.entries(pagamentiCollaboratoriMap).reduce((acc, [nome, data]) => {
+        acc[nome] = { ...data, daPagare: Math.max(0, data.totale - data.pagato) };
+        return acc;
+    }, {});
+     const totaliGeneraliCollaboratori = {
+         totale: Object.values(totaliCollaboratoriMap).reduce((sum, collab) => sum + collab.totale, 0),
+         pagato: Object.values(totaliCollaboratoriMap).reduce((sum, collab) => sum + collab.pagato, 0),
+         daPagare: Object.values(totaliCollaboratoriMap).reduce((sum, collab) => sum + collab.daPagare, 0),
+     };
+
+    pagamentiRecenti.sort((a, b) => b.data - a.data);
+
+    // Calcola profitto per mese
     let profittoPerMese = {};
     for (let mese = 1; mese <= 12; mese++) {
       profittoPerMese[mese] = pagamentiPerMese[mese] - pagamentiCollaboratoriPerMese[mese];
     }
-    
-    // Calcola margine operativo percentuale (se totalePagatoCommittenti è 0, il margine è 0%)
-    const margineOperativoPercentuale = totalePagatoCommittenti > 0 
-      ? ((totalePagatoCommittenti - totaleCollaboratori) / totalePagatoCommittenti) * 100 
-      : 0;
-    
-    // Calcolo profitti soci
-    const profittoSoci = {
-      titolare: {
-        nome: 'Marco Moschetti',
-        percentuale: 0.79,
-        totale: 0,
-        pagato: 0
-      },
-      soci: [
-        {
-          nome: 'Ritorto',
-          percentuale: 0.07,
-          totale: 0,
-          pagato: 0
-        },
-        {
-          nome: 'Pardini',
-          percentuale: 0.07,
-          totale: 0,
-          pagato: 0
-        },
-        {
-          nome: 'Proscia',
-          percentuale: 0.07,
-          totale: 0,
-          pagato: 0
-        }
-      ]
-    };
 
-    // Calcola il profitto da distribuire
-    const profittoTotale = totalePagatoCommittenti - totaleCollaboratori;
-    
-    // Distribuisci il profitto tra i soci
-    profittoSoci.titolare.totale = profittoTotale * profittoSoci.titolare.percentuale;
-    profittoSoci.soci.forEach(socio => {
-      socio.totale = profittoTotale * socio.percentuale;
-    });
-    
+    // Calcola esposizione finanziaria generale
+    const margineOperativo = totalePagamentiCommittenteEffettivi - totaleDovutoCollaboratori;
+    const margineOperativoPercentuale = totalePagamentiCommittenteEffettivi > 0 ? (margineOperativo / totalePagamentiCommittenteEffettivi) * 100 : 0;
+    const margineNetto = totalePagamentiCommittenteEffettivi - totalePagatoCollaboratoriEffettivo;
+
     return {
-      totalePagamenti,
-      totaleDaPagare,
+      totalePagamenti: totalePagamentiCommittenteEffettivi,
+      totaleDaPagare: totaleDaPagareCommittente,
       pagamentiPerMese,
       pagamentiCollaboratoriPerMese,
       profittoPerMese,
-      pagamentiCollaboratori,
-      pagamentiRecenti: pagamentiRecenti.slice(0, 10), // Prendi solo i 10 più recenti
-      totaliCollaboratori,
-      esposizioneFinanziaria: {
-        totaleCommittenti,
-        totalePagatoCommittenti,
-        totaleCollaboratori,
-        totalePagatoCollaboratori,
-        // Margine operativo = quanto incassato - quanto dovuto ai collaboratori
-        margineOperativo: totalePagatoCommittenti - totaleCollaboratori,
-        // Percentuale del margine operativo rispetto alle entrate totali
-        margineOperativoPercentuale,
-        // Margine netto = quanto incassato - quanto già pagato ai collaboratori
-        margineNetto: totalePagatoCommittenti - totalePagatoCollaboratori,
-        // Aggiunta della distribuzione profitti soci
-        profittoSoci
-      }
+      totaliCollaboratori: { // Riepilogo per SituazioneFinanziaria (basato su effettivo pagato)
+            totale: totaleDovutoCollaboratori, // Dovuto LORDO
+            pagato: totalePagatoCollaboratoriEffettivo, // Pagato EFFETTIVO
+            daPagare: Math.max(0, totaleDovutoCollaboratori - totalePagatoCollaboratoriEffettivo)
+      },
+      esposizioneFinanziaria: { margineOperativo, margineOperativoPercentuale, margineNetto },
+      pagamentiCollaboratori: totaliCollaboratoriMap, // Per PagamentiCollaboratori (basato su LORDO dovuto e LORDO inserito step)
+      profittoSoci: profittoSociCalcolato, // Per DistribuzioneProfitti (basato su profitto potenziale pratica BASE e stato pagamenti)
+      pagamentiRecenti: pagamentiRecenti.slice(0, 10), // Limita a 10 pagamenti recenti
     };
   };
-  
-  const finanze = calcolaFinanze();
-  
-  // Funzione per generare ed esportare il report PDF
+
+  // --- 3. useMemo per calcolare le finanze solo quando le dipendenze cambiano ---
+  // Chiamato DOPO la definizione della funzione ma PRIMA del return condizionale
+  const finanze = useMemo(() => {
+      // Passa le dipendenze direttamente alla funzione di calcolo
+      return calcolaFinanze(pratiche, filtroAnno, filtroMese, pagamentiProfittiSoci);
+  }, [pratiche, filtroAnno, filtroMese, pagamentiProfittiSoci]); // Le dipendenze di useMemo
+
+
+  // --- 4. Gestione Loading (Return condizionale) ---
+  if (loading) {
+    return <div className="flex justify-center items-center h-full text-gray-600">Caricamento dati finanziari...</div>;
+  }
+
+  // --- 5. Funzioni Handler e Derivazioni (definite dopo il loading check) ---
+  const handleTogglePagamentoSocio = (praticaId, socioId) => {
+    setPagamentiProfittiSoci(prev => {
+      const newState = { ...prev };
+      if (!newState[praticaId]) newState[praticaId] = {};
+      newState[praticaId][socioId] = !newState[praticaId]?.[socioId];
+      // Non è necessario ricalcolare finanze qui, useMemo lo farà automaticamente
+      return newState;
+    });
+  };
+
   const generaPDF = async () => {
     if (!reportRef.current) return;
-    
+    const content = reportRef.current; // Riferimento all'elemento da catturare
+
+    // Temporaneamente mostra tutte le tab per la cattura (se necessario)
+    const tabContentsProfitti = content.querySelectorAll('#tabContentProfitti [role="tabpanel"]');
+    const tabContentsColl = content.querySelectorAll('#tabContentExample [role="tabpanel"]');
+    const activeTabIdProfitti = content.querySelector('#tabContentProfitti [role="tabpanel"]:not(.hidden)')?.id;
+    const activeTabIdColl = content.querySelector('#tabContentExample [role="tabpanel"]:not(.hidden)')?.id;
+
+    const makeVisible = (elements) => elements.forEach(el => el.classList.remove('hidden'));
+    const restoreVisibility = (elements, activeId) => {
+        elements.forEach(el => {
+            if (el.id !== activeId) {
+                el.classList.add('hidden');
+            }
+        });
+    };
+
+    makeVisible(tabContentsProfitti);
+    makeVisible(tabContentsColl);
+
     try {
-      const content = reportRef.current;
+      console.log("Inizio generazione PDF...");
       const canvas = await html2canvas(content, {
-        scale: 1,
+        scale: 1.5, // Aumenta la scala per una migliore risoluzione
         useCORS: true,
-        logging: false
+        logging: true, // Abilita log per debug
+        windowWidth: content.scrollWidth,
+        windowHeight: content.scrollHeight,
+        scrollX: 0, // Assicurati che parta dall'inizio orizzontale
+        scrollY: 0, // Assicurati che parta dall'inizio verticale
+        backgroundColor: '#ffffff' // Imposta uno sfondo bianco
       });
-      
-      const imgWidth = 210; // A4 width in mm
-      const pageHeight = 297; // A4 height in mm
+      console.log("Canvas creato.");
+
+      // Ripristina la visibilità delle tab PRIMA di creare il PDF
+      restoreVisibility(tabContentsProfitti, activeTabIdProfitti);
+      restoreVisibility(tabContentsColl, activeTabIdColl);
+
+      const imgWidth = 210; // Larghezza A4 in mm
+      const pageHeight = 297; // Altezza A4 in mm
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      const heightLeft = imgHeight;
-      
-      const pdf = new jsPDF('p', 'mm', 'a4');
+      let heightLeft = imgHeight;
+      const pdf = new jsPDF('p', 'mm', 'a4'); // p = portrait
       const imgData = canvas.toDataURL('image/png');
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-      
-      // Gestisci il caso di contenuto su più pagine
       let position = 0;
-      position += imgHeight;
-      
-      while (position < heightLeft) {
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      console.log(`Aggiunta prima pagina. Altezza rimanente: ${heightLeft}`);
+
+      while (heightLeft > 0) {
+        position = - (imgHeight - heightLeft - pageHeight); // Calcola la posizione per la pagina successiva
         pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, -position, imgWidth, imgHeight);
-        position += pageHeight;
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+        console.log(`Aggiunta nuova pagina. Altezza rimanente: ${heightLeft}`);
       }
-      
-      // Scarica il PDF
       pdf.save(`Report_Finanziario_${format(new Date(), 'dd-MM-yyyy')}.pdf`);
-      
+      console.log("PDF salvato.");
+
     } catch (error) {
       console.error("Errore durante la generazione del PDF:", error);
+       // Assicurati di ripristinare la visibilità anche in caso di errore
+       restoreVisibility(tabContentsProfitti, activeTabIdProfitti);
+       restoreVisibility(tabContentsColl, activeTabIdColl);
+       alert("Si è verificato un errore durante la generazione del PDF. Controlla la console per i dettagli."); // Usa un alert o un sistema di notifiche migliore
     }
   };
 
+  // Calcola anni disponibili per il filtro (assicurati che pratiche sia un array)
+  const anni = [...new Set((pratiche || []).map(p => {
+      try {
+          return new Date(p.dataInizio).getFullYear();
+      } catch(e) {
+          console.warn("Data inizio pratica non valida:", p.dataInizio);
+          return null; // Ignora anni non validi
+      }
+  }).filter(anno => anno !== null))] // Filtra eventuali null
+  .sort((a, b) => b - a);
+
+
+  // --- 6. Return JSX ---
   return (
-    <div className="container mx-auto mb-10">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Gestione Finanziaria</h1>
+    <div className="container mx-auto mb-10 px-4"> {/* Aggiunto padding orizzontale */}
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4"> {/* Responsive flex e gap */}
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 text-center sm:text-left">Gestione Finanziaria</h1>
         <button
-          onClick={generaPDF}
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            onClick={generaPDF}
+            className="flex items-center justify-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-150 ease-in-out w-full sm:w-auto" // Responsive width
+            aria-label="Esporta report finanziario in PDF"
         >
-          <FaFileDownload className="mr-2" />
-          Esporta PDF
+          <FaFileDownload className="mr-2" /> Esporta PDF
         </button>
       </div>
-      
-      {/* Filtri */}
-      <FiltriFinanze 
-        filtroAnno={filtroAnno}
-        setFiltroAnno={setFiltroAnno}
-        filtroMese={filtroMese}
-        setFiltroMese={setFiltroMese}
-        anni={anni}
+      <FiltriFinanze
+          filtroAnno={filtroAnno}
+          setFiltroAnno={setFiltroAnno}
+          filtroMese={filtroMese}
+          setFiltroMese={setFiltroMese}
+          anni={anni}
       />
-      
-      {/* Report content - questo div sarà utilizzato per generare il PDF */}
-      <div ref={reportRef}>
-        {/* Situazione Finanziaria Generale */}
+      {/* Contenuto del report da esportare */}
+      <div id="report-content" ref={reportRef} className="bg-gray-50 p-4 rounded-lg"> {/* Sfondo e padding per il contenitore del report */}
         <SituazioneFinanziaria finanze={finanze} />
-        
-        {/* Collaborator Payments */}
         <PagamentiCollaboratori finanze={finanze} />
-
-        {/* Sezione Distribuzione Profitti Soci */}
-        <DistribuzioneProfitti profittoSoci={finanze.esposizioneFinanziaria.profittoSoci} />
-        
-        {/* Recent Payments */}
+        <DistribuzioneProfitti
+            profittoSociData={finanze.profittoSoci}
+            pratiche={pratiche} // Passa pratiche per riferimento se necessario nel componente figlio
+            pagamentiProfittiState={pagamentiProfittiSoci} // Passa lo stato aggiornato
+            onTogglePagamento={handleTogglePagamentoSocio}
+        />
         <UltimiPagamenti pagamentiRecenti={finanze.pagamentiRecenti} />
       </div>
     </div>
