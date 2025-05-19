@@ -10,10 +10,11 @@ import {
   MdFormatListBulleted,
   MdLogout,
   MdAccountCircle,
-  MdFolderSpecial // Icona per Pratiche Privato
+  MdFolderSpecial
 } from 'react-icons/md';
 import { FaCalendarAlt, FaRobot } from 'react-icons/fa';
 
+import { AuthProvider } from './contexts/AuthContext'; // Assicurati di importare AuthProvider
 import { PraticheProvider } from './contexts/PraticheContext';
 import { PratichePrivatoProvider } from './contexts/PratichePrivatoContext';
 
@@ -24,47 +25,52 @@ import CalendarPage from './pages/CalendarPage';
 import PrezziarioPage from './pages/PrezziarioPage';
 import AutomationConfigPage from './pages/AutomationConfigPage';
 import FinanzePage from './pages/FinanzePage';
-import LoginPage from './components/Login';
+import LoginPage from './components/Login'; // La pagina di login
 
-import { auth, onAuthStateChange } from './firebase';
+// Importa le funzioni di autenticazione direttamente da firebase.js
+import { auth, onAuthStateChanged, logoutUser as firebaseLogoutUser } from './firebase';
 
-function App() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+
+function AppContent() {
+  // Spostiamo la logica che dipende da useAuth qui dentro
+  // Questo componente verrà renderizzato solo se AuthProvider è un antenato
+  const [user, setUser] = useState(null); // Stato utente locale ad AppContent
+  const [authLoading, setAuthLoading] = useState(true); // Stato di caricamento specifico per l'autenticazione
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+
   useEffect(() => {
-    const checkAuth = () => {
-      const authUser = auth.currentUser;
-      if (authUser) {
-        setUser({ email: authUser.email, uid: authUser.uid });
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        setUser({
+          email: firebaseUser.email,
+          uid: firebaseUser.uid
+          // Aggiungi qui altri dati utente se necessario, es. displayName
+        });
       } else {
         setUser(null);
       }
-      setLoading(false);
-    };
-    checkAuth();
-    const unsubscribe = onAuthStateChange((currentUser) => {
-      if (currentUser) {
-        setUser({ email: currentUser.email, uid: currentUser.uid });
-      } else {
-        setUser(null);
-      }
-      setLoading(false);
+      setAuthLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
   const handleSignOut = async () => {
     try {
-      await auth.signOut();
+      await firebaseLogoutUser(); // Usa la funzione di logout da firebase.js
+      // La navigazione al login sarà gestita dal check !user più in basso
     } catch (error) {
       console.error("Errore durante il logout:", error);
     }
   };
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-screen">Caricamento...</div>;
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-100">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
+        <p className="ml-3 text-gray-700">Verifica autenticazione...</p>
+      </div>
+    );
   }
 
   if (!user) {
@@ -88,57 +94,57 @@ function App() {
   return (
     <PraticheProvider>
       <div className="flex h-screen bg-gray-100">
-        <aside className={`${sidebarOpen ? 'w-52' : 'w-16'} bg-white text-gray-800 transition-all duration-300 ease-in-out overflow-y-auto shadow-md`}>
-          <div className="p-4 flex flex-col">
-            <div className={`flex ${sidebarOpen ? 'justify-between' : 'justify-center'} w-full`}>
-              {sidebarOpen ? (
-                <div className="flex flex-col items-center w-full">
-                  <img src="/logo.png" alt="Realine Studio Logo" className="h-20 mb-3"/>
-                  <h1 className="text-xl font-bold text-gray-800">Realine Studio</h1>
-                  <p className="text-xs text-gray-500">Gestione Pratiche</p>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <div className="text-lg font-bold text-gray-800">R</div>
-                </div>
-              )}
-              <button className={`p-1 rounded-full hover:bg-gray-100 text-gray-600 ${sidebarOpen ? '' : 'mt-4'}`} onClick={() => setSidebarOpen(!sidebarOpen)}>
-                {sidebarOpen ? <MdChevronLeft size={20} /> : <MdChevronRight size={20} />}
-              </button>
+        <aside className={`${sidebarOpen ? 'w-52' : 'w-16'} bg-white text-gray-800 transition-all duration-300 ease-in-out overflow-y-auto shadow-md flex flex-col justify-between`}>
+          <div>
+            <div className="p-4 flex flex-col">
+              <div className={`flex ${sidebarOpen ? 'justify-between' : 'justify-center'} w-full items-center`}>
+                {sidebarOpen ? (
+                  <div className="flex flex-col items-center w-full">
+                    <img src="/logo.png" alt="Realine Studio Logo" className="h-20 mb-3"/>
+                    <h1 className="text-xl font-bold text-gray-800">Realine Studio</h1>
+                    <p className="text-xs text-gray-500">Gestione Pratiche</p>
+                  </div>
+                ) : (
+                  <img src="/favicon.ico" alt="R" className="h-8 w-8 mx-auto" /> // Icona piccola se chiuso
+                )}
+                <button className={`p-1 rounded-full hover:bg-gray-100 text-gray-600 ${!sidebarOpen && 'mt-4'}`} onClick={() => setSidebarOpen(!sidebarOpen)}>
+                  {sidebarOpen ? <MdChevronLeft size={20} /> : <MdChevronRight size={20} />}
+                </button>
+              </div>
             </div>
+            <nav className="mt-6">
+              <NavLink to="/" className={({isActive}) => `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}>
+                <span className={sidebarOpen ? 'mr-3' : ''} title={!sidebarOpen ? "Dashboard" : ""}><MdHome className="h-5 w-5" /></span>
+                {sidebarOpen && <span>Dashboard</span>}
+              </NavLink>
+              <NavLink to="/pratiche" className={({isActive}) => `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}>
+                <span className={sidebarOpen ? 'mr-3' : ''} title={!sidebarOpen ? "Pratiche" : ""}><MdDescription className="h-5 w-5" /></span>
+                {sidebarOpen && <span>Pratiche</span>}
+              </NavLink>
+              <NavLink to="/pratiche-privato" className={({isActive}) => `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}>
+                <span className={sidebarOpen ? 'mr-3' : ''} title={!sidebarOpen ? "Pratiche Privato" : ""}><MdFolderSpecial className="h-5 w-5" /></span>
+                {sidebarOpen && <span>Pratiche Privato</span>}
+              </NavLink>
+              <NavLink to="/finanze" className={({isActive}) => `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}>
+                <span className={sidebarOpen ? 'mr-3' : ''} title={!sidebarOpen ? "Finanze" : ""}><MdAttachMoney className="h-5 w-5" /></span>
+                {sidebarOpen && <span>Finanze</span>}
+              </NavLink>
+              <NavLink to="/calendario" className={({isActive}) => `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}>
+                <span className={sidebarOpen ? 'mr-3' : ''} title={!sidebarOpen ? "Calendario" : ""}><FaCalendarAlt className="h-5 w-5" /></span>
+                {sidebarOpen && <span>Calendario</span>}
+              </NavLink>
+              <NavLink to="/prezziario" className={({isActive}) => `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}>
+                <span className={sidebarOpen ? 'mr-3' : ''} title={!sidebarOpen ? "Prezziario" : ""}><MdFormatListBulleted className="h-5 w-5" /></span>
+                {sidebarOpen && <span>Prezziario</span>}
+              </NavLink>
+              <NavLink to="/automazioni" className={({isActive}) => `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}>
+                <span className={sidebarOpen ? 'mr-3' : ''} title={!sidebarOpen ? "Automazioni" : ""}><FaRobot className="h-5 w-5" /></span>
+                {sidebarOpen && <span>Automazioni</span>}
+              </NavLink>
+            </nav>
           </div>
-          <nav className="mt-6">
-            <NavLink to="/" className={({isActive}) => `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}>
-              <span className={sidebarOpen ? 'mr-3' : ''}><MdHome className="h-5 w-5" /></span>
-              {sidebarOpen && <span>Dashboard</span>}
-            </NavLink>
-            <NavLink to="/pratiche" className={({isActive}) => `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}>
-              <span className={sidebarOpen ? 'mr-3' : ''}><MdDescription className="h-5 w-5" /></span>
-              {sidebarOpen && <span>Pratiche</span>}
-            </NavLink>
-            <NavLink to="/pratiche-privato" className={({isActive}) => `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}>
-              <span className={sidebarOpen ? 'mr-3' : ''}><MdFolderSpecial className="h-5 w-5" /></span>
-              {sidebarOpen && <span>Pratiche Privato</span>}
-            </NavLink>
-            <NavLink to="/finanze" className={({isActive}) => `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}>
-              <span className={sidebarOpen ? 'mr-3' : ''}><MdAttachMoney className="h-5 w-5" /></span>
-              {sidebarOpen && <span>Finanze</span>}
-            </NavLink>
-            <NavLink to="/calendario" className={({isActive}) => `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}>
-              <span className={sidebarOpen ? 'mr-3' : ''}><FaCalendarAlt className="h-5 w-5" /></span>
-              {sidebarOpen && <span>Calendario</span>}
-            </NavLink>
-            <NavLink to="/prezziario" className={({isActive}) => `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}>
-              <span className={sidebarOpen ? 'mr-3' : ''}><MdFormatListBulleted className="h-5 w-5" /></span>
-              {sidebarOpen && <span>Prezziario</span>}
-            </NavLink>
-            <NavLink to="/automazioni" className={({isActive}) => `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}>
-              <span className={sidebarOpen ? 'mr-3' : ''}><FaRobot className="h-5 w-5" /></span>
-              {sidebarOpen && <span>Automazioni</span>}
-            </NavLink>
-          </nav>
           {user && (
-            <div className={`mt-auto mb-6 ${sidebarOpen ? 'px-4' : 'px-0 text-center'}`}>
+            <div className={`mb-6 ${sidebarOpen ? 'px-4' : 'px-0 text-center'}`}>
               {sidebarOpen ? (
                 <div className="p-3 bg-gray-100 rounded-md">
                   <div className="flex items-center mb-2">
@@ -152,9 +158,8 @@ function App() {
                 </div>
               ) : (
                 <div className="flex flex-col items-center">
-                  <MdAccountCircle className="h-8 w-8 text-gray-600 mb-2" />
-                  <button onClick={handleSignOut} className="p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors" title="Logout">
-                    <MdLogout className="h-4 w-4" />
+                  <button onClick={handleSignOut} className="p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors" title={`Logout (${user.email})`}>
+                    <MdLogout className="h-5 w-5" />
                   </button>
                 </div>
               )}
@@ -167,10 +172,10 @@ function App() {
             <h1 className="text-xl font-semibold">{getPageTitle()}</h1>
             <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-1">
-                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-semibold">
                   {user?.email?.charAt(0).toUpperCase() || 'U'}
                 </div>
-                <span className="hidden sm:inline">{user?.email}</span>
+                <span className="hidden sm:inline text-sm text-gray-700">{user?.email}</span>
               </div>
             </div>
           </header>
@@ -195,6 +200,15 @@ function App() {
         </div>
       </div>
     </PraticheProvider>
+  );
+}
+
+// Il componente App principale ora avvolge AppContent con AuthProvider
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

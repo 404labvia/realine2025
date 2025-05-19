@@ -3,61 +3,42 @@ import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import {
   getAuth,
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
+  signInWithPopup, // Manteniamo solo questo per il login
+  GoogleAuthProvider, // Provider per Google
   signOut,
-  sendPasswordResetEmail,
-  onAuthStateChanged
+  onAuthStateChanged // Importato direttamente da firebase/auth
 } from "firebase/auth";
 
-// Your web app's Firebase configuration
+// La tua configurazione Firebase
 const firebaseConfig = {
-  apiKey: "AIzaSyAEUgWG9mZ_rPY5vvaT-4D3cMxwTREEv1U",
+  apiKey: "AIzaSyAEUgWG9mZ_rPY5vvaT-4D3cMxwTREEv1U", // Assicurati che sia corretta
   authDomain: "studio-a07a4.firebaseapp.com",
   projectId: "studio-a07a4",
   storageBucket: "studio-a07a4.firebasestorage.app",
   messagingSenderId: "956807791511",
-  appId: "1:956807791511:web:339b4032186912ed15fad2"
+  appId: "1:956807791511:web:339b4032186912ed15fad2" // Assicurati che sia corretta
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-
-// Initialize Firestore
 const db = getFirestore(app);
-
-// Initialize Auth
 const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
 
-// Log di debug per configurazione
 console.log("Firebase initialized with config:", {
   projectId: firebaseConfig.projectId,
   appId: firebaseConfig.appId ? "Presente" : "Mancante"
 });
 
-// Funzione per la registrazione con email e password
-const registerWithEmailAndPassword = async (email, password) => {
+const signInWithGoogle = async () => {
   try {
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    return userCredential.user;
+    const result = await signInWithPopup(auth, googleProvider);
+    return result.user;
   } catch (error) {
-    console.error("Email registration error:", error);
+    console.error("Google Sign-In error:", error);
     throw error;
   }
 };
 
-// Funzione per il login con email e password
-const loginWithEmailAndPassword = async (email, password) => {
-  try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    return userCredential.user;
-  } catch (error) {
-    console.error("Email login error:", error);
-    throw error;
-  }
-};
-
-// Funzione per il logout
 const logoutUser = async () => {
   try {
     await signOut(auth);
@@ -68,29 +49,10 @@ const logoutUser = async () => {
   }
 };
 
-// Funzione per il reset della password
-const resetUserPassword = async (email) => {
-  try {
-    await sendPasswordResetEmail(auth, email);
-    return true;
-  } catch (error) {
-    console.error("Password reset error:", error);
-    throw error;
-  }
-};
-
-// Funzione per controllare lo stato di autenticazione
-const onAuthStateChange = (callback) => {
-  return onAuthStateChanged(auth, callback);
-};
-
 export {
   db,
   auth,
-  // Funzioni per autenticazione email/password
-  registerWithEmailAndPassword,
-  loginWithEmailAndPassword,
+  signInWithGoogle,
   logoutUser,
-  resetUserPassword,
-  onAuthStateChange
+  onAuthStateChanged // ESPORTA DIRETTAMENTE LA FUNZIONE IMPORTATA
 };
