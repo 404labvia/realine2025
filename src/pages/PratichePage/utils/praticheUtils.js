@@ -15,7 +15,11 @@ export const agenzieCollaboratori = [
 ];
 
 // Collaboratori aggiuntivi
-export const collaboratoriAggiuntivi = ["Geom. Alessandro De Antoni"];
+export const collaboratoriAggiuntivi = [
+  "Geom. Alessandro De Antoni", // Virgola aggiunta qui
+  "Arch. Luciano Casprini"
+  // Aggiungi altri se necessario
+];
 
 // Definizione delle fasi di workflow e i loro colori (personalizzati)
 export const workflowSteps = [
