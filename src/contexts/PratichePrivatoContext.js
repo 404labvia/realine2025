@@ -1,27 +1,22 @@
 // File: src/contexts/PratichePrivatoContext.js
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { db } from '../firebase';
+import { db, auth } from '../firebase'; // Importa auth da firebase
 import { collection, getDocs, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 
-// NUOVO: Nome del contesto
 const PratichePrivatoContext = createContext();
 
-// NUOVO: Hook per usare il contesto
 export function usePratichePrivato() {
   return useContext(PratichePrivatoContext);
 }
 
-// NUOVO: Provider del contesto
 export function PratichePrivatoProvider({ children }) {
-  const [pratiche, setPratiche] = useState([]); // Conterrà le pratiche private
-  const [collaboratori, setCollaboratori] = useState([]); // Lasciamo i collaboratori condivisi per ora
+  const [pratiche, setPratiche] = useState([]);
+  const [collaboratori, setCollaboratori] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
       try {
-        // Fetch pratiche privato
-        // MODIFICATO: Nome della collezione Firestore
         const praticheCollection = collection(db, 'pratiche_privato');
         const praticheSnapshot = await getDocs(praticheCollection);
         const praticheList = praticheSnapshot.docs.map(doc => ({
@@ -30,10 +25,6 @@ export function PratichePrivatoProvider({ children }) {
         }));
         setPratiche(praticheList);
 
-        // Fetch collaboratori (assumiamo condivisi per ora)
-        // Se hai bisogno di collaboratori separati per le pratiche private,
-        // dovrai creare una collezione 'collaboratori_privato'
-        // e modificare questa parte di conseguenza.
         const collaboratoriCollection = collection(db, 'collaboratori');
         const collaboratoriSnapshot = await getDocs(collaboratoriCollection);
         const collaboratoriList = collaboratoriSnapshot.docs.map(doc => ({
@@ -48,17 +39,22 @@ export function PratichePrivatoProvider({ children }) {
         setLoading(false);
       }
     }
-
     fetchData();
   }, []);
 
-  // Add a new pratica privata
-  // MODIFICATO: Nome della funzione per chiarezza (opzionale)
-  async function addPraticaPrivato(pratica) {
+  async function addPraticaPrivato(praticaData) {
     try {
-      // MODIFICATO: Nome della collezione Firestore
-      const docRef = await addDoc(collection(db, 'pratiche_privato'), pratica);
-      setPratiche(prev => [...prev, { id: docRef.id, ...pratica }]);
+      const user = auth.currentUser; // Prendi l'utente corrente da Firebase Auth
+      if (!user) {
+        console.error("Utente non autenticato. Impossibile aggiungere la pratica privata.");
+        throw new Error("Utente non autenticato per aggiungere una pratica privata.");
+      }
+      const praticaConUserId = {
+        ...praticaData,
+        userId: user.uid // AGGIUNGI L'UID DELL'UTENTE LOGGATO
+      };
+      const docRef = await addDoc(collection(db, 'pratiche_privato'), praticaConUserId);
+      setPratiche(prev => [...prev, { id: docRef.id, ...praticaConUserId }]);
       return docRef.id;
     } catch (error) {
       console.error("Error adding private document: ", error);
@@ -66,11 +62,8 @@ export function PratichePrivatoProvider({ children }) {
     }
   }
 
-  // Update a pratica privata
-  // MODIFICATO: Nome della funzione per chiarezza (opzionale)
   async function updatePraticaPrivato(id, updates) {
     try {
-      // MODIFICATO: Nome della collezione Firestore
       const praticaRef = doc(db, 'pratiche_privato', id);
       await updateDoc(praticaRef, updates);
       setPratiche(prev =>
@@ -85,11 +78,8 @@ export function PratichePrivatoProvider({ children }) {
     }
   }
 
-  // Delete a pratica privata
-  // MODIFICATO: Nome della funzione per chiarezza (opzionale)
   async function deletePraticaPrivato(id) {
     try {
-      // MODIFICATO: Nome della collezione Firestore
       await deleteDoc(doc(db, 'pratiche_privato', id));
       setPratiche(prev => prev.filter(p => p.id !== id));
       return true;
@@ -99,22 +89,16 @@ export function PratichePrivatoProvider({ children }) {
     }
   }
 
-  // RIMOZIONE: La funzione calculateFinancialStats non è rilevante qui
-  // dato che queste pratiche sono escluse dai conteggi globali.
-  // Se servono statistiche *solo* per le pratiche private, si può implementare qui.
-
   const value = {
-    pratiche, // Queste sono le pratiche_privato
+    pratiche,
     collaboratori,
     loading,
-    addPratica: addPraticaPrivato,       // Mappiamo al nome generico per facilitare il riutilizzo del codice nella pagina
-    updatePratica: updatePraticaPrivato, // Mappiamo al nome generico
-    deletePratica: deletePraticaPrivato  // Mappiamo al nome generico
-    // calculateFinancialStats: calculateFinancialStatsPrivato, // Se implementata
+    addPratica: addPraticaPrivato,
+    updatePratica: updatePraticaPrivato,
+    deletePratica: deletePraticaPrivato
   };
 
   return (
-    // MODIFICATO: Usa il nuovo Context Provider
     <PratichePrivatoContext.Provider value={value}>
       {children}
     </PratichePrivatoContext.Provider>
