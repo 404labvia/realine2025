@@ -14,9 +14,9 @@ import {
 } from 'react-icons/md';
 import { FaCalendarAlt, FaRobot } from 'react-icons/fa';
 
-import { AuthProvider } from './contexts/AuthContext'; // Assicurati di importare AuthProvider
+import { AuthProvider } from './contexts/AuthContext';
 import { PraticheProvider } from './contexts/PraticheContext';
-import { PratichePrivatoProvider } from './contexts/PratichePrivatoContext';
+import { PratichePrivatoProvider } from './contexts/PratichePrivatoContext'; // Assicurati che sia importato
 
 import Dashboard from './pages/Dashboard';
 import PratichePage from './pages/PratichePage';
@@ -25,19 +25,14 @@ import CalendarPage from './pages/CalendarPage';
 import PrezziarioPage from './pages/PrezziarioPage';
 import AutomationConfigPage from './pages/AutomationConfigPage';
 import FinanzePage from './pages/FinanzePage';
-import LoginPage from './components/Login'; // La pagina di login
+import LoginPage from './components/Login';
 
-// Importa le funzioni di autenticazione direttamente da firebase.js
 import { auth, onAuthStateChanged, logoutUser as firebaseLogoutUser } from './firebase';
 
-
 function AppContent() {
-  // Spostiamo la logica che dipende da useAuth qui dentro
-  // Questo componente verrà renderizzato solo se AuthProvider è un antenato
-  const [user, setUser] = useState(null); // Stato utente locale ad AppContent
-  const [authLoading, setAuthLoading] = useState(true); // Stato di caricamento specifico per l'autenticazione
+  const [user, setUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -45,7 +40,6 @@ function AppContent() {
         setUser({
           email: firebaseUser.email,
           uid: firebaseUser.uid
-          // Aggiungi qui altri dati utente se necessario, es. displayName
         });
       } else {
         setUser(null);
@@ -57,8 +51,7 @@ function AppContent() {
 
   const handleSignOut = async () => {
     try {
-      await firebaseLogoutUser(); // Usa la funzione di logout da firebase.js
-      // La navigazione al login sarà gestita dal check !user più in basso
+      await firebaseLogoutUser();
     } catch (error) {
       console.error("Errore durante il logout:", error);
     }
@@ -92,7 +85,8 @@ function AppContent() {
   };
 
   return (
-    <PraticheProvider>
+    <PraticheProvider> {/* Avvolge tutte le pratiche standard */}
+      {/* PratichePrivatoProvider ora avvolge le route che ne hanno bisogno */}
       <div className="flex h-screen bg-gray-100">
         <aside className={`${sidebarOpen ? 'w-52' : 'w-16'} bg-white text-gray-800 transition-all duration-300 ease-in-out overflow-y-auto shadow-md flex flex-col justify-between`}>
           <div>
@@ -105,7 +99,7 @@ function AppContent() {
                     <p className="text-xs text-gray-500">Gestione Pratiche</p>
                   </div>
                 ) : (
-                  <img src="/favicon.ico" alt="R" className="h-8 w-8 mx-auto" /> // Icona piccola se chiuso
+                  <img src="/favicon.ico" alt="R" className="h-8 w-8 mx-auto" />
                 )}
                 <button className={`p-1 rounded-full hover:bg-gray-100 text-gray-600 ${!sidebarOpen && 'mt-4'}`} onClick={() => setSidebarOpen(!sidebarOpen)}>
                   {sidebarOpen ? <MdChevronLeft size={20} /> : <MdChevronRight size={20} />}
@@ -192,7 +186,15 @@ function AppContent() {
                 }
               />
               <Route path="/finanze" element={<FinanzePage />} />
-              <Route path="/calendario" element={<CalendarPage />} />
+              {/* MODIFICATO: Avvolgi CalendarPage con PratichePrivatoProvider */}
+              <Route
+                path="/calendario"
+                element={
+                  <PratichePrivatoProvider>
+                    <CalendarPage />
+                  </PratichePrivatoProvider>
+                }
+              />
               <Route path="/prezziario" element={<PrezziarioPage />} />
               <Route path="/automazioni" element={<AutomationConfigPage />} />
             </Routes>

@@ -1,982 +1,715 @@
-import React, { useState, useEffect } from 'react';
-import { format, addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isSameDay, parse } from 'date-fns';
+// src/pages/CalendarPage.js
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Calendar, dateFnsLocalizer, Views } from 'react-big-calendar';
+import { format, parse, startOfWeek, getDay, addHours, startOfHour } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { FaChevronLeft, FaChevronRight, FaCalendarAlt, FaListUl, FaCog, FaPlus, FaSync } from 'react-icons/fa';
-import { BsCalendarWeek, BsCalendarMonth, BsCalendarDay } from 'react-icons/bs';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+import { useGoogleLogin, googleLogout } from '@react-oauth/google';
+import { FaPlus, FaSync, FaCog, FaCalendarCheck, FaCalendarTimes, FaSave, FaTrash } from 'react-icons/fa';
 import { usePratiche } from '../contexts/PraticheContext';
+import { usePratichePrivato } from '../contexts/PratichePrivatoContext';
 
-// Colori per le diverse categorie di eventi
+const locales = {
+  'it-IT': it,
+};
+const localizer = dateFnsLocalizer({
+  format,
+  parse,
+  startOfWeek: (date) => startOfWeek(date, { weekStartsOn: 1 }),
+  getDay,
+  locales,
+});
+
 const eventColors = {
-  sopralluogo: '#FBF8CC', // giallo chiaro
-  incarico: '#FFCCCC', // rosso chiaro
-  pagamento: '#E4DFEC', // viola chiaro
-  accessoAtti: '#FCD5B4', // arancione chiaro
-  presentazionePratica: '#DAEEF3', // azzurro chiaro
-  altro: '#D8E4BC', // verde chiaro
-  privato: '#CCCCCC' // grigio chiaro
+  sopralluogo: '#FBF8CC',
+  incarico: '#FFCCCC',
+  pagamento: '#E4DFEC',
+  accessoAtti: '#FCD5B4',
+  presentazionePratica: '#DAEEF3',
+  taskPratica: '#A7F3D0',
+  altro: '#D8E4BC',
+  privato: '#E5E7EB',
 };
 
-// Componente principale della pagina calendario
+const GAPI_SCRIPT_URL = 'https://apis.google.com/js/api.js';
+const API_KEY = process.env.REACT_APP_FIREBASE_API_KEY; // Assicurati che questa variabile d'ambiente sia definita
+const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'];
+
 function CalendarPage() {
-  const { pratiche } = usePratiche();
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [view, setView] = useState('month'); // 'month', 'week', 'day'
+  console.log("CalendarPage rendering..."); // LOG INIZIALE
+
+  const { pratiche: praticheStandard, loading: loadingPraticheStandard } = usePratiche();
+  const { pratiche: pratichePrivate, loading: loadingPratichePrivate } = usePratichePrivato();
+
+  const tutteLePratiche = useMemo(() => {
+    if (loadingPraticheStandard || loadingPratichePrivate) return [];
+    return [...(praticheStandard || []), ...(pratichePrivate || [])];
+  }, [praticheStandard, pratichePrivate, loadingPraticheStandard, loadingPratichePrivate]);
+
+
+  const [googleApiToken, setGoogleApiToken] = useState(() => localStorage.getItem('googleApiToken'));
+  const [gapiLoaded, setGapiLoaded] = useState(!!(window.gapi && window.gapi.client)); // Controlla se gapi è già lì
   const [events, setEvents] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [showEventModal, setShowEventModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [calendars, setCalendars] = useState([]);
-  const [selectedCalendars, setSelectedCalendars] = useState([]);
+  const [selectedSlot, setSelectedSlot] = useState(null);
 
-  // Stato per il form di eventi spostato a livello di componente (fix per hooks)
+  const defaultEventColor = eventColors.altro;
+
   const [formState, setFormState] = useState({
+    id: null,
     title: '',
-    startDate: format(new Date(), 'yyyy-MM-dd'),
-    startTime: format(new Date(), 'HH:mm'),
-    endDate: format(new Date(), 'yyyy-MM-dd'),
-    endTime: format(new Date(new Date().setHours(new Date().getHours() + 1)), 'HH:mm'),
+    start: new Date(),
+    end: addHours(new Date(), 1),
     description: '',
     location: '',
     category: 'altro',
-    calendarId: 'primary',
-    relatedPraticaId: ''
+    relatedPraticaId: '',
+    isPrivate: false,
   });
 
-  // Controlla all'avvio
-  useEffect(() => {
-    // Controlla se c'è un evento creato da una pratica
-    const newEventData = localStorage.getItem('newEventFromPratica');
-    if (newEventData) {
-      try {
-        const newEvent = JSON.parse(newEventData);
-        setSelectedEvent(null);
-        setSelectedDate(new Date(newEvent.start));
-        setShowEventModal(true);
-        // Rimuovi l'evento dalla localStorage dopo averlo utilizzato
-        localStorage.removeItem('newEventFromPratica');
-      } catch (error) {
-        console.error('Errore nel parsing dell\'evento:', error);
+  const loadGapiScript = useCallback(() => {
+    console.log("Attempting to load GAPI script...");
+    return new Promise((resolve, reject) => {
+      if (window.gapi && window.gapi.client && window.gapi.client.calendar) { // Controlla anche gapi.client.calendar
+        console.log("GAPI client already loaded and initialized.");
+        setGapiLoaded(true);
+        if (googleApiToken) {
+          try {
+            window.gapi.client.setToken({ access_token: googleApiToken });
+            console.log("GAPI token set from existing token.");
+          } catch (e) {
+            console.error("Error setting GAPI token (in loadGapiScript):", e);
+          }
+        }
+        resolve();
+        return;
       }
-    }
 
-    fetchEvents();
-  }, []);
+      if (document.getElementById('gapi-script')) {
+        console.log("GAPI script tag already exists, waiting for it to load or re-initiating.");
+        // Potrebbe essere necessario un meccanismo più robusto se lo script esiste ma non è caricato/inizializzato
+      }
 
-  // Aggiorna il formState quando selectedEvent o selectedDate cambiano
-  useEffect(() => {
-    // Recupera eventuale nuovo evento dalla localStorage
-    const storedEventData = localStorage.getItem('newEventFromPratica');
-    const storedEvent = storedEventData ? JSON.parse(storedEventData) : null;
-
-    const event = selectedEvent || storedEvent || {
-      title: '',
-      start: selectedDate ? new Date(selectedDate) : new Date(),
-      end: selectedDate ? new Date(new Date(selectedDate).setHours(new Date(selectedDate).getHours() + 1)) : new Date(new Date().setHours(new Date().getHours() + 1)),
-      description: '',
-      location: '',
-      category: 'altro',
-      color: eventColors.altro,
-      calendarId: 'primary'
-    };
-
-    const startDate = new Date(event.start);
-    const endDate = new Date(event.end);
-
-    setFormState({
-      title: event.title,
-      startDate: format(startDate, 'yyyy-MM-dd'),
-      startTime: format(startDate, 'HH:mm'),
-      endDate: format(endDate, 'yyyy-MM-dd'),
-      endTime: format(endDate, 'HH:mm'),
-      description: event.description || '',
-      location: event.location || '',
-      category: event.category || 'altro',
-      calendarId: event.calendarId || 'primary',
-      relatedPraticaId: event.relatedPraticaId || ''
+      const script = document.createElement('script');
+      script.id = 'gapi-script';
+      script.src = GAPI_SCRIPT_URL;
+      script.async = true;
+      script.defer = true;
+      script.onload = () => {
+        console.log("GAPI script loaded.");
+        window.gapi.load('client', () => { // Carica solo 'client'
+          console.log("'client' module loaded via gapi.load.");
+          if (!API_KEY) {
+            console.error("API Key for GAPI client is missing!");
+            reject(new Error("API Key for GAPI client is missing!"));
+            return;
+          }
+          window.gapi.client
+            .init({
+              apiKey: API_KEY,
+              discoveryDocs: DISCOVERY_DOCS,
+            })
+            .then(() => {
+              console.log('GAPI client initialized successfully.');
+              setGapiLoaded(true);
+              if (googleApiToken) {
+                try {
+                    window.gapi.client.setToken({ access_token: googleApiToken });
+                    console.log("GAPI token set after init.");
+                } catch(e) {
+                    console.error("Error setting GAPI token (after init):", e);
+                }
+              }
+              resolve();
+            })
+            .catch((error) => {
+              console.error('Error initializing GAPI client:', error);
+              reject(error);
+            });
+        });
+      };
+      script.onerror = (error) => {
+        console.error('Error loading GAPI script file:', error);
+        reject(error);
+      };
+      document.body.appendChild(script);
     });
+  }, [googleApiToken]); // googleApiToken come dipendenza
 
-    // Se l'evento dalla localStorage aveva un id di pratica correlata, lo impostiamo
-    if (storedEvent && storedEvent.relatedPraticaId) {
-      setFormState(prev => ({
-        ...prev,
-        relatedPraticaId: storedEvent.relatedPraticaId
-      }));
+  const fetchGoogleCalendarEvents = useCallback(async () => {
+    if (!gapiLoaded) {
+      console.warn("fetchGoogleCalendarEvents called but GAPI not loaded.");
+      return;
     }
-  }, [selectedEvent, selectedDate]);
-
-  // Funzione per ottenere gli eventi locali
-  const fetchEvents = () => {
-    setIsLoading(true);
-    try {
-      // Mock data per eventi
-      const mockEvents = [
-        {
-          id: '1',
-          title: 'Sopralluogo Via Roma 123',
-          start: new Date(2025, 2, 25, 15, 0), // 25 Marzo 2025, 15:00
-          end: new Date(2025, 2, 25, 16, 30),
-          color: eventColors.sopralluogo,
-          description: 'Sopralluogo per verifica conformità',
-          location: 'Via Roma 123, Viareggio',
-          calendarId: 'primary',
-          relatedPraticaId: pratiche[0]?.id || null
-        },
-        {
-          id: '2',
-          title: 'Incarico Donati',
-          start: new Date(2025, 2, 28, 15, 0), // 28 Marzo 2025, 15:00
-          end: new Date(2025, 2, 28, 16, 0),
-          color: eventColors.incarico,
-          description: 'Firma incarico professionale',
-          location: 'Studio, Via del Mare 45',
-          calendarId: 'primary',
-          relatedPraticaId: null
-        },
-        {
-          id: '3',
-          title: 'Non disponibile',
-          start: new Date(2025, 2, 6, 15, 0), // 6 Marzo 2025, 15:00
-          end: new Date(2025, 2, 6, 17, 0),
-          color: eventColors.altro,
-          description: 'Non disponibile',
-          calendarId: 'primary',
-          relatedPraticaId: null
-        },
-        {
-          id: '4',
-          title: 'Fattura Parrini primo acconto',
-          start: new Date(2025, 2, 26, 17, 0), // 26 Marzo 2025, 17:00
-          end: new Date(2025, 2, 26, 17, 30),
-          color: eventColors.pagamento,
-          description: 'Emettere fattura primo acconto',
-          calendarId: 'primary',
-          relatedPraticaId: null
-        },
-        {
-          id: '5',
-          title: 'Pratiche loc. GINORI',
-          start: new Date(2025, 2, 26, 18, 0), // 26 Marzo 2025, 18:00
-          end: new Date(2025, 2, 26, 19, 0),
-          color: eventColors.altro,
-          description: 'Revisione pratiche località Ginori',
-          calendarId: 'primary',
-          relatedPraticaId: null
-        },
-        {
-          id: '6',
-          title: 'AGG via Boltori',
-          start: new Date(2025, 2, 14, 15, 0), // 14 Marzo 2025, 15:00
-          end: new Date(2025, 2, 14, 16, 0),
-          color: eventColors.presentazionePratica,
-          description: 'Aggiornamento pratica via Boltori',
-          calendarId: 'primary',
-          relatedPraticaId: null
-        }
-      ];
-
-      // Aggiungi più mockEvents per simulare i dati delle immagini fornite
-      const additionalEvents = [
-        {
-          id: '7',
-          title: 'Chiamare ALE proprietario via...',
-          start: new Date(2025, 2, 25, 15, 0),
-          end: new Date(2025, 2, 25, 15, 30),
-          color: eventColors.altro,
-          calendarId: 'primary'
-        },
-        {
-          id: '8',
-          title: 'Giacomo Ferrari Barner Querc...',
-          start: new Date(2025, 2, 25, 15, 30),
-          end: new Date(2025, 2, 25, 16, 30),
-          color: eventColors.altro,
-          calendarId: 'primary'
-        },
-        {
-          id: '9',
-          title: 'Giacomo Landi',
-          start: new Date(2025, 2, 25, 17, 0),
-          end: new Date(2025, 2, 25, 18, 0),
-          color: eventColors.altro,
-          calendarId: 'primary'
-        },
-        {
-          id: '10',
-          title: 'Mandare prezzario vuoto FERR...',
-          start: new Date(2025, 2, 26, 15, 0),
-          end: new Date(2025, 2, 26, 16, 0),
-          color: eventColors.altro,
-          calendarId: 'primary'
-        },
-        {
-          id: '11',
-          title: 'Privato sito',
-          start: new Date(2025, 2, 26, 16, 30),
-          end: new Date(2025, 2, 26, 17, 30),
-          color: eventColors.privato,
-          calendarId: 'primary'
-        },
-        {
-          id: '12',
-          title: 'Privato ufficio',
-          start: new Date(2025, 2, 27, 15, 0),
-          end: new Date(2025, 2, 27, 16, 0),
-          color: eventColors.privato,
-          calendarId: 'primary'
-        },
-        {
-          id: '13',
-          title: 'Incarico Tiziano',
-          start: new Date(2025, 2, 28, 15, 30),
-          end: new Date(2025, 2, 28, 16, 30),
-          color: eventColors.incarico,
-          calendarId: 'primary'
-        },
-        {
-          id: '14',
-          title: 'BARNER CAMAIORE appunta...',
-          start: new Date(2025, 2, 5, 15, 30),
-          end: new Date(2025, 2, 5, 16, 30),
-          color: eventColors.altro,
-          calendarId: 'primary'
-        },
-        {
-          id: '15',
-          title: 'Agenzia Lucca appuntamento...',
-          start: new Date(2025, 2, 5, 18, 15),
-          end: new Date(2025, 2, 5, 19, 15),
-          color: eventColors.altro,
-          calendarId: 'primary'
-        }
-      ];
-
-      setEvents([...mockEvents, ...additionalEvents]);
-
-      // Mock dei calendari disponibili
-      setCalendars([
-        { id: 'primary', summary: 'Il mio calendario', selected: true, backgroundColor: '#4285F4' },
-        { id: 'work', summary: 'Lavoro', selected: true, backgroundColor: '#0B8043' },
-        { id: 'family', summary: 'Famiglia', selected: true, backgroundColor: '#8E24AA' },
-        { id: 'holidays', summary: 'Festività italiane', selected: true, backgroundColor: '#D50000' }
-      ]);
-
-      setSelectedCalendars(['primary', 'work', 'family', 'holidays']);
-    } catch (error) {
-      console.error('Errore nel recupero degli eventi:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Carica gli eventi all'avvio e quando cambia la vista o la data
-  useEffect(() => {
-    fetchEvents();
-  }, [currentDate, view]);
-
-  // Funzioni per la navigazione del calendario
-  const navigatePrev = () => {
-    if (view === 'month') {
-      setCurrentDate(subMonths(currentDate, 1));
-    } else if (view === 'week') {
-      setCurrentDate(subWeeks(currentDate, 1));
-    } else if (view === 'day') {
-      setCurrentDate(subDays(currentDate, 1));
-    }
-  };
-
-  const navigateNext = () => {
-    if (view === 'month') {
-      setCurrentDate(addMonths(currentDate, 1));
-    } else if (view === 'week') {
-      setCurrentDate(addWeeks(currentDate, 1));
-    } else if (view === 'day') {
-      setCurrentDate(addDays(currentDate, 1));
-    }
-  };
-
-  const navigateToday = () => {
-    setCurrentDate(new Date());
-  };
-
-  // Funzione per creare un nuovo evento
-  const handleCreateEvent = (date) => {
-    setSelectedDate(date);
-    setSelectedEvent(null);
-    setShowEventModal(true);
-  };
-
-  // Funzione per visualizzare i dettagli di un evento
-  const handleViewEvent = (event) => {
-    setSelectedEvent(event);
-    setShowEventModal(true);
-  };
-
-  // Funzione per salvare un evento (nuovo o modificato)
-  const handleSaveEvent = async (eventData) => {
-    try {
-      if (selectedEvent) {
-        // Modifica evento esistente
-        const updatedEvents = events.map(event =>
-          event.id === selectedEvent.id ? {...event, ...eventData} : event
-        );
-        setEvents(updatedEvents);
-      } else {
-        // Nuovo evento
-        const newEvent = {
-          id: Date.now().toString(),
-          ...eventData,
-          color: eventColors[eventData.category] || eventColors.altro
-        };
-        setEvents([...events, newEvent]);
-      }
-
-      setShowEventModal(false);
-    } catch (error) {
-      console.error("Errore nel salvare l'evento:", error);
-      alert("Si è verificato un errore nel salvare l'evento.");
-    }
-  };
-
-  // Funzione per eliminare un evento
-  const handleDeleteEvent = async (eventId) => {
-    if (window.confirm("Sei sicuro di voler eliminare questo evento?")) {
-      try {
-        setEvents(events.filter(event => event.id !== eventId));
-        setShowEventModal(false);
-      } catch (error) {
-        console.error("Errore nell'eliminare l'evento:", error);
-        alert("Si è verificato un errore nell'eliminare l'evento.");
-      }
-    }
-  };
-
-  // Funzione per gestire il cambio dei calendari selezionati
-  const handleCalendarToggle = (calendarId) => {
-    if (selectedCalendars.includes(calendarId)) {
-      setSelectedCalendars(selectedCalendars.filter(id => id !== calendarId));
-    } else {
-      setSelectedCalendars([...selectedCalendars, calendarId]);
-    }
-  };
-
-  // Gestisce i cambiamenti nel form dell'evento
-  const handleFormChange = (field, value) => {
-    setFormState(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  // Gestisce il submit del form dell'evento
-  const handleSubmitEventForm = (e) => {
-    e.preventDefault();
-
-    const startDateTime = new Date(`${formState.startDate}T${formState.startTime}`);
-    const endDateTime = new Date(`${formState.endDate}T${formState.endTime}`);
-
-    // Controlla che la data di fine sia dopo quella di inizio
-    if (endDateTime <= startDateTime) {
-      alert('La data di fine deve essere successiva alla data di inizio.');
+    if (!googleApiToken) {
+      console.warn("fetchGoogleCalendarEvents called but no Google API token.");
+      setEvents([]); // Pulisci eventi se non c'è token
       return;
     }
 
-    const eventData = {
-      title: formState.title,
-      start: startDateTime,
-      end: endDateTime,
+    setIsLoadingEvents(true);
+    console.log("Fetching Google Calendar events with token:", googleApiToken ? "Exists" : "Missing");
+    try {
+      // Assicurati che il token sia impostato per il client GAPI
+      if (window.gapi && window.gapi.client && window.gapi.client.setToken) {
+         window.gapi.client.setToken({ access_token: googleApiToken });
+      } else {
+        console.error("GAPI client o setToken non disponibile per fetchGoogleCalendarEvents");
+        setIsLoadingEvents(false);
+        return;
+      }
+
+      const response = await window.gapi.client.calendar.events.list({
+        calendarId: 'primary',
+        timeMin: new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString(),
+        timeMax: new Date(new Date().setMonth(new Date().getMonth() + 2)).toISOString(),
+        maxResults: 250,
+        singleEvents: true,
+        orderBy: 'startTime',
+      });
+
+      console.log("Google Calendar API response:", response);
+      const items = response.result.items || [];
+      const formattedEvents = items.map((item) => ({
+        id: item.id,
+        title: item.summary || '(Nessun titolo)',
+        start: new Date(item.start.dateTime || item.start.date),
+        end: new Date(item.end.dateTime || item.end.date),
+        description: item.description || '',
+        location: item.location || '',
+        category: item.extendedProperties?.private?.category || 'altro',
+        color: item.extendedProperties?.private?.category ? eventColors[item.extendedProperties.private.category] : (item.colorId ? mapGoogleColorToHex(item.colorId) : defaultEventColor),
+        relatedPraticaId: item.extendedProperties?.private?.relatedPraticaId || '',
+        isPrivate: item.extendedProperties?.private?.isPrivate === 'true',
+        googleEvent: true,
+      }));
+      setEvents(formattedEvents);
+      console.log("Eventi caricati:", formattedEvents.length);
+    } catch (error) {
+      console.error('Errore nel caricare gli eventi da Google Calendar:', error);
+      if (error && error.result && error.result.error && error.result.error.code === 401) {
+        console.warn("Token Google API scaduto o non valido. Eseguire logout.");
+        handleGoogleLogout(); // Esegui logout se il token non è valido
+        alert("Sessione Google scaduta. Effettua nuovamente il login con Google per il calendario.");
+      }
+    } finally {
+      setIsLoadingEvents(false);
+    }
+  }, [gapiLoaded, googleApiToken]); // Aggiunte dipendenze corrette
+
+
+  useEffect(() => {
+    console.log("useEffect [loadGapiScript] TENTATIVO INIZIALE")
+    loadGapiScript().then(() => {
+      console.log("GAPI script caricato e inizializzato da useEffect principale.");
+      if (googleApiToken) {
+        console.log("Token API Google trovato in localStorage, tento il fetch degli eventi.");
+        fetchGoogleCalendarEvents();
+      } else {
+        console.log("Nessun token API Google in localStorage.");
+      }
+    }).catch(err => {
+        console.error("Errore critico nel caricamento/inizializzazione di GAPI:", err);
+    });
+  }, [loadGapiScript]); // Dipendenza da loadGapiScript
+
+  // Questo useEffect reagirà al cambio di googleApiToken (es. dopo il login)
+  useEffect(() => {
+    if (googleApiToken && gapiLoaded) {
+      console.log("Token API Google cambiato o GAPI caricato, tento il fetch degli eventi.");
+      fetchGoogleCalendarEvents();
+    }
+  }, [googleApiToken, gapiLoaded, fetchGoogleCalendarEvents]);
+
+
+  const googleLogin = useGoogleLogin({
+    onSuccess: (tokenResponse) => {
+      console.log('Google API Login Success:', tokenResponse);
+      const accessToken = tokenResponse.access_token;
+      localStorage.setItem('googleApiToken', accessToken);
+      setGoogleApiToken(accessToken);
+      // GAPI dovrebbe essere già caricato, ma impostiamo il token e facciamo fetch
+      if (gapiLoaded && window.gapi && window.gapi.client) {
+        try {
+            window.gapi.client.setToken({ access_token: accessToken });
+            console.log("Token impostato per GAPI client dopo login.");
+            fetchGoogleCalendarEvents();
+        } catch(e) {
+            console.error("Errore nell'impostare il token per GAPI client dopo login:", e);
+        }
+      } else {
+        console.warn("GAPI non pronto subito dopo il login, loadGapiScript dovrebbe gestirlo.");
+        // loadGapiScript e il successivo useEffect [googleApiToken, gapiLoaded] dovrebbero gestire il fetch
+      }
+    },
+    onError: (error) => {
+      console.error('Google API Login Failed:', error);
+      alert('Login con Google per il calendario fallito.');
+    },
+    scope: 'https://www.googleapis.com/auth/calendar.events',
+  });
+
+  const handleGoogleLogout = () => {
+    googleLogout();
+    localStorage.removeItem('googleApiToken');
+    setGoogleApiToken(null);
+    setEvents([]);
+    console.log("Logged out from Google API");
+  };
+
+  const handleSelectSlot = useCallback(({ start, end }) => {
+    setSelectedSlot({ start, end });
+    setSelectedEvent(null); // Assicura che non ci sia un evento selezionato
+    setFormState({
+      id: null,
+      title: '',
+      start: startOfHour(start), // Inizia all'ora esatta
+      end: startOfHour(addHours(start, 1)), // Finisce un'ora dopo
+      description: '',
+      location: '',
+      category: 'altro',
+      relatedPraticaId: '',
+      isPrivate: false,
+    });
+    setShowEventModal(true);
+  }, []);
+
+  const handleSelectEvent = useCallback((event) => {
+    setSelectedEvent(event);
+    setSelectedSlot(null); // Assicura che non ci sia uno slot selezionato
+    setFormState({
+      id: event.id,
+      title: event.title,
+      start: new Date(event.start),
+      end: new Date(event.end),
+      description: event.description || '',
+      location: event.location || '',
+      category: event.category || 'altro',
+      relatedPraticaId: event.relatedPraticaId || '',
+      isPrivate: event.isPrivate || false,
+    });
+    setShowEventModal(true);
+  }, []);
+
+  const handleEventDropOrResize = useCallback(async ({ event, start, end }) => {
+    if (!gapiLoaded || !googleApiToken) {
+        console.warn("Operazione drop/resize fallita: GAPI non pronto o token mancante.");
+        // Potrebbe essere utile un re-fetch per annullare la modifica visiva
+        fetchGoogleCalendarEvents();
+        return;
+    }
+    if (!event.googleEvent) {
+        alert("Questa funzionalità è disponibile solo per eventi di Google Calendar.");
+        fetchGoogleCalendarEvents(); // Ripristina posizione
+        return;
+    }
+
+    console.log("Attempting to update event (drop/resize):", event.id);
+    const eventResource = {
+        summary: event.title,
+        description: event.description,
+        location: event.location,
+        start: { dateTime: new Date(start).toISOString() },
+        end: { dateTime: new Date(end).toISOString() },
+        extendedProperties: {
+          private: {
+            category: event.category,
+            relatedPraticaId: event.relatedPraticaId,
+            isPrivate: String(event.isPrivate),
+          }
+        }
+      };
+
+    try {
+      await window.gapi.client.calendar.events.update({
+        calendarId: 'primary',
+        eventId: event.id,
+        resource: eventResource,
+      });
+      console.log("Evento aggiornato con successo (drop/resize). Ricarico...");
+      fetchGoogleCalendarEvents();
+    } catch (error) {
+      console.error("Errore nell'aggiornare l'evento (drop/resize):", error);
+      alert("Errore durante l'aggiornamento dell'evento. Verranno ricaricati gli eventi.");
+      fetchGoogleCalendarEvents(); // Ricarica per annullare la modifica visiva in caso di errore
+    }
+  }, [gapiLoaded, googleApiToken, fetchGoogleCalendarEvents]);
+
+
+  const handleFormSubmit = async (e) => {
+    e.preventDefault();
+    if (!gapiLoaded || !googleApiToken) {
+      alert("Autenticazione Google Calendar richiesta.");
+      return;
+    }
+
+    const praticaSelezionata = tutteLePratiche.find(p => p.id === formState.relatedPraticaId);
+    let eventTitle = formState.title;
+    if (praticaSelezionata) {
+        eventTitle = `${formState.title} (Pratica: ${praticaSelezionata.codice || praticaSelezionata.indirizzo})`;
+    }
+
+
+    const eventResource = {
+      summary: eventTitle,
       description: formState.description,
       location: formState.location,
-      category: formState.category,
-      color: eventColors[formState.category] || eventColors.altro,
-      calendarId: formState.calendarId,
-      relatedPraticaId: formState.relatedPraticaId || null
+      start: { dateTime: new Date(formState.start).toISOString() },
+      end: { dateTime: new Date(formState.end).toISOString() },
+      extendedProperties: {
+        private: {
+          category: formState.category,
+          relatedPraticaId: formState.relatedPraticaId || null,
+          isPrivate: String(formState.isPrivate),
+        },
+      },
     };
 
-    handleSaveEvent(eventData);
+    console.log("Submitting event:", formState.id ? "UPDATE" : "INSERT", eventResource);
+
+    try {
+      if (formState.id) {
+        await window.gapi.client.calendar.events.update({
+          calendarId: 'primary',
+          eventId: formState.id,
+          resource: eventResource,
+        });
+      } else {
+        await window.gapi.client.calendar.events.insert({
+          calendarId: 'primary',
+          resource: eventResource,
+        });
+      }
+      setShowEventModal(false);
+      setSelectedEvent(null);
+      setSelectedSlot(null);
+      console.log("Evento salvato con successo. Ricarico...");
+      fetchGoogleCalendarEvents();
+    } catch (error) {
+      console.error("Errore nel salvare l'evento su Google Calendar:", error);
+      alert("Si è verificato un errore nel salvare l'evento su Google Calendar.");
+    }
   };
 
-  // Genera intestazioni e celle per la vista mensile
-  const renderMonthView = () => {
-    const monthStart = startOfMonth(currentDate);
-    const monthEnd = endOfMonth(currentDate);
-    const startDate = startOfWeek(monthStart, { locale: it });
-    const endDate = endOfWeek(monthEnd, { locale: it });
-
-    const dateFormat = 'd';
-    const dayFormat = 'EEEEEE';
-    const monthYearFormat = 'MMMM yyyy';
-
-    const days = [];
-    let day = startDate;
-
-    // Intestazioni dei giorni della settimana
-    const daysOfWeek = [];
-    for (let i = 0; i < 7; i++) {
-      daysOfWeek.push(
-        <div key={`header-${i}`} className="text-center font-medium py-2 border-b">
-          {format(addDays(startDate, i), dayFormat, { locale: it }).toUpperCase()}
-        </div>
-      );
-    }
-
-    // Celle dei giorni
-    while (day <= endDate) {
-      for (let i = 0; i < 7; i++) {
-        const cloneDay = day;
-        const dateString = format(cloneDay, 'yyyy-MM-dd');
-        const dayEvents = events.filter(event =>
-          isSameDay(parse(dateString, 'yyyy-MM-dd', new Date()), new Date(event.start))
-        );
-
-        days.push(
-          <div
-            key={dateString}
-            className={`min-h-24 border p-1 ${
-              !isSameMonth(cloneDay, monthStart) ? 'bg-gray-100 text-gray-400' :
-              isSameDay(cloneDay, new Date()) ? 'bg-blue-50 border-blue-500' : ''
-            }`}
-            onClick={() => handleCreateEvent(cloneDay)}
-          >
-            <div className="flex justify-between items-center">
-              <span className={`font-medium ${isSameDay(cloneDay, new Date()) ? 'text-blue-600' : ''}`}>
-                {format(cloneDay, dateFormat)}
-              </span>
-              {dayEvents.length > 0 && (
-                <span className="text-xs text-gray-500">{dayEvents.length} eventi</span>
-              )}
-            </div>
-            <div className="overflow-y-auto max-h-20">
-              {dayEvents.map((event, idx) => (
-                <div
-                  key={event.id}
-                  className="text-xs mt-1 p-1 rounded truncate cursor-pointer"
-                  style={{ backgroundColor: event.color || eventColors.altro }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleViewEvent(event);
-                  }}
-                >
-                  {format(new Date(event.start), 'HH:mm')} {event.title}
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-
-        day = addDays(day, 1);
+  const handleDeleteCurrentEvent = async () => { // Rinominata per chiarezza
+    if (!formState.id || !gapiLoaded || !googleApiToken) return;
+    if (window.confirm("Sei sicuro di voler eliminare questo evento?")) {
+      console.log("Attempting to delete event:", formState.id);
+      try {
+        await window.gapi.client.calendar.events.delete({
+          calendarId: 'primary',
+          eventId: formState.id,
+        });
+        setShowEventModal(false);
+        setSelectedEvent(null);
+        setSelectedSlot(null);
+        console.log("Evento eliminato con successo. Ricarico...");
+        fetchGoogleCalendarEvents();
+      } catch (error) {
+        console.error("Errore nell'eliminare l'evento da Google Calendar:", error);
+        alert("Errore nell'eliminare l'evento.");
       }
     }
-
-    return (
-      <div>
-        <div className="text-xl font-bold mb-4 text-center">
-          {format(currentDate, monthYearFormat, { locale: it })}
-        </div>
-        <div className="grid grid-cols-7 gap-0">
-          {daysOfWeek}
-          {days}
-        </div>
-      </div>
-    );
   };
 
-  // Funzione per controllare se due date sono nello stesso mese
-  const isSameMonth = (date1, date2) => {
-    return date1.getMonth() === date2.getMonth() && date1.getFullYear() === date2.getFullYear();
+  const mapGoogleColorToHex = (colorId) => {
+    const googleColors = {
+      '1': '#a4bdfc', '2': '#7ae7bf', '3': '#dbadff', '4': '#ff887c',
+      '5': '#fbd75b', '6': '#ffb878', '7': '#46d6db', '8': '#e1e1e1',
+      '9': '#5484ed', '10': '#51b749', '11': '#dc2127',
+    };
+    return googleColors[colorId] || defaultEventColor;
   };
 
-  // Genera vista settimanale
-  const renderWeekView = () => {
-    const weekStart = startOfWeek(currentDate, { locale: it });
-    const weekEnd = endOfWeek(currentDate, { locale: it });
-
-    const days = [];
-    let day = weekStart;
-
-    // Righe orarie
-    const hours = [];
-    for (let hour = 8; hour <= 20; hour++) {
-      hours.push(
-        <div key={`hour-${hour}`} className="border-t h-12 relative">
-          <span className="absolute -top-2 -left-16 text-xs text-gray-500">
-            {hour.toString().padStart(2, '0')}:00
-          </span>
-        </div>
-      );
+  const eventStyleGetter = (event) => {
+    const backgroundColor = event.color || eventColors[event.category] || defaultEventColor;
+    let textColor = '#333333'; // Default dark text
+    // Semplice logica per contrasto, puoi migliorarla
+    if (backgroundColor.toLowerCase() === '#ffcccc' || backgroundColor.toLowerCase() === '#fbf8cc' || backgroundColor.toLowerCase() === '#e4dfec' || backgroundColor.toLowerCase() === '#daeef3' || backgroundColor.toLowerCase() === '#fcd5b4' || backgroundColor.toLowerCase() === '#d8e4bc') {
+        textColor = '#505050';
     }
 
-    // Intestazioni dei giorni
-    while (day <= weekEnd) {
-      const dayStr = format(day, 'EEEE d', { locale: it });
-      const isToday = isSameDay(day, new Date());
 
-      const dayEvents = events.filter(event =>
-        isSameDay(day, new Date(event.start))
-      );
+    const style = {
+      backgroundColor,
+      borderRadius: '5px',
+      opacity: 0.9,
+      color: textColor,
+      border: '1px solid rgba(0,0,0,0.1)',
+      display: 'block',
+      fontSize: '0.75em', // Leggermente più piccolo
+      padding: '1px 3px', // Padding ridotto
+    };
+    return { style };
+  };
 
-      days.push(
-        <div key={day.toString()} className="flex-1 min-w-0">
-          <div className={`text-center p-2 border-b ${isToday ? 'bg-blue-50 font-bold' : ''}`}>
-            {dayStr}
-          </div>
-          <div className="relative min-h-[576px]"> {/* 12 ore * 48px */}
-            {dayEvents.map(event => {
-              const startHour = new Date(event.start).getHours();
-              const startMinute = new Date(event.start).getMinutes();
-              const endHour = new Date(event.end).getHours();
-              const endMinute = new Date(event.end).getMinutes();
+  const messages = {
+    allDay: 'Tutto il giorno',
+    previous: 'Prec',
+    next: 'Succ',
+    today: 'Oggi',
+    month: 'Mese',
+    week: 'Settimana',
+    day: 'Giorno',
+    agenda: 'Agenda',
+    date: 'Data',
+    time: 'Ora',
+    event: 'Evento',
+    noEventsInRange: 'Nessun evento in questo intervallo.',
+    showMore: total => `+ Altri ${total}`
+  };
 
-              const top = ((startHour - 8) * 60 + startMinute) * 0.2; // 0.2px per minuto
-              const height = ((endHour - startHour) * 60 + (endMinute - startMinute)) * 0.2;
+  return (
+    <div className="container mx-auto p-4">
+      <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
+        <h1 className="text-2xl font-bold text-gray-800">Calendario</h1>
+        <div>
+          {!googleApiToken ? (
+            <button
+              onClick={() => { console.log("Connetti Google Calendar clicked. GAPI loaded:", gapiLoaded); googleLogin();}}
+              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center text-sm sm:text-base"
+              disabled={!gapiLoaded || isLoadingEvents}
+            >
+              <FaCalendarCheck className="mr-2" /> Connetti Google Calendar
+            </button>
+          ) : (
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={fetchGoogleCalendarEvents}
+                className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-3 rounded flex items-center text-xs sm:text-sm"
+                disabled={isLoadingEvents || !gapiLoaded}
+                title="Aggiorna eventi"
+              >
+                <FaSync className={`mr-1 sm:mr-2 ${isLoadingEvents ? 'animate-spin' : ''}`} /> Aggiorna
+              </button>
+              <button
+                onClick={handleGoogleLogout}
+                className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-3 rounded flex items-center text-xs sm:text-sm"
+                title="Disconnetti Google Calendar"
+              >
+                <FaCalendarTimes className="mr-1 sm:mr-2" /> Disconnetti
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
 
-              return (
-                <div
-                  key={event.id}
-                  className="absolute left-0 right-0 mx-1 p-1 rounded text-xs overflow-hidden"
-                  style={{
-                    top: `${top}px`,
-                    height: `${height}px`,
-                    backgroundColor: event.color || eventColors.altro
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleViewEvent(event);
+      {(!gapiLoaded && !googleApiToken) && ( // Mostra solo se GAPI non è caricato E non c'è token
+        <div className="text-center py-4 text-gray-600 bg-yellow-50 p-3 rounded-md">
+          Inizializzazione API di Google in corso... Se il messaggio persiste, prova a ricaricare la pagina.
+          Assicurati che il tuo Client ID Google sia corretto in `src/index.js`.
+        </div>
+      )}
+
+      {(googleApiToken && gapiLoaded) ? (
+        <div style={{ height: 'calc(100vh - 220px)' }} className="bg-white p-2 sm:p-4 rounded-lg shadow-md">
+          <Calendar
+            localizer={localizer}
+            events={events}
+            startAccessor="start"
+            endAccessor="end"
+            style={{ height: '100%' }}
+            views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
+            defaultView={Views.WEEK}
+            selectable
+            onSelectSlot={handleSelectSlot}
+            onSelectEvent={handleSelectEvent}
+            onEventDrop={handleEventDropOrResize}
+            onEventResize={handleEventDropOrResize}
+            resizable
+            messages={messages}
+            culture="it-IT"
+            eventPropGetter={eventStyleGetter}
+            dayLayoutAlgorithm="no-overlap"
+            popup // Abilita il popup per "showMore"
+            formats={{
+                agendaHeaderFormat: ({ start, end }, culture, local) =>
+                  local.format(start, 'dd/MM/yyyy', culture) + ' – ' + local.format(end, 'dd/MM/yyyy', culture),
+                dayHeaderFormat: (date, culture, local) => local.format(date, 'eeee dd MMMM', culture),
+                dayRangeHeaderFormat: ({ start, end }, culture, local) =>
+                  local.format(start, 'dd MMM', culture) + ' – ' + local.format(end, 'dd MMM', culture)
+            }}
+            step={15} // Intervalli di 15 minuti
+            timeslots={4} // 4 slot per ora (ogni 15 min)
+          />
+        </div>
+      ) : !googleApiToken && gapiLoaded ? (
+        <div className="text-center py-10 text-gray-700 bg-gray-50 p-6 rounded-lg shadow">
+            <FaCalendarCheck className="mx-auto text-4xl text-blue-500 mb-3" />
+            <p className="text-lg">Connetti il tuo Google Calendar per visualizzare e gestire gli eventi.</p>
+        </div>
+      ) : null}
+
+      {showEventModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000] p-4"> {/* Aumentato z-index */}
+          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold text-gray-800">
+                {formState.id ? 'Modifica Evento' : 'Nuovo Evento'}
+              </h2>
+              <button onClick={() => {setShowEventModal(false); setSelectedEvent(null); setSelectedSlot(null);}} className="text-gray-500 hover:text-gray-700 text-2xl p-1">&times;</button>
+            </div>
+
+            <form onSubmit={handleFormSubmit} className="space-y-4">
+              <div>
+                <label htmlFor="eventTitleModal" className="block text-sm font-medium text-gray-700">Titolo *</label>
+                <input
+                  type="text"
+                  id="eventTitleModal"
+                  required
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  value={formState.title}
+                  onChange={(e) => setFormState({ ...formState, title: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="eventStartDateModal" className="block text-sm font-medium text-gray-700">Data Inizio</label>
+                  <input
+                    type="date"
+                    id="eventStartDateModal"
+                    required
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    value={format(formState.start, 'yyyy-MM-dd')}
+                    onChange={(e) => setFormState({ ...formState, start: new Date(e.target.value + 'T' + format(formState.start, 'HH:mm')) })}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="eventStartTimeModal" className="block text-sm font-medium text-gray-700">Ora Inizio</label>
+                  <input
+                    type="time"
+                    id="eventStartTimeModal"
+                    required
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    value={format(formState.start, 'HH:mm')}
+                    onChange={(e) => setFormState({ ...formState, start: new Date(format(formState.start, 'yyyy-MM-dd') + 'T' + e.target.value) })}
+                    step="900" // 15 minuti
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="eventEndDateModal" className="block text-sm font-medium text-gray-700">Data Fine</label>
+                  <input
+                    type="date"
+                    id="eventEndDateModal"
+                    required
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    value={format(formState.end, 'yyyy-MM-dd')}
+                    onChange={(e) => setFormState({ ...formState, end: new Date(e.target.value + 'T' + format(formState.end, 'HH:mm')) })}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="eventEndTimeModal" className="block text-sm font-medium text-gray-700">Ora Fine</label>
+                  <input
+                    type="time"
+                    id="eventEndTimeModal"
+                    required
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                    value={format(formState.end, 'HH:mm')}
+                    onChange={(e) => setFormState({ ...formState, end: new Date(format(formState.end, 'yyyy-MM-dd') + 'T' + e.target.value) })}
+                    step="900" // 15 minuti
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor="eventDescriptionModal" className="block text-sm font-medium text-gray-700">Descrizione</label>
+                <textarea
+                  id="eventDescriptionModal"
+                  rows="3"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  value={formState.description}
+                  onChange={(e) => setFormState({ ...formState, description: e.target.value })}
+                ></textarea>
+              </div>
+
+              <div>
+                <label htmlFor="eventLocationModal" className="block text-sm font-medium text-gray-700">Luogo</label>
+                <input
+                  type="text"
+                  id="eventLocationModal"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  value={formState.location}
+                  onChange={(e) => setFormState({ ...formState, location: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <label htmlFor="eventCategoryModal" className="block text-sm font-medium text-gray-700">Categoria</label>
+                <select
+                  id="eventCategoryModal"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  value={formState.category}
+                  onChange={(e) => setFormState({ ...formState, category: e.target.value })}
+                >
+                  {Object.entries(eventColors).map(([key, value]) => (
+                    <option key={key} value={key}>
+                      {key.charAt(0).toUpperCase() + key.slice(1).replace(/([A-Z])/g, ' $1')}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="relatedPraticaModal" className="block text-sm font-medium text-gray-700">Pratica Collegata</label>
+                <select
+                  id="relatedPraticaModal"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  value={formState.relatedPraticaId}
+                  onChange={(e) => {
+                    const praticaId = e.target.value;
+                    const isPrivate = pratichePrivate.some(p => p.id === praticaId);
+                    setFormState({
+                      ...formState,
+                      relatedPraticaId: praticaId,
+                      isPrivate: isPrivate
+                    });
                   }}
                 >
-                  <div className="font-bold">{format(new Date(event.start), 'HH:mm')}</div>
-                  <div className="truncate">{event.title}</div>
+                  <option value="">Nessuna pratica</option>
+                  {tutteLePratiche.map((pratica) => (
+                    <option key={pratica.id} value={pratica.id}>
+                      {`${pratica.codice || 'ID:'+pratica.id.substring(0,5)} - <span class="math-inline">\{pratica\.indirizzo \|\| ''\} \(</span>{pratica.cliente || 'N/D'}) ${pratichePrivate.some(p => p.id === pratica.id) ? '(Priv.)' : '(Std.)'}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex justify-between items-center pt-4 mt-4 border-t">
+                {formState.id ? (
+                    <button
+                    type="button"
+                    onClick={handleDeleteCurrentEvent}
+                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center"
+                    >
+                    <FaTrash className="mr-2" /> Elimina
+                    </button>
+                ) : ( <div></div> /* Placeholder per mantenere il layout se non c'è ID */)}
+                <div className="flex space-x-2">
+                    <button
+                    type="button"
+                    onClick={() => {setShowEventModal(false); setSelectedEvent(null); setSelectedSlot(null);}}
+                    className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                    >
+                    Annulla
+                    </button>
+                    <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center"
+                    >
+                    <FaSave className="mr-2" /> Salva Evento
+                    </button>
                 </div>
-              );
-            })}
-            <div className="absolute inset-0">
-              {hours}
-            </div>
+              </div>
+            </form>
           </div>
         </div>
-      );
-
-      day = addDays(day, 1);
-    }
-
-    return (
-      <div>
-        <div className="text-xl font-bold mb-4 text-center">
-          {format(weekStart, 'd MMMM', { locale: it })} - {format(weekEnd, 'd MMMM yyyy', { locale: it })}
-        </div>
-        <div className="flex">
-          <div className="w-16">
-            <div className="h-12 border-b"></div> {/* Spazio per intestazioni */}
-            <div className="relative min-h-[576px]">
-              {hours}
-            </div>
-          </div>
-          <div className="flex flex-1">
-            {days}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Genera vista giornaliera
-  const renderDayView = () => {
-    const dayFormat = 'EEEE d MMMM yyyy';
-
-    const dayEvents = events.filter(event =>
-      isSameDay(currentDate, new Date(event.start)));
-
-                                                       // Righe orarie
-                                                       const hours = [];
-                                                       for (let hour = 8; hour <= 20; hour++) {
-                                                         const hourEvents = dayEvents.filter(event => {
-                                                           const eventStartHour = new Date(event.start).getHours();
-                                                           const eventEndHour = new Date(event.end).getHours();
-                                                           return eventStartHour <= hour && eventEndHour > hour;
-                                                         });
-
-                                                         hours.push(
-                                                           <div key={`hour-${hour}`} className="flex border-t">
-                                                             <div className="w-16 pr-2 py-2 text-right text-gray-500">
-                                                               {hour.toString().padStart(2, '0')}:00
-                                                             </div>
-                                                             <div
-                                                               className="flex-1 min-h-16 py-1 relative"
-                                                               onClick={() => {
-                                                                 const dateWithHour = new Date(currentDate);
-                                                                 dateWithHour.setHours(hour, 0, 0, 0);
-                                                                 handleCreateEvent(dateWithHour);
-                                                               }}
-                                                             >
-                                                               {hourEvents.map(event => {
-                                                                 const startHour = new Date(event.start).getHours();
-                                                                 const startMinute = new Date(event.start).getMinutes();
-                                                                 const eventTop = startHour === hour ? `${startMinute}px` : '0px';
-
-                                                                 return (
-                                                                   <div
-                                                                     key={event.id}
-                                                                     className="p-2 my-1 rounded"
-                                                                     style={{
-                                                                       backgroundColor: event.color || eventColors.altro,
-                                                                       marginTop: eventTop
-                                                                     }}
-                                                                     onClick={(e) => {
-                                                                       e.stopPropagation();
-                                                                       handleViewEvent(event);
-                                                                     }}
-                                                                   >
-                                                                     <div className="font-bold">
-                                                                       {format(new Date(event.start), 'HH:mm')} - {format(new Date(event.end), 'HH:mm')}
-                                                                     </div>
-                                                                     <div>{event.title}</div>
-                                                                     {event.location && <div className="text-sm">{event.location}</div>}
-                                                                   </div>
-                                                                 );
-                                                               })}
-                                                             </div>
-                                                           </div>
-                                                         );
-                                                       }
-
-                                                       return (
-                                                         <div>
-                                                           <div className="text-xl font-bold mb-4 text-center">
-                                                             {format(currentDate, dayFormat, { locale: it })}
-                                                           </div>
-                                                           <div className="bg-white">
-                                                             {hours}
-                                                           </div>
-                                                         </div>
-                                                       );
-                                                     };
-
-                                                     // Seleziona la vista appropriata
-                                                     const renderCalendarView = () => {
-                                                       switch (view) {
-                                                         case 'month':
-                                                           return renderMonthView();
-                                                         case 'week':
-                                                           return renderWeekView();
-                                                         case 'day':
-                                                           return renderDayView();
-                                                         default:
-                                                           return renderMonthView();
-                                                       }
-                                                     };
-
-                                                     // Modale per la creazione/modifica eventi - MODIFICATO PER USARE formState GLOBALE
-                                                     const renderEventModal = () => {
-                                                       if (!showEventModal) return null;
-
-                                                       return (
-                                                         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                                                           <div className="bg-white p-5 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-                                                             <h2 className="text-lg font-semibold mb-3">
-                                                               {selectedEvent ? 'Modifica Evento' : 'Nuovo Evento'}
-                                                             </h2>
-
-                                                             <form onSubmit={handleSubmitEventForm} className="space-y-4">
-                                                               <div>
-                                                                 <label className="block text-sm font-medium text-gray-700 mb-1">Titolo *</label>
-                                                                 <input
-                                                                   type="text"
-                                                                   required
-                                                                   className="w-full p-2 border border-gray-300 rounded-md"
-                                                                   value={formState.title}
-                                                                   onChange={(e) => handleFormChange('title', e.target.value)}
-                                                                 />
-                                                               </div>
-
-                                                               <div className="grid grid-cols-2 gap-4">
-                                                                 <div>
-                                                                   <label className="block text-sm font-medium text-gray-700 mb-1">Data inizio</label>
-                                                                   <input
-                                                                     type="date"
-                                                                     required
-                                                                     className="w-full p-2 border border-gray-300 rounded-md"
-                                                                     value={formState.startDate}
-                                                                     onChange={(e) => handleFormChange('startDate', e.target.value)}
-                                                                   />
-                                                                 </div>
-                                                                 <div>
-                                                                   <label className="block text-sm font-medium text-gray-700 mb-1">Ora inizio</label>
-                                                                   <input
-                                                                     type="time"
-                                                                     required
-                                                                     className="w-full p-2 border border-gray-300 rounded-md"
-                                                                     value={formState.startTime}
-                                                                     onChange={(e) => handleFormChange('startTime', e.target.value)}
-                                                                   />
-                                                                 </div>
-                                                               </div>
-
-                                                               <div className="grid grid-cols-2 gap-4">
-                                                                 <div>
-                                                                   <label className="block text-sm font-medium text-gray-700 mb-1">Data fine</label>
-                                                                   <input
-                                                                     type="date"
-                                                                     required
-                                                                     className="w-full p-2 border border-gray-300 rounded-md"
-                                                                     value={formState.endDate}
-                                                                     onChange={(e) => handleFormChange('endDate', e.target.value)}
-                                                                   />
-                                                                 </div>
-                                                                 <div>
-                                                                   <label className="block text-sm font-medium text-gray-700 mb-1">Ora fine</label>
-                                                                   <input
-                                                                     type="time"
-                                                                     required
-                                                                     className="w-full p-2 border border-gray-300 rounded-md"
-                                                                     value={formState.endTime}
-                                                                     onChange={(e) => handleFormChange('endTime', e.target.value)}
-                                                                   />
-                                                                 </div>
-                                                               </div>
-
-                                                               <div>
-                                                                 <label className="block text-sm font-medium text-gray-700 mb-1">Descrizione</label>
-                                                                 <textarea
-                                                                   className="w-full p-2 border border-gray-300 rounded-md"
-                                                                   rows="3"
-                                                                   value={formState.description}
-                                                                   onChange={(e) => handleFormChange('description', e.target.value)}
-                                                                 ></textarea>
-                                                               </div>
-
-                                                               <div>
-                                                                 <label className="block text-sm font-medium text-gray-700 mb-1">Luogo</label>
-                                                                 <input
-                                                                   type="text"
-                                                                   className="w-full p-2 border border-gray-300 rounded-md"
-                                                                   value={formState.location}
-                                                                   onChange={(e) => handleFormChange('location', e.target.value)}
-                                                                 />
-                                                               </div>
-
-                                                               <div>
-                                                                 <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
-                                                                 <select
-                                                                   className="w-full p-2 border border-gray-300 rounded-md"
-                                                                   value={formState.category}
-                                                                   onChange={(e) => handleFormChange('category', e.target.value)}
-                                                                 >
-                                                                   <option value="sopralluogo">Sopralluogo</option>
-                                                                   <option value="incarico">Incarico</option>
-                                                                   <option value="pagamento">Pagamento</option>
-                                                                   <option value="accessoAtti">Accesso Atti</option>
-                                                                   <option value="presentazionePratica">Presentazione Pratica</option>
-                                                                   <option value="privato">Privato</option>
-                                                                   <option value="altro">Altro</option>
-                                                                 </select>
-                                                               </div>
-
-                                                               <div>
-                                                                 <label className="block text-sm font-medium text-gray-700 mb-1">Calendario</label>
-                                                                 <select
-                                                                   className="w-full p-2 border border-gray-300 rounded-md"
-                                                                   value={formState.calendarId}
-                                                                   onChange={(e) => handleFormChange('calendarId', e.target.value)}
-                                                                 >
-                                                                   {calendars.map(calendar => (
-                                                                     <option key={calendar.id} value={calendar.id}>
-                                                                       {calendar.summary}
-                                                                     </option>
-                                                                   ))}
-                                                                 </select>
-                                                               </div>
-
-                                                               <div>
-                                                                 <label className="block text-sm font-medium text-gray-700 mb-1">Pratica collegata</label>
-                                                                 <select
-                                                                   className="w-full p-2 border border-gray-300 rounded-md"
-                                                                   value={formState.relatedPraticaId}
-                                                                   onChange={(e) => handleFormChange('relatedPraticaId', e.target.value)}
-                                                                 >
-                                                                   <option value="">Nessuna pratica collegata</option>
-                                                                   {pratiche.map(pratica => (
-                                                                     <option key={pratica.id} value={pratica.id}>
-                                                                       {pratica.codice} - {pratica.indirizzo} - {pratica.cliente}
-                                                                     </option>
-                                                                   ))}
-                                                                 </select>
-                                                               </div>
-
-                                                               <div className="flex justify-between pt-4 border-t">
-                                                                 {selectedEvent && (
-                                                                   <button
-                                                                     type="button"
-                                                                     className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-                                                                     onClick={() => handleDeleteEvent(selectedEvent.id)}
-                                                                   >
-                                                                     Elimina
-                                                                   </button>
-                                                                 )}
-
-                                                                 <div className="space-x-2">
-                                                                   <button
-                                                                     type="button"
-                                                                     className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
-                                                                     onClick={() => setShowEventModal(false)}
-                                                                   >
-                                                                     Annulla
-                                                                   </button>
-                                                                   <button
-                                                                     type="submit"
-                                                                     className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                                                                   >
-                                                                     Salva
-                                                                   </button>
-                                                                 </div>
-                                                               </div>
-                                                             </form>
-                                                           </div>
-                                                         </div>
-                                                       );
-                                                     };
-
-                                                     // Modale per le impostazioni del calendario
-                                                     const renderSettingsModal = () => {
-                                                       if (!showSettingsModal) return null;
-
-                                                       return (
-                                                         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                                                           <div className="bg-white p-5 rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-                                                             <h2 className="text-lg font-semibold mb-3">Impostazioni Calendario</h2>
-
-                                                             <h3 className="font-medium mt-4 mb-2">Calendari</h3>
-                                                             <div className="space-y-2 mb-4">
-                                                               {calendars.map(calendar => (
-                                                                 <label key={calendar.id} className="flex items-center">
-                                                                   <input
-                                                                     type="checkbox"
-                                                                     className="mr-2"
-                                                                     checked={selectedCalendars.includes(calendar.id)}
-                                                                     onChange={() => handleCalendarToggle(calendar.id)}
-                                                                   />
-                                                                   <span className="w-4 h-4 inline-block mr-2" style={{ backgroundColor: calendar.backgroundColor }}></span>
-                                                                   {calendar.summary}
-                                                                 </label>
-                                                               ))}
-                                                             </div>
-
-                                                             <h3 className="font-medium mt-4 mb-2">Aggiorna Frequenza</h3>
-                                                             <div className="flex items-center mb-4">
-                                                               <select className="p-2 border border-gray-300 rounded-md mr-2">
-                                                                 <option value="5">5 minuti</option>
-                                                                 <option value="15">15 minuti</option>
-                                                                 <option value="30">30 minuti</option>
-                                                                 <option value="60">1 ora</option>
-                                                               </select>
-                                                               <button
-                                                                 className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
-                                                                 onClick={fetchEvents}
-                                                               >
-                                                                 <FaSync className="inline-block mr-1" />
-                                                                 Aggiorna ora
-                                                               </button>
-                                                             </div>
-
-                                                             <div className="flex justify-end mt-4 pt-4 border-t">
-                                                               <button
-                                                                 className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                                                                 onClick={() => setShowSettingsModal(false)}
-                                                               >
-                                                                 Chiudi
-                                                               </button>
-                                                             </div>
-                                                           </div>
-                                                         </div>
-                                                       );
-                                                     };
-
-                                                     return (
-                                                       <div className="container mx-auto p-4">
-                                                         <div className="flex justify-between items-center mb-4">
-                                                           <h1 className="text-2xl font-bold">Calendario</h1>
-
-                                                           <div className="flex items-center space-x-2">
-                                                             <button
-                                                               className="p-2 border border-gray-300 rounded-md hover:bg-gray-100"
-                                                               onClick={() => setShowEventModal(true)}
-                                                               title="Nuovo evento"
-                                                             >
-                                                               <FaPlus />
-                                                             </button>
-                                                             <button
-                                                               className="p-2 border border-gray-300 rounded-md hover:bg-gray-100"
-                                                               onClick={() => setShowSettingsModal(true)}
-                                                               title="Impostazioni"
-                                                             >
-                                                               <FaCog />
-                                                             </button>
-                                                           </div>
-                                                         </div>
-
-                                                         <div className="bg-white rounded-lg shadow mb-6">
-                                                           <div className="flex items-center justify-between p-4 border-b">
-                                                             <div className="flex items-center space-x-2">
-                                                               <button
-                                                                 className="p-2 border border-gray-300 rounded-md hover:bg-gray-100"
-                                                                 onClick={navigatePrev}
-                                                               >
-                                                                 <FaChevronLeft />
-                                                               </button>
-                                                               <button
-                                                                 className="px-3 py-2 border border-gray-300 rounded-md hover:bg-gray-100"
-                                                                 onClick={navigateToday}
-                                                               >
-                                                                 Oggi
-                                                               </button>
-                                                               <button
-                                                                 className="p-2 border border-gray-300 rounded-md hover:bg-gray-100"
-                                                                 onClick={navigateNext}
-                                                               >
-                                                                 <FaChevronRight />
-                                                               </button>
-                                                             </div>
-
-                                                             <div className="flex items-center space-x-1">
-                                                               <button
-                                                                 className={`p-2 rounded-md ${view === 'day' ? 'bg-blue-600 text-white' : 'hover:bg-gray-100'}`}
-                                                                 onClick={() => setView('day')}
-                                                                 title="Vista giornaliera"
-                                                               >
-                                                                 <BsCalendarDay />
-                                                               </button>
-                                                               <button
-                                                                 className={`p-2 rounded-md ${view === 'week' ? 'bg-blue-600 text-white' : 'hover:bg-gray-100'}`}
-                                                                 onClick={() => setView('week')}
-                                                                 title="Vista settimanale"
-                                                               >
-                                                                 <BsCalendarWeek />
-                                                               </button>
-                                                               <button
-                                                                 className={`p-2 rounded-md ${view === 'month' ? 'bg-blue-600 text-white' : 'hover:bg-gray-100'}`}
-                                                                 onClick={() => setView('month')}
-                                                                 title="Vista mensile"
-                                                               >
-                                                                 <BsCalendarMonth />
-                                                               </button>
-                                                             </div>
-                                                           </div>
-
-                                                           <div className="p-4 overflow-x-auto">
-                                                             {isLoading ? (
-                                                               <div className="flex justify-center items-center h-64">
-                                                                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-                                                               </div>
-                                                             ) : (
-                                                               renderCalendarView()
-                                                             )}
-                                                           </div>
-                                                         </div>
-
-                                                         {renderEventModal()}
-                                                         {renderSettingsModal()}
-                                                       </div>
-                                                     );
-                                                   }
-
-                                                   export default CalendarPage;
+      )}
+    </div>
+  );
+}
