@@ -36,18 +36,21 @@ const API_KEY = process.env.REACT_APP_FIREBASE_API_KEY;
 const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'];
 
 function CalendarPage() {
-  console.log("CalendarPage rendering...");
-
   const { pratiche: praticheStandard, loading: loadingPraticheStandard } = usePratiche();
   const { pratiche: pratichePrivate, loading: loadingPratichePrivate } = usePratichePrivato();
 
   const tutteLePratiche = useMemo(() => {
     if (loadingPraticheStandard || loadingPratichePrivate) return [];
-    return [...(praticheStandard || []), ...(pratichePrivate || [])];
+    // Assicurati che praticheStandard e pratichePrivate siano array prima dello spread
+    const std = Array.isArray(praticheStandard) ? praticheStandard : [];
+    const prv = Array.isArray(pratichePrivate) ? pratichePrivate : [];
+    return [...std, ...prv];
   }, [praticheStandard, pratichePrivate, loadingPraticheStandard, loadingPratichePrivate]);
 
+
   const [googleApiToken, setGoogleApiToken] = useState(() => localStorage.getItem('googleApiToken'));
-  const [gapiLoaded, setGapiLoaded] = useState(!!(window.gapi && window.gapi.client && window.gapi.client.calendar));
+  const [gapiClientInitialized, setGapiClientInitialized] = useState(false);
+  const [isLoadingGapi, setIsLoadingGapi] = useState(true);
   const [events, setEvents] = useState([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [showEventModal, setShowEventModal] = useState(false);
@@ -64,78 +67,16 @@ function CalendarPage() {
     description: '',
     location: '',
     category: 'altro',
-    relatedPraticaId: '',
+    relatedPraticaId: '', // Stringa vuota per "Nessuna pratica"
     isPrivate: false,
   });
 
-  const loadGapiScript = useCallback(() => {
-    console.log("Attempting to load GAPI script...");
-    return new Promise((resolve, reject) => {
-      if (window.gapi && window.gapi.client && window.gapi.client.calendar) {
-        console.log("GAPI client already loaded and initialized.");
-        setGapiLoaded(true);
-        if (googleApiToken) {
-          try {
-            window.gapi.client.setToken({ access_token: googleApiToken });
-            console.log("GAPI token set from existing token.");
-          } catch (e) {
-            console.error("Error setting GAPI token (in loadGapiScript):", e);
-          }
-        }
-        resolve();
-        return;
-      }
-
-      const existingScript = document.getElementById('gapi-script');
-      if (existingScript) {
-         // Se lo script esiste già, assumiamo che sia in caricamento o caricato.
-         // Aggiungiamo un listener per 'load' se non è già 'loaded' e 'gapi' non è definito
-        if (!window.gapi) {
-            existingScript.addEventListener('load', () => {
-                console.log("GAPI script loaded via existing tag.");
-                window.gapi.load('client', () => {
-                    initializeGapiClient(resolve, reject);
-                });
-            });
-            existingScript.addEventListener('error', (error) => {
-                console.error('Error loading GAPI script file (existing tag):', error);
-                reject(error);
-            });
-        } else if (window.gapi && !window.gapi.client?.calendar) { // GAPI esiste ma client non inizializzato
-             window.gapi.load('client', () => {
-                initializeGapiClient(resolve, reject);
-            });
-        } else { // GAPI e client già pronti
-            resolve();
-        }
-        return;
-      }
-
-
-      const script = document.createElement('script');
-      script.id = 'gapi-script';
-      script.src = GAPI_SCRIPT_URL;
-      script.async = true;
-      script.defer = true;
-      script.onload = () => {
-        console.log("GAPI script newly loaded.");
-        window.gapi.load('client', () => {
-          initializeGapiClient(resolve, reject);
-        });
-      };
-      script.onerror = (error) => {
-        console.error('Error loading GAPI script file (new tag):', error);
-        reject(error);
-      };
-      document.body.appendChild(script);
-    });
-  }, [googleApiToken]); // googleApiToken come dipendenza
-
   const initializeGapiClient = useCallback((resolve, reject) => {
-    console.log("'client' module loaded via gapi.load, initializing...");
+    console.log("Attempting to initialize GAPI client...");
     if (!API_KEY) {
-      console.error("API Key for GAPI client is missing!");
+      console.error("API Key for GAPI client is missing! Check REACT_APP_FIREBASE_API_KEY.");
       reject(new Error("API Key for GAPI client is missing!"));
+      setIsLoadingGapi(false);
       return;
     }
     window.gapi.client
@@ -145,11 +86,12 @@ function CalendarPage() {
       })
       .then(() => {
         console.log('GAPI client initialized successfully.');
-        setGapiLoaded(true);
+        setGapiClientInitialized(true);
+        setIsLoadingGapi(false);
         if (googleApiToken) {
           try {
             window.gapi.client.setToken({ access_token: googleApiToken });
-            console.log("GAPI token set after init.");
+            console.log("GAPI token set after init from existing token.");
           } catch(e) {
             console.error("Error setting GAPI token (after init):", e);
           }
@@ -158,14 +100,67 @@ function CalendarPage() {
       })
       .catch((error) => {
         console.error('Error initializing GAPI client:', error);
+        setIsLoadingGapi(false);
         reject(error);
       });
   }, [googleApiToken]);
 
+  const loadGapiScript = useCallback(() => {
+    console.log("loadGapiScript called.");
+    setIsLoadingGapi(true);
+    return new Promise((resolve, reject) => {
+      if (window.gapi && window.gapi.client && window.gapi.client.calendar) {
+        console.log("GAPI client and calendar API already available.");
+        setGapiClientInitialized(true);
+        setIsLoadingGapi(false);
+        resolve();
+        return;
+      }
+
+      const existingScript = document.getElementById('gapi-script-tag');
+      if (existingScript && window.gapi) {
+        console.log("GAPI object exists, trying to load 'client' module.");
+        window.gapi.load('client', () => initializeGapiClient(resolve, reject));
+        return;
+      }
+      if (existingScript && !window.gapi) {
+        console.log("GAPI script tag exists, but gapi object not yet available. Waiting for onload.");
+        existingScript.addEventListener('load', () => {
+            console.log("GAPI script loaded (event listener on existing tag).");
+            window.gapi.load('client', () => initializeGapiClient(resolve, reject));
+        });
+        existingScript.addEventListener('error', (err) => {
+            console.error("Error loading GAPI script (event listener on existing tag):", err);
+            setIsLoadingGapi(false);
+            reject(err);
+        });
+        return;
+      }
+      if (!existingScript) {
+        console.log("Creating new GAPI script tag.");
+        const script = document.createElement('script');
+        script.id = 'gapi-script-tag';
+        script.src = GAPI_SCRIPT_URL;
+        script.async = true;
+        script.defer = true;
+        script.onload = () => {
+          console.log("GAPI script newly loaded.");
+          window.gapi.load('client', () => initializeGapiClient(resolve, reject));
+        };
+        script.onerror = (error) => {
+          console.error('Error loading GAPI script file (new tag):', error);
+          setIsLoadingGapi(false);
+          reject(error);
+        };
+        document.body.appendChild(script);
+      }
+    });
+  }, [initializeGapiClient]);
+
 
   const fetchGoogleCalendarEvents = useCallback(async () => {
-    if (!gapiLoaded) {
-      console.warn("fetchGoogleCalendarEvents called but GAPI not loaded.");
+    if (!gapiClientInitialized) {
+      console.warn("fetchGoogleCalendarEvents called but GAPI client not initialized.");
       return;
     }
     if (!googleApiToken) {
@@ -177,20 +172,11 @@ function CalendarPage() {
     setIsLoadingEvents(true);
     console.log("Fetching Google Calendar events...");
     try {
-      if (!(window.gapi && window.gapi.client && window.gapi.client.calendar && window.gapi.client.calendar.events)) {
-          console.error("GAPI client.calendar.events non disponibile per fetchGoogleCalendarEvents");
-          await loadGapiScript(); // Tenta di ricaricare/reinizializzare
-          if (!(window.gapi && window.gapi.client && window.gapi.client.calendar && window.gapi.client.calendar.events)) {
-            setIsLoadingEvents(false);
-            return;
-          }
-      }
       window.gapi.client.setToken({ access_token: googleApiToken });
-
       const response = await window.gapi.client.calendar.events.list({
         calendarId: 'primary',
-        timeMin: new Date(new Date().setMonth(new Date().getMonth() - 2)).toISOString(), // Esteso a 2 mesi prima
-        timeMax: new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString(), // Esteso a 3 mesi dopo
+        timeMin: new Date(new Date().setMonth(new Date().getMonth() - 2)).toISOString(),
+        timeMax: new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString(),
         maxResults: 250,
         singleEvents: true,
         orderBy: 'startTime',
@@ -218,30 +204,25 @@ function CalendarPage() {
       if (error && error.result && error.result.error && error.result.error.code === 401) {
         console.warn("Token Google API scaduto o non valido. Eseguire logout.");
         handleGoogleLogout();
-        alert("Sessione Google scaduta. Effettua nuovamente il login con Google per il calendario.");
+        alert("Sessione Google Calendar scaduta. Riconnetti per continuare.");
       }
     } finally {
       setIsLoadingEvents(false);
     }
-  }, [gapiLoaded, googleApiToken, loadGapiScript]); // Aggiunto loadGapiScript
+  }, [gapiClientInitialized, googleApiToken]);
 
 
   useEffect(() => {
-    loadGapiScript().then(() => {
-      if (googleApiToken) {
-        fetchGoogleCalendarEvents();
-      }
-    }).catch(err => {
-        console.error("Errore critico nel setup di GAPI:", err);
+    loadGapiScript().catch(err => {
+        console.error("Fallimento critico nel caricamento dello script GAPI:", err);
     });
-  }, [loadGapiScript]); // Solo loadGapiScript qui, il token è gestito dal suo useEffect o da quello di fetchGoogleCalendarEvents
+  }, [loadGapiScript]);
 
   useEffect(() => {
-    if (googleApiToken && gapiLoaded) {
+    if (googleApiToken && gapiClientInitialized) {
       fetchGoogleCalendarEvents();
     }
-  }, [googleApiToken, gapiLoaded, fetchGoogleCalendarEvents]);
-
+  }, [googleApiToken, gapiClientInitialized, fetchGoogleCalendarEvents]);
 
   const googleLogin = useGoogleLogin({
     onSuccess: (tokenResponse) => {
@@ -249,7 +230,6 @@ function CalendarPage() {
       const accessToken = tokenResponse.access_token;
       localStorage.setItem('googleApiToken', accessToken);
       setGoogleApiToken(accessToken);
-      // Non chiamare fetchGoogleCalendarEvents direttamente qui, l'useEffect sopra lo farà
     },
     onError: (error) => {
       console.error('Google API Login Failed:', error);
@@ -277,7 +257,7 @@ function CalendarPage() {
       description: '',
       location: '',
       category: 'altro',
-      relatedPraticaId: '',
+      relatedPraticaId: '', // Stringa vuota per default
       isPrivate: false,
     });
     setShowEventModal(true);
@@ -288,7 +268,7 @@ function CalendarPage() {
     setSelectedSlot(null);
     setFormState({
       id: event.id,
-      title: event.title,
+      title: event.title.includes('(Pratica:') ? event.title.substring(0, event.title.indexOf('(Pratica:')).trim() : event.title, // Pulisce il titolo
       start: new Date(event.start),
       end: new Date(event.end),
       description: event.description || '',
@@ -301,7 +281,7 @@ function CalendarPage() {
   }, []);
 
   const handleEventDropOrResize = useCallback(async ({ event, start, end }) => {
-    if (!gapiLoaded || !googleApiToken) {
+    if (!gapiClientInitialized || !googleApiToken || !window.gapi?.client?.calendar) {
         console.warn("Operazione drop/resize fallita: GAPI non pronto o token mancante.");
         fetchGoogleCalendarEvents();
         return;
@@ -312,9 +292,8 @@ function CalendarPage() {
         return;
     }
 
-    console.log("Attempting to update event (drop/resize):", event.id);
     const eventResource = {
-        summary: event.title,
+        summary: event.title, // Manteniamo il titolo originale per ora, potrebbe essere ri-formattato al fetch
         description: event.description,
         location: event.location,
         start: { dateTime: new Date(start).toISOString() },
@@ -322,8 +301,8 @@ function CalendarPage() {
         extendedProperties: {
           private: {
             category: event.category,
-            relatedPraticaId: event.relatedPraticaId,
-            isPrivate: String(event.isPrivate),
+            relatedPraticaId: event.relatedPraticaId || "", // Assicura stringa vuota se non definito
+            isPrivate: String(event.isPrivate || false),
           }
         }
       };
@@ -334,20 +313,18 @@ function CalendarPage() {
         eventId: event.id,
         resource: eventResource,
       });
-      console.log("Evento aggiornato con successo (drop/resize). Ricarico...");
       fetchGoogleCalendarEvents();
     } catch (error) {
-      console.error("Errore nell'aggiornare l'evento (drop/resize):", error);
-      alert("Errore durante l'aggiornamento dell'evento. Verranno ricaricati gli eventi.");
+      console.error("Errore nell'aggiornare l'evento (drag/resize):", error);
       fetchGoogleCalendarEvents();
     }
-  }, [gapiLoaded, googleApiToken, fetchGoogleCalendarEvents]);
+  }, [gapiClientInitialized, googleApiToken, fetchGoogleCalendarEvents]);
 
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
-    if (!gapiLoaded || !googleApiToken) {
-      alert("Autenticazione Google Calendar richiesta.");
+    if (!gapiClientInitialized || !googleApiToken || !window.gapi?.client?.calendar) {
+      alert("Autenticazione Google Calendar o API non pronta.");
       return;
     }
     if (new Date(formState.end) <= new Date(formState.start)) {
@@ -355,12 +332,22 @@ function CalendarPage() {
         return;
     }
 
-
-    const praticaSelezionata = tutteLePratiche.find(p => p.id === formState.relatedPraticaId);
     let eventTitle = formState.title;
+    const praticaSelezionata = tutteLePratiche.find(p => p.id === formState.relatedPraticaId);
+
+    // MODIFICA TITOLO EVENTO
     if (praticaSelezionata) {
-        eventTitle = `${formState.title} (Pratica: ${praticaSelezionata.codice || praticaSelezionata.indirizzo})`;
+      eventTitle = `${formState.title} (Pratica: ${praticaSelezionata.indirizzo} - ${praticaSelezionata.cliente || 'N/D'})`;
     }
+
+    const extendedPrivateProperties = {
+      category: formState.category,
+      isPrivate: String(formState.isPrivate),
+    };
+    if (formState.relatedPraticaId) { // Aggiungi solo se presente
+      extendedPrivateProperties.relatedPraticaId = formState.relatedPraticaId;
+    }
+
 
     const eventResource = {
       summary: eventTitle,
@@ -369,15 +356,9 @@ function CalendarPage() {
       start: { dateTime: new Date(formState.start).toISOString() },
       end: { dateTime: new Date(formState.end).toISOString() },
       extendedProperties: {
-        private: {
-          category: formState.category,
-          relatedPraticaId: formState.relatedPraticaId || null,
-          isPrivate: String(formState.isPrivate),
-        },
+        private: extendedPrivateProperties,
       },
     };
-
-    console.log("Submitting event:", formState.id ? "UPDATE" : "INSERT", eventResource);
 
     try {
       if (formState.id) {
@@ -395,7 +376,6 @@ function CalendarPage() {
       setShowEventModal(false);
       setSelectedEvent(null);
       setSelectedSlot(null);
-      console.log("Evento salvato con successo. Ricarico...");
       fetchGoogleCalendarEvents();
     } catch (error) {
       console.error("Errore nel salvare l'evento su Google Calendar:", error);
@@ -404,9 +384,8 @@ function CalendarPage() {
   };
 
   const handleDeleteCurrentEvent = async () => {
-    if (!formState.id || !gapiLoaded || !googleApiToken) return;
+    if (!formState.id || !gapiClientInitialized || !googleApiToken || !window.gapi?.client?.calendar) return;
     if (window.confirm("Sei sicuro di voler eliminare questo evento?")) {
-      console.log("Attempting to delete event:", formState.id);
       try {
         await window.gapi.client.calendar.events.delete({
           calendarId: 'primary',
@@ -415,7 +394,6 @@ function CalendarPage() {
         setShowEventModal(false);
         setSelectedEvent(null);
         setSelectedSlot(null);
-        console.log("Evento eliminato con successo. Ricarico...");
         fetchGoogleCalendarEvents();
       } catch (error) {
         console.error("Errore nell'eliminare l'evento da Google Calendar:", error);
@@ -441,8 +419,6 @@ function CalendarPage() {
     } else if (['#FFCCCC'].includes(backgroundColor.toLowerCase())){
         textColor = '#7f1d1d';
     }
-
-
     const style = {
       backgroundColor,
       borderRadius: '5px',
@@ -479,9 +455,9 @@ function CalendarPage() {
         <div>
           {!googleApiToken ? (
             <button
-              onClick={() => { console.log("Connetti Google Calendar clicked. GAPI loaded:", gapiLoaded); if (gapiLoaded) googleLogin(); else loadGapiScript().then(() => googleLogin());}}
+              onClick={() => { if (gapiClientInitialized) googleLogin(); else loadGapiScript().then(() => googleLogin()).catch(err => console.error("Fallito il tentativo di login post caricamento GAPI:", err));}}
               className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center text-sm sm:text-base"
-              disabled={isLoadingEvents} // Disabilitato mentre si caricano eventi o gapi
+              disabled={isLoadingGapi || isLoadingEvents}
             >
               <FaCalendarCheck className="mr-2" /> Connetti Google Calendar
             </button>
@@ -490,7 +466,7 @@ function CalendarPage() {
               <button
                 onClick={fetchGoogleCalendarEvents}
                 className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-3 rounded flex items-center text-xs sm:text-sm"
-                disabled={isLoadingEvents || !gapiLoaded}
+                disabled={isLoadingEvents || !gapiClientInitialized}
                 title="Aggiorna eventi"
               >
                 <FaSync className={`mr-1 sm:mr-2 ${isLoadingEvents ? 'animate-spin' : ''}`} /> Aggiorna
@@ -507,13 +483,13 @@ function CalendarPage() {
         </div>
       </div>
 
-      {(!gapiLoaded && !googleApiToken) && (
+      {(isLoadingGapi && !googleApiToken) && (
         <div className="text-center py-4 text-gray-600 bg-yellow-50 p-3 rounded-md">
-          Inizializzazione API di Google in corso... Se il messaggio persiste, assicurati che il Client ID Google sia corretto in `src/index.js` e prova a ricaricare la pagina.
+          Inizializzazione API di Google in corso... Se il messaggio persiste, assicurati che il Client ID Google sia corretto in `src/index.js` e prova a ricaricare la pagina. Verifica anche la console per errori.
         </div>
       )}
 
-      {(googleApiToken && gapiLoaded) ? (
+      {(googleApiToken && gapiClientInitialized) ? (
         <div style={{ height: 'calc(100vh - 220px)' }} className="bg-white p-2 sm:p-4 rounded-lg shadow-md">
           <Calendar
             localizer={localizer}
@@ -537,7 +513,7 @@ function CalendarPage() {
             formats={{
                 agendaHeaderFormat: ({ start, end }, culture, local) =>
                   local.format(start, 'dd/MM/yyyy', culture) + ' – ' + local.format(end, 'dd/MM/yyyy', culture),
-                dayHeaderFormat: (date, culture, local) => local.format(date, 'eeee dd MMMM', culture), // Formato più completo
+                dayHeaderFormat: (date, culture, local) => local.format(date, 'eeee dd MMMM', culture),
                 dayRangeHeaderFormat: ({ start, end }, culture, local) =>
                   local.format(start, 'dd MMM', culture) + ' – ' + local.format(end, 'dd MMM', culture)
             }}
@@ -545,10 +521,17 @@ function CalendarPage() {
             timeslots={4}
           />
         </div>
-      ) : !googleApiToken && gapiLoaded ? (
+      ) : !googleApiToken && gapiClientInitialized ? (
         <div className="text-center py-10 text-gray-700 bg-gray-50 p-6 rounded-lg shadow">
             <FaCalendarCheck className="mx-auto text-4xl text-blue-500 mb-3" />
             <p className="text-lg">Connetti il tuo Google Calendar per visualizzare e gestire gli eventi.</p>
+            <button
+              onClick={() => googleLogin()}
+              className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center mx-auto"
+              disabled={isLoadingGapi}
+            >
+              Connetti Google Calendar
+            </button>
         </div>
       ) : null}
 
@@ -583,8 +566,8 @@ function CalendarPage() {
                     id="eventStartDateModal"
                     required
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    value={formState.start ? format(formState.start, 'yyyy-MM-dd') : ''}
-                    onChange={(e) => setFormState({ ...formState, start: new Date(e.target.value + 'T' + (formState.start ? format(formState.start, 'HH:mm') : '00:00')) })}
+                    value={formState.start ? format(new Date(formState.start), 'yyyy-MM-dd') : ''}
+                    onChange={(e) => setFormState({ ...formState, start: new Date(e.target.value + 'T' + (formState.start ? format(new Date(formState.start), 'HH:mm') : '00:00')) })}
                   />
                 </div>
                 <div>
@@ -594,8 +577,8 @@ function CalendarPage() {
                     id="eventStartTimeModal"
                     required
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    value={formState.start ? format(formState.start, 'HH:mm') : ''}
-                    onChange={(e) => setFormState({ ...formState, start: new Date((formState.start ? format(formState.start, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')) + 'T' + e.target.value) })}
+                    value={formState.start ? format(new Date(formState.start), 'HH:mm') : ''}
+                    onChange={(e) => setFormState({ ...formState, start: new Date((formState.start ? format(new Date(formState.start), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')) + 'T' + e.target.value) })}
                     step="900"
                   />
                 </div>
@@ -609,8 +592,8 @@ function CalendarPage() {
                     id="eventEndDateModal"
                     required
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    value={formState.end ? format(formState.end, 'yyyy-MM-dd') : ''}
-                    onChange={(e) => setFormState({ ...formState, end: new Date(e.target.value + 'T' + (formState.end ? format(formState.end, 'HH:mm') : '00:00')) })}
+                    value={formState.end ? format(new Date(formState.end), 'yyyy-MM-dd') : ''}
+                    onChange={(e) => setFormState({ ...formState, end: new Date(e.target.value + 'T' + (formState.end ? format(new Date(formState.end), 'HH:mm') : '00:00')) })}
                   />
                 </div>
                 <div>
@@ -620,8 +603,8 @@ function CalendarPage() {
                     id="eventEndTimeModal"
                     required
                     className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                    value={formState.end ? format(formState.end, 'HH:mm') : ''}
-                    onChange={(e) => setFormState({ ...formState, end: new Date((formState.end ? format(formState.end, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')) + 'T' + e.target.value) })}
+                    value={formState.end ? format(new Date(formState.end), 'HH:mm') : ''}
+                    onChange={(e) => setFormState({ ...formState, end: new Date((formState.end ? format(new Date(formState.end), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')) + 'T' + e.target.value) })}
                     step="900"
                   />
                 </div>
@@ -684,7 +667,7 @@ function CalendarPage() {
                   <option value="">Nessuna pratica</option>
                   {tutteLePratiche.map((pratica) => (
                     <option key={pratica.id} value={pratica.id}>
-                      {`${pratica.codice || 'ID:'+pratica.id.substring(0,5)} - ${pratica.indirizzo || ''} (${pratica.cliente || 'N/D'}) ${pratichePrivate.some(p => p.id === pratica.id) ? '(Priv.)' : '(Std.)'}`}
+                      {`${pratica.codice || 'ID:'+pratica.id.substring(0,5)} - ${pratica.indirizzo || ''} (${pratica.cliente || 'N/D'}) ${pratichePrivate.some(p => p.id === pratica.id) ? '(Priv.)' : ''}`}
                     </option>
                   ))}
                 </select>
@@ -724,4 +707,4 @@ function CalendarPage() {
   );
 }
 
-export default CalendarPage; // Assicurati che ci sia l'export default
+export default CalendarPage;
