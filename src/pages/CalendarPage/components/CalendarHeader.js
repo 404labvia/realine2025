@@ -1,6 +1,6 @@
 // src/pages/CalendarPage/components/CalendarHeader.js
 import React from 'react';
-+ import { FaPlus, FaCalendarCheck, FaSync, FaCalendarTimes } from 'react-icons/fa'; // Aggiunta FaPlus
+import { FaPlus, FaCalendarCheck, FaSync, FaCalendarTimes } from 'react-icons/fa'; // Aggiunta FaPlus
 
 const CalendarHeader = ({
   googleApiToken,
