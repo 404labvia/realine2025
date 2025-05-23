@@ -277,24 +277,24 @@ const TaskCell = ({
 
       {/* Bottoni in hover per aggiungere Task Calendario o Nota */}
       {!isActive && editingItemIndex === null && ( // Solo se la cella non è attiva per l'input di note
-        <div className={`flex flex-col space-y-1 text-xs absolute bottom-1 left-1 right-1 transition-opacity ${isHovering ? 'opacity-100' : 'opacity-0'}`} style={{ backgroundColor: 'transparent' }}>
+        <div className={`flex flex-row space-x-1 text-xs absolute bottom-1 left-1 right-1 transition-opacity ${isHovering ? 'opacity-100' : 'opacity-0'}`} style={{ backgroundColor: 'transparent' }}>
             <button
-                className={`w-full flex items-center justify-center py-1 px-2 border rounded ${isGoogleAuthenticated ? 'text-gray-600 hover:text-blue-700 hover:border-gray-300' : 'text-gray-600 hover:text-orange-700 hover:border-gray-300'} ${googleAuthLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`w-full flex items-center justify-center py-1 px-2 border border-transparent rounded ${isGoogleAuthenticated ? 'text-gray-600 hover:text-blue-700' : 'text-gray-600 hover:text-orange-700 hover:border-gray-300'} ${googleAuthLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                 onClick={handleAddCalendarTaskClick}
                 disabled={googleAuthLoading}
                 title={isGoogleAuthenticated ? "Aggiungi task al calendario" : "Connetti Google Calendar"}
             >
                 {isGoogleAuthenticated ? (
-                    <> <FaCalendarAlt className="mr-1" size={10} /> + Task Calendario </>
+                    <>+ Task</>
                 ) : (
                     <> {googleAuthLoading ? 'Caricamento...' : <> <FaGoogle className="mr-1" size={10} /> Connetti Google </>} </>
                 )}
             </button>
             <button
-                className="w-full text-gray-600 hover:text-gray-800 flex items-center justify-center py-1 px-2 border border-transparent hover:border-gray-300 rounded"
+                className="w-full text-gray-600 hover:text-gray-800 flex items-center justify-center py-1 px-2 border border-transparent"
                 onClick={handleAddNoteButtonClick} // Modificato per attivare il form delle note
             >
-                <FaStickyNote className="mr-1" size={10} /> + Nota
+                + Nota
             </button>
         </div>
       )}
