@@ -16,7 +16,7 @@ import { FaCalendarAlt, FaRobot } from 'react-icons/fa';
 
 import { AuthProvider } from './contexts/AuthContext';
 import { PraticheProvider } from './contexts/PraticheContext';
-import { PratichePrivatoProvider } from './contexts/PratichePrivatoContext'; // Assicurati che sia importato
+import { PratichePrivatoProvider } from './contexts/PratichePrivatoContext'; // Importato
 
 import Dashboard from './pages/Dashboard';
 import PratichePage from './pages/PratichePage';
@@ -85,8 +85,7 @@ function AppContent() {
   };
 
   return (
-    <PraticheProvider> {/* Avvolge tutte le pratiche standard */}
-      {/* PratichePrivatoProvider ora avvolge le route che ne hanno bisogno */}
+    <PraticheProvider>
       <div className="flex h-screen bg-gray-100">
         <aside className={`${sidebarOpen ? 'w-52' : 'w-16'} bg-white text-gray-800 transition-all duration-300 ease-in-out overflow-y-auto shadow-md flex flex-col justify-between`}>
           <div>
@@ -176,7 +175,15 @@ function AppContent() {
           <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4">
             <Routes>
               <Route path="/" element={<Dashboard />} />
-              <Route path="/pratiche" element={<PratichePage />} />
+              {/* MODIFICATO: Avvolgi PratichePage con PratichePrivatoProvider */}
+              <Route
+                path="/pratiche"
+                element={
+                  <PratichePrivatoProvider>
+                    <PratichePage />
+                  </PratichePrivatoProvider>
+                }
+              />
               <Route
                 path="/pratiche-privato"
                 element={
@@ -186,7 +193,6 @@ function AppContent() {
                 }
               />
               <Route path="/finanze" element={<FinanzePage />} />
-              {/* MODIFICATO: Avvolgi CalendarPage con PratichePrivatoProvider */}
               <Route
                 path="/calendario"
                 element={
@@ -205,7 +211,6 @@ function AppContent() {
   );
 }
 
-// Il componente App principale ora avvolge AppContent con AuthProvider
 function App() {
   return (
     <AuthProvider>

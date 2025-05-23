@@ -3,15 +3,16 @@ import { useState, useCallback } from 'react';
 import { addHours, startOfHour } from 'date-fns';
 
 export const useCalendarState = (tutteLePratiche = [], pratichePrivate = []) => {
-  const getInitialFormState = () => ({
+  // Modificato per accettare praticaIdToSelect
+  const getInitialFormState = (praticaIdToSelect = '') => ({
     id: null,
-    title: '',
+    title: '', // Titolo sempre vuoto all'inizio
     start: startOfHour(new Date()),
     end: startOfHour(addHours(new Date(), 1)),
     description: '',
-    relatedPraticaId: '',
-    isPrivate: false,
-    targetCalendarId: 'primary', // Aggiunto, default 'primary'
+    relatedPraticaId: praticaIdToSelect, // Usa l'ID passato
+    isPrivate: praticaIdToSelect ? pratichePrivate.some(p => p.id === praticaIdToSelect) : false,
+    targetCalendarId: 'primary',
   });
 
   const [showEventModal, setShowEventModal] = useState(false);
@@ -30,7 +31,7 @@ export const useCalendarState = (tutteLePratiche = [], pratichePrivate = []) => 
       description: '',
       relatedPraticaId: '',
       isPrivate: false,
-      targetCalendarId: 'primary', // Default per nuovi eventi
+      targetCalendarId: 'primary',
     });
     setShowEventModal(true);
   }, []);
@@ -49,7 +50,7 @@ export const useCalendarState = (tutteLePratiche = [], pratichePrivate = []) => 
       description: event.description || '',
       relatedPraticaId: event.relatedPraticaId || '',
       isPrivate: event.isPrivate || false,
-      targetCalendarId: event.sourceCalendarId || 'primary', // Usa il calendario sorgente dell'evento
+      targetCalendarId: event.sourceCalendarId || 'primary',
     });
     setShowEventModal(true);
   }, []);
@@ -97,33 +98,51 @@ export const useCalendarState = (tutteLePratiche = [], pratichePrivate = []) => 
       ...prev,
       relatedPraticaId: praticaId,
       isPrivate: praticaId ? isPraticaPrivate : false,
+      // Non modifichiamo il titolo qui per mantenere quello inserito dall'utente
     }));
   }, [pratichePrivate]);
 
+  // Mantenuto per compatibilità con EventModal: aggiunge i dettagli pratica al titolo
+  // SOLO se un titolo è già presente o se non c'è titolo ma c'è pratica.
   const getEventTitleWithPraticaDetails = useCallback(() => {
-    let eventTitle = formState.title;
+    let eventTitle = formState.title.trim();
     if (formState.relatedPraticaId) {
       const praticaSelezionata = tutteLePratiche.find(p => p.id === formState.relatedPraticaId);
       if (praticaSelezionata) {
-        const baseTitle = formState.title.trim() || "Evento";
-        eventTitle = `${baseTitle} (Pratica: ${praticaSelezionata.indirizzo || 'N/D'} - ${praticaSelezionata.cliente || 'N/D'})`;
+          const baseTitle = eventTitle || "Task"; // Usa "Task" se titolo è vuoto
+          eventTitle = `${baseTitle} (Pratica: ${praticaSelezionata.indirizzo || 'N/D'} - ${praticaSelezionata.cliente || 'N/D'})`;
       }
     }
-    return eventTitle;
+    return eventTitle || 'Nuovo Evento'; // Fallback se tutto è vuoto
   }, [formState.title, formState.relatedPraticaId, tutteLePratiche]);
 
+
   const prepareEventForApi = useCallback(() => {
-    const finalTitle = getEventTitleWithPraticaDetails();
+    // Se il titolo è vuoto E c'è una pratica, usa "Task" come base
+    // Altrimenti usa il titolo inserito. Se è vuoto senza pratica, sarà vuoto.
+    let titleForApi = formState.title.trim();
+    if (!titleForApi && formState.relatedPraticaId) {
+        titleForApi = "Task";
+    }
+
+    // Aggiungi dettagli pratica se presente, ma non se già inclusi
+    if (formState.relatedPraticaId && !titleForApi.includes('(Pratica:')) {
+        const praticaSelezionata = tutteLePratiche.find(p => p.id === formState.relatedPraticaId);
+        if (praticaSelezionata) {
+            titleForApi = `${titleForApi || 'Evento'} (Pratica: ${praticaSelezionata.indirizzo || 'N/D'} - ${praticaSelezionata.cliente || 'N/D'})`;
+        }
+    }
+
+
     const extendedPrivateProperties = {
       isPrivate: String(formState.isPrivate),
-      // Non aggiungiamo più 'category' qui perché l'abbiamo rimossa dal form
     };
     if (formState.relatedPraticaId) {
       extendedPrivateProperties.relatedPraticaId = formState.relatedPraticaId;
     }
 
     return {
-      summary: finalTitle,
+      summary: titleForApi || 'Nuovo Evento', // Usa il titolo elaborato o 'Nuovo Evento'
       description: formState.description,
       start: { dateTime: new Date(formState.start).toISOString() },
       end: { dateTime: new Date(formState.end).toISOString() },
@@ -131,17 +150,20 @@ export const useCalendarState = (tutteLePratiche = [], pratichePrivate = []) => 
         private: extendedPrivateProperties,
       },
     };
-  }, [formState, getEventTitleWithPraticaDetails]);
+  }, [formState, tutteLePratiche]); // Rimosso getEventTitleWithPraticaDetails, rimpiazzato con logica interna
 
-  const openNewEventModal = useCallback((defaultDate = new Date()) => {
-    setSelectedSlot(null); setSelectedEvent(null);
+  // Modificato per accettare praticaIdToSet
+  const openNewEventModal = useCallback((defaultDate = new Date(), praticaIdToSet = '') => {
+    setSelectedSlot(null);
+    setSelectedEvent(null);
     setFormState({
-      ...getInitialFormState(),
+      ...getInitialFormState(praticaIdToSet), // Passa l'ID
       start: startOfHour(defaultDate),
       end: startOfHour(addHours(defaultDate, 1)),
+      title: '', // Assicura che il titolo sia vuoto
     });
     setShowEventModal(true);
-  }, []);
+  }, [pratichePrivate]); // Aggiunta dipendenza
 
   return {
     showEventModal, formState, selectedEvent,

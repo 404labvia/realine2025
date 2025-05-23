@@ -1,5 +1,5 @@
 // src/pages/PratichePage/components/WorkflowTable.js
-import React from 'react'; // Rimosso useState non utilizzato
+import React from 'react';
 import { workflowSteps } from '../utils/praticheUtils';
 import {
   HeaderCell,
@@ -27,21 +27,24 @@ function WorkflowTable({
   onCellClick,
   onSetTaskDueDate,
   onRemoveTaskDueDate,
-  onSyncWithCalendar, // Mantenuto per compatibilità
+  // onSyncWithCalendar, // Rimosso
   activeCells,
-  isGoogleAuthenticated // Mantenuto per compatibilità
+  isGoogleAuthenticated,
+  // >>> NUOVE PROPS <<<
+  onOpenCalendarModal,
+  googleAuthLoading,
+  loginToGoogleCalendar
 }) {
   // Determina se la cella ha contenuto
   const cellHasContent = (stepData) => {
-    // Semplificato il controllo usando optional chaining e controlli booleani
     return (
       (stepData?.notes?.length > 0) ||
       (stepData?.tasks?.length > 0) ||
       (stepData?.checklist && Object.values(stepData.checklist).some(item => item.completed)) ||
-      !!stepData?.dataInvio || // Controlla se dataInvio ha un valore truthy
+      !!stepData?.dataInvio ||
       (stepData?.importoBaseCommittente > 0) ||
       (stepData?.importoBaseCollaboratore > 0) ||
-      (stepData?.importoBaseFirmatario > 0) // Aggiunto controllo firmatario
+      (stepData?.importoBaseFirmatario > 0)
     );
   };
 
@@ -55,7 +58,7 @@ function WorkflowTable({
       const stepId = stepIds[i];
       if (stepId === 'intestazione' || stepId === 'dettagliPratica') continue;
       const stepData = pratica.workflow?.[stepId];
-      if (stepData && cellHasContent(stepData)) { // Aggiunto controllo esistenza stepData
+      if (stepData && cellHasContent(stepData)) {
         lastStepWithContentIndex = i;
         break;
       }
@@ -67,7 +70,7 @@ function WorkflowTable({
         cellsToColor[stepId] = true;
       } else {
         const stepData = pratica.workflow?.[stepId];
-        const hasContent = stepData && cellHasContent(stepData); // Aggiunto controllo esistenza stepData
+        const hasContent = stepData && cellHasContent(stepData);
         cellsToColor[stepId] = hasContent || (i <= lastStepWithContentIndex);
       }
     }
@@ -86,7 +89,6 @@ function WorkflowTable({
 
    // Determina quale componente usare per la cella
    const getCellComponent = (step, pratica, stepData, isActive) => {
-    // Gestione specifica per intestazione e dettagli
     if (step.id === 'intestazione') {
       return <HeaderCell pratica={pratica} onEditPratica={onEditPratica} />;
     }
@@ -94,24 +96,26 @@ function WorkflowTable({
       return <DetailCell pratica={pratica} />;
     }
 
-    // Assicurati che stepData esista prima di passarlo ai componenti figli
-    const currentStepData = stepData || { notes: [], tasks: [], checklist: {}, importoCommittente: 0, importoCollaboratore: 0, importoFirmatario: 0, dataInvio: null }; // Oggetto vuoto di fallback
+    const currentStepData = stepData || { notes: [], tasks: [], checklist: {}, importoCommittente: 0, importoCollaboratore: 0, importoFirmatario: 0, dataInvio: null };
 
-    // Lista di celle che usano TaskCell
     const taskLikeCells = ['inizioPratica', 'sopralluogo', 'espletamentoPratica1', 'presentazionePratica'];
-    if (taskLikeCells.includes(step.id)) {
+    if (taskLikeCells.includes(step.id) || step.type === 'task') {
       return (
         <TaskCell
           pratica={pratica} stepId={step.id} stepData={currentStepData} isActive={isActive}
           onCellClick={onCellClick} onAddNote={onAddNote} onDeleteNote={onDeleteNote}
           onToggleTaskItem={onToggleTaskItem} onUpdateNote={onUpdateNote}
           onSetTaskDueDate={onSetTaskDueDate} onRemoveTaskDueDate={onRemoveTaskDueDate}
-          onSyncWithCalendar={onSyncWithCalendar}
+          // onSyncWithCalendar={onSyncWithCalendar} // Rimosso
+          // >>> NUOVE PROPS PASSATE <<<
+          isGoogleAuthenticated={isGoogleAuthenticated}
+          onOpenCalendarModal={onOpenCalendarModal}
+          googleAuthLoading={googleAuthLoading}
+          loginToGoogleCalendar={loginToGoogleCalendar}
         />
       );
     }
 
-    // Altri tipi di celle
     switch (step.type) {
       case 'checklist':
         return (
@@ -133,10 +137,9 @@ function WorkflowTable({
           <PaymentCell
             pratica={pratica} stepId={step.id} stepData={currentStepData} step={step}
             isActive={isActive} onCellClick={onCellClick} onPaymentChange={onPaymentChange}
-            // onPaymentKeyDown non è più necessario qui se gestito internamente a PaymentCell
           />
         );
-      default: // Presumibilmente 'note' o altri tipi non specificati
+      default:
         return (
           <NoteCell
             pratica={pratica} stepId={step.id} stepData={currentStepData} isActive={isActive}
@@ -147,15 +150,36 @@ function WorkflowTable({
     }
   };
 
+  // Funzione per formattare il nome della fase
+  const formatStepLabel = (label) => {
+    const multiLineLabels = [
+      'Inizio Pratica', 'Completamento Pratica',
+      'Secondo Acconto 30%', 'Presentazione Pratica'
+    ];
+
+    if (multiLineLabels.includes(label)) {
+      const words = label.split(' ');
+      const firstLine = words.slice(0, 1).join(' ');
+      const secondLine = words.slice(1).join(' ');
+      return (
+        <div className="vertical-text-multiline">
+          <div>{firstLine}</div>
+          <div>{secondLine}</div>
+        </div>
+      );
+    } else {
+      return <div className={`${label.length > 15 ? 'vertical-text-multiline' : 'vertical-text'}`}>{label}</div>;
+    }
+  };
+
 
   return (
     <div className="bg-white shadow-sm rounded-lg overflow-auto">
       <div className="overflow-x-auto" style={{ minWidth: '100%', maxHeight: '80vh' }}>
         <table className="w-full border-collapse">
-          {/* *** CORREZIONE: Rimosso spazio bianco tra <colgroup> e <col>, e tra i <col> *** */}
           <colgroup>
-            <col className="w-16" />{/* Prima colonna fissa */}
-            {pratiche.map(pratica => <col key={pratica.id} className="column-practice" />)}{/* Colonne pratiche */}
+            <col className="w-16" />
+            {pratiche.map(pratica => <col key={pratica.id} className="column-practice" />)}
           </colgroup>
           <tbody>
             {workflowSteps.map((step, index) => (
@@ -169,26 +193,24 @@ function WorkflowTable({
                   zIndex: index === 0 ? 20 : 'auto'
                 }}
               >
-                {/* Prima colonna fissa con nome fase */}
                 <td
                   className={`${step.color} p-1 font-medium column-fixed`}
                   style={{
                     width: '60px', minWidth: '60px', maxWidth: '60px',
                     borderWidth: '1px', borderColor: '#000',
                     position: 'sticky', left: 0,
-                    zIndex: index === 0 ? 30 : 10 // Z-index più alto per angolo
+                    zIndex: index === 0 ? 30 : 10
                   }}
                 >
                   {formatStepLabel(step.label)}
                 </td>
 
-                {/* Colonne per pratiche */}
                 {pratiche.map(pratica => {
-                  const stepData = pratica.workflow?.[step.id]; // Usa optional chaining
+                  const stepData = pratica.workflow?.[step.id];
                   const cellId = `${pratica.id}-${step.id}`;
-                  const isActive = activeCells[cellId];
+                  const isActive = activeCells && activeCells[cellId];
                   const bgColorClass = renderCellBackground(step, pratica);
-                  const cellContent = getCellComponent(step, pratica, stepData, isActive); // Passa stepData (può essere undefined)
+                  const cellContent = getCellComponent(step, pratica, stepData, isActive);
 
                   return (
                     <td
@@ -201,12 +223,16 @@ function WorkflowTable({
                         zIndex: index === 0 ? 10 : 'auto'
                       }}
                       onClick={(e) => {
+                        // Impedisce l'attivazione della cella se si clicca su elementi interattivi
+                        // o se è una cella task (gestita dai bottoni interni)
                         if (
                           !e.target.closest('input') && !e.target.closest('textarea') &&
                           !e.target.closest('button') && !e.target.closest('select') &&
-                          step.id !== 'intestazione' && step.id !== 'dettagliPratica'
+                          step.id !== 'intestazione' && step.id !== 'dettagliPratica' &&
+                          step.type !== 'task' && !workflowSteps.find(s => s.id === step.id && (s.type === 'task' || ['inizioPratica', 'sopralluogo', 'espletamentoPratica1', 'presentazionePratica'].includes(s.id))) &&
+                          onCellClick
                         ) {
-                          onCellClick(pratica.id, step.id, step.type);
+                           onCellClick(pratica.id, step.id, step.type);
                         }
                       }}
                     >
@@ -218,7 +244,6 @@ function WorkflowTable({
             ))}
           </tbody>
           <tfoot>
-            {/* Riga per stato pratica */}
             <tr className="border-b border-gray-300">
               <td
                 className="p-1 font-medium column-fixed bg-[#c4d79b]"
@@ -247,27 +272,5 @@ function WorkflowTable({
     </div>
   );
 }
-
-// Funzione per formattare il nome della fase
-const formatStepLabel = (label) => {
-  const multiLineLabels = [
-    'Inizio Pratica', 'Completamento Pratica',
-    'Secondo Acconto 30%', 'Presentazione Pratica'
-  ];
-
-  if (multiLineLabels.includes(label)) {
-    const words = label.split(' ');
-    const firstLine = words.slice(0, 1).join(' ');
-    const secondLine = words.slice(1).join(' ');
-    return (
-      <div className="vertical-text-multiline">
-        <div>{firstLine}</div>
-        <div>{secondLine}</div>
-      </div>
-    );
-  } else {
-    return <div className={`${label.length > 15 ? 'vertical-text-multiline' : 'vertical-text'}`}>{label}</div>;
-  }
-};
 
 export default WorkflowTable;

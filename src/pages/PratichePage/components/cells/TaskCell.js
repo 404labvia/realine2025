@@ -2,10 +2,10 @@
 import React, { useState } from 'react';
 import { format, isBefore, addDays } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { FaTimes, FaClock, FaExclamationTriangle } from 'react-icons/fa';
+import { FaTimes, FaClock, FaExclamationTriangle, FaCalendarAlt, FaGoogle } from 'react-icons/fa'; // Aggiunte FaCalendarAlt, FaGoogle
 import { MdPriorityHigh } from 'react-icons/md';
 
-// Componente per la modifica di testo
+// Componente per la modifica di testo (invariato)
 const EditableText = ({ text, onSave, onCancel, autoFocus = true }) => {
   const [editedText, setEditedText] = useState(text);
 
@@ -52,23 +52,21 @@ const EditableText = ({ text, onSave, onCancel, autoFocus = true }) => {
   );
 };
 
-// Componente per impostare la data di scadenza
+// Componente per impostare la data di scadenza (invariato)
 const DueDatePicker = ({ dueDate, onSave, onCancel }) => {
   const [date, setDate] = useState(dueDate ? format(new Date(dueDate), 'yyyy-MM-dd') : '');
   const [time, setTime] = useState(dueDate ? format(new Date(dueDate), 'HH:mm') : '10:00');
   const [priority, setPriority] = useState('normal');
-  const [reminder, setReminder] = useState('60'); // 1 ora prima
+  const [reminder, setReminder] = useState('60');
 
   const handleSave = () => {
     if (!date) {
       onCancel();
       return;
     }
-
-    // Combina data e ora in un timestamp ISO
     const [year, month, day] = date.split('-');
     const [hours, minutes] = time.split(':');
-    const dueDateTime = new Date(year, month-1, day, hours, minutes);
+    const dueDateTime = new Date(year, month - 1, day, hours, minutes);
 
     onSave({
       dueDate: dueDateTime.toISOString(),
@@ -78,7 +76,7 @@ const DueDatePicker = ({ dueDate, onSave, onCancel }) => {
   };
 
   return (
-    <div className="p-2 border border-gray-300 rounded bg-white shadow-sm">
+    <div className="p-2 border border-gray-300 rounded bg-white shadow-sm z-30 relative"> {/* Aggiunto z-30 e relative */}
       <div className="space-y-2">
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">Data scadenza</label>
@@ -146,7 +144,7 @@ const DueDatePicker = ({ dueDate, onSave, onCancel }) => {
   );
 };
 
-// Componente per visualizzare la scadenza
+// Componente per visualizzare la scadenza (invariato)
 const DueDateDisplay = ({ dueDate, priority, onRemove, onEdit }) => {
   if (!dueDate) return null;
 
@@ -155,8 +153,7 @@ const DueDateDisplay = ({ dueDate, priority, onRemove, onEdit }) => {
   const isOverdue = isBefore(dueDateObj, today) && !isBefore(dueDateObj, addDays(today, -1));
   const isVeryOverdue = isBefore(dueDateObj, addDays(today, -1));
 
-  // Determina il colore in base alla scadenza e priorità
-  let bgColor = "bg-gray-100"; // Default
+  let bgColor = "bg-gray-100";
   if (isVeryOverdue) {
     bgColor = "bg-red-100";
   } else if (isOverdue) {
@@ -195,6 +192,7 @@ const DueDateDisplay = ({ dueDate, priority, onRemove, onEdit }) => {
   );
 };
 
+
 // Cella per task con checkbox e testo
 const TaskCell = ({
   pratica,
@@ -208,27 +206,28 @@ const TaskCell = ({
   onUpdateNote,
   onSetTaskDueDate,
   onRemoveTaskDueDate,
-  onSyncWithCalendar // Mantenuto per compatibilità ma non sarà funzionale
+  // onSyncWithCalendar, // Rimosso
+  // >>> NUOVE PROPS <<<
+  isGoogleAuthenticated,
+  onOpenCalendarModal,
+  googleAuthLoading,
+  loginToGoogleCalendar
 }) => {
   const [newTaskText, setNewTaskText] = useState('');
   const [newNoteText, setNewNoteText] = useState('');
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [editingItemIndex, setEditingItemIndex] = useState(null);
-  const [editingItemType, setEditingItemType] = useState(null); // 'task', 'note', 'dueDate'
+  const [editingItemType, setEditingItemType] = useState(null);
   const [isHovering, setIsHovering] = useState(false);
 
-  // Controlla se ci sono task
   const hasTasks = stepData.tasks && stepData.tasks.length > 0;
-  // Controlla se ci sono note
   const hasNotes = stepData.notes && stepData.notes.length > 0;
 
-  // Gestisce il doppio click su un task o una nota
   const handleItemDoubleClick = (index, type) => {
     setEditingItemIndex(index);
     setEditingItemType(type);
   };
 
-  // Salva l'item modificato
   const handleSaveEditedItem = (index, newText, type) => {
     if (newText.trim() && onUpdateNote) {
       onUpdateNote(pratica.id, stepId, index, newText, type);
@@ -237,13 +236,11 @@ const TaskCell = ({
     setEditingItemType(null);
   };
 
-  // Gestisce il click su elimina task/nota
   const handleDeleteItem = (e, index, type = 'task') => {
     e.stopPropagation();
     onDeleteNote(pratica.id, stepId, index);
   };
 
-  // Gestisce il salvataggio della scadenza
   const handleSaveDueDate = (index, dueDateInfo) => {
     if (onSetTaskDueDate) {
       onSetTaskDueDate(pratica.id, stepId, index, dueDateInfo);
@@ -252,7 +249,6 @@ const TaskCell = ({
     setEditingItemType(null);
   };
 
-  // Gestisce la rimozione della scadenza
   const handleRemoveDueDate = (e, index) => {
     e.stopPropagation();
     if (onRemoveTaskDueDate) {
@@ -260,53 +256,57 @@ const TaskCell = ({
     }
   };
 
-  // Ordina le task: prima quelle non completate con scadenza in ordine cronologico, poi quelle senza scadenza, poi quelle completate
   const sortedTasks = hasTasks ? [...stepData.tasks].sort((a, b) => {
-    // Prima le task non completate
     if (a.completed !== b.completed) {
       return a.completed ? 1 : -1;
     }
-
-    // Se entrambe non completate, ordina per scadenza
     if (!a.completed && !b.completed) {
-      // Se una ha scadenza e l'altra no
       if (a.dueDate && !b.dueDate) return -1;
       if (!a.dueDate && b.dueDate) return 1;
-
-      // Se entrambe hanno scadenza, ordina cronologicamente
       if (a.dueDate && b.dueDate) {
         return new Date(a.dueDate) - new Date(b.dueDate);
       }
-
-      // Se nessuna ha scadenza, ordina per data di creazione (più recente prima)
       return new Date(b.createdDate || 0) - new Date(a.createdDate || 0);
     }
-
-    // Se entrambe completate, ordina per data di completamento (più recente prima)
     return new Date(b.completedDate || 0) - new Date(a.completedDate || 0);
   }) : [];
 
-  // Renderizza le task esistenti e/o il form per aggiungere nuove task
+  // NUOVA FUNZIONE per Google Calendar
+  const handleAddCalendarTaskClick = (e) => {
+    e.stopPropagation();
+    if (!isGoogleAuthenticated) {
+      if (loginToGoogleCalendar && !googleAuthLoading) {
+        loginToGoogleCalendar(); // Tenta il login
+      } else if (googleAuthLoading) {
+        alert("Autenticazione Google Calendar in corso...");
+      } else {
+         alert("Funzione di login a Google Calendar non disponibile.");
+      }
+      return;
+    }
+    if (onOpenCalendarModal) {
+      onOpenCalendarModal(pratica.id, stepId);
+    }
+  };
+
+
   return (
     <div
-      className="p-1 min-h-[35px] text-left h-full relative pb-8"
-      style={{ backgroundColor: hasTasks || hasNotes ? '' : 'trasparent' }}
+      className="p-1 min-h-[35px] text-left h-full relative pb-10" // Aumentato pb per far spazio ai bottoni
+      style={{ backgroundColor: (hasTasks || hasNotes) ? '' : 'transparent' }}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
-      {/* Lista delle note esistenti */}
+      {/* Lista delle note esistenti (invariato) */}
       {hasNotes && (
-        <div className="mb-2">
+         <div className="mb-2">
           {stepData.notes.map((note, i) => (
             <div key={`note-${i}`} className="mb-2 relative group">
               {editingItemIndex === i && editingItemType === 'note' ? (
                 <EditableText
                   text={note.text}
                   onSave={(newText) => handleSaveEditedItem(i, newText, 'note')}
-                  onCancel={() => {
-                    setEditingItemIndex(null);
-                    setEditingItemType(null);
-                  }}
+                  onCancel={() => { setEditingItemIndex(null); setEditingItemType(null); }}
                 />
               ) : (
                 <>
@@ -315,10 +315,7 @@ const TaskCell = ({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                     <div className="flex-1">
-                      <div
-                        className="text-xs cursor-pointer text-gray-600"
-                        onDoubleClick={() => handleItemDoubleClick(i, 'note')}
-                      >
+                      <div className="text-xs cursor-pointer text-gray-600" onDoubleClick={() => handleItemDoubleClick(i, 'note')}>
                         {note.text}
                       </div>
                       <div className="text-xs text-gray-500">
@@ -326,10 +323,7 @@ const TaskCell = ({
                       </div>
                     </div>
                   </div>
-                  <button
-                    className="absolute top-0 right-0 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity"
-                    onClick={(e) => handleDeleteItem(e, i, 'note')}
-                  >
+                  <button className="absolute top-0 right-0 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => handleDeleteItem(e, i, 'note')}>
                     <FaTimes size={10} />
                   </button>
                 </>
@@ -339,102 +333,48 @@ const TaskCell = ({
         </div>
       )}
 
-      {/* Lista delle task esistenti */}
+      {/* Lista delle task esistenti (invariato) */}
       {hasTasks && (
         <div className="mb-4">
           {sortedTasks.map((task, i) => (
             <div key={i} className="mb-2">
-              {/* Selettore data scadenza */}
               {editingItemIndex === i && editingItemType === 'dueDate' && (
                 <DueDatePicker
                   dueDate={task.dueDate}
                   onSave={(dueDateInfo) => handleSaveDueDate(i, dueDateInfo)}
-                  onCancel={() => {
-                    setEditingItemIndex(null);
-                    setEditingItemType(null);
-                  }}
+                  onCancel={() => { setEditingItemIndex(null); setEditingItemType(null); }}
                 />
               )}
-
-              {/* Task text editor */}
               {editingItemIndex === i && editingItemType === 'task' ? (
                 <EditableText
                   text={task.text}
                   onSave={(newText) => handleSaveEditedItem(i, newText, 'task')}
-                  onCancel={() => {
-                    setEditingItemIndex(null);
-                    setEditingItemType(null);
-                  }}
+                  onCancel={() => { setEditingItemIndex(null); setEditingItemType(null); }}
                 />
               ) : (
                 <div className="group relative">
                   <div className="flex items-start">
-                    <input
-                      type="checkbox"
-                      id={`task-${pratica.id}-${stepId}-${i}`}
-                      checked={task.completed || false}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        onToggleTaskItem(pratica.id, stepId, i, e.target.checked);
-                      }}
-                      className="custom-checkbox mt-0.5"
-                    />
+                    <input type="checkbox" id={`task-${pratica.id}-${stepId}-${i}`} checked={task.completed || false} onChange={(e) => { e.stopPropagation(); onToggleTaskItem(pratica.id, stepId, i, e.target.checked); }} className="custom-checkbox mt-0.5"/>
                     <div className="ml-1 flex-1">
-                      <div
-                        className={`text-xs text-left cursor-pointer text-gray-600`}
-                        onDoubleClick={() => handleItemDoubleClick(i, 'task')}
-                      >
+                      <div className={`text-xs text-left cursor-pointer text-gray-600`} onDoubleClick={() => handleItemDoubleClick(i, 'task')}>
                         {task.completed ? <del>{task.text}</del> : task.text}
                       </div>
-
-                      {/* Data scadenza */}
                       {task.dueDate && (
                         <div className="mt-0.5">
-                          <DueDateDisplay
-                            dueDate={task.dueDate}
-                            priority={task.priority || 'normal'}
-                            onRemove={(e) => handleRemoveDueDate(e, i)}
-                            onEdit={() => {
-                              setEditingItemIndex(i);
-                              setEditingItemType('dueDate');
-                            }}
-                          />
+                          <DueDateDisplay dueDate={task.dueDate} priority={task.priority || 'normal'} onRemove={(e) => handleRemoveDueDate(e, i)} onEdit={() => { setEditingItemIndex(i); setEditingItemType('dueDate'); }}/>
                         </div>
                       )}
-
-                      {/* Mostra la data */}
                       <div className="text-xs text-gray-500 text-left">
-                        {task.completed && task.completedDate
-                          ? format(new Date(task.completedDate), 'dd/MM/yyyy', { locale: it })
-                          : (task.createdDate
-                              ? format(new Date(task.createdDate), 'dd/MM/yyyy', { locale: it })
-                              : '')}
+                        {task.completed && task.completedDate ? format(new Date(task.completedDate), 'dd/MM/yyyy', { locale: it }) : (task.createdDate ? format(new Date(task.createdDate), 'dd/MM/yyyy', { locale: it }) : '')}
                       </div>
                     </div>
-
-                    {/* Icone azioni (visibili solo al passaggio mouse) */}
                     <div className="opacity-0 group-hover:opacity-100 flex space-x-1">
-                      {/* Bottone per impostare scadenza */}
                       {!task.dueDate && (
-                        <button
-                          className="text-blue-500 hover:text-blue-700"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingItemIndex(i);
-                            setEditingItemType('dueDate');
-                          }}
-                          title="Imposta scadenza"
-                        >
+                        <button className="text-blue-500 hover:text-blue-700" onClick={(e) => { e.stopPropagation(); setEditingItemIndex(i); setEditingItemType('dueDate'); }} title="Imposta scadenza">
                           <FaClock size={10} />
                         </button>
                       )}
-
-                      {/* Bottone per eliminare */}
-                      <button
-                        className="text-red-500 hover:text-red-700"
-                        onClick={(e) => handleDeleteItem(e, i, 'task')}
-                        title="Elimina task"
-                      >
+                      <button className="text-red-500 hover:text-red-700" onClick={(e) => handleDeleteItem(e, i, 'task')} title="Elimina task">
                         <FaTimes size={10} />
                       </button>
                     </div>
@@ -446,139 +386,74 @@ const TaskCell = ({
         </div>
       )}
 
-      {/* Form per aggiungere task se attivo */}
-      {isActive && !showNoteForm && editingItemIndex === null ? (
-        <div className="mt-2">
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              disabled
-              className="custom-checkbox mt-0.5 opacity-50"
-            />
-            <input
-              type="text"
-              className="ml-1 w-full p-1 text-xs border border-gray-300 rounded"
-              value={newTaskText}
-              onChange={(e) => setNewTaskText(e.target.value)}
-              placeholder="Nuova task..."
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && newTaskText.trim()) {
-                  e.preventDefault();
-                  onAddNote(pratica.id, stepId, newTaskText);
-                  setNewTaskText('');
-                }
-              }}
-              onBlur={() => {
-                if (newTaskText.trim()) {
-                  onAddNote(pratica.id, stepId, newTaskText);
-                  setNewTaskText('');
-                  onCellClick(pratica.id, stepId, 'task', false);
-                }
-              }}
-            />
+      {/* Form per aggiungere task INTERNE se attivo (invariato) */}
+      {isActive && !showNoteForm && editingItemIndex === null && (
+          <div className="mt-2">
+            <div className="flex items-center">
+              <input type="checkbox" disabled className="custom-checkbox mt-0.5 opacity-50"/>
+              <input type="text" className="ml-1 w-full p-1 text-xs border border-gray-300 rounded" value={newTaskText} onChange={(e) => setNewTaskText(e.target.value)} placeholder="Nuova task interna..." autoFocus onKeyDown={(e) => { if (e.key === 'Enter' && newTaskText.trim()) { e.preventDefault(); onAddNote(pratica.id, stepId, newTaskText); setNewTaskText(''); }}} onBlur={() => { if (newTaskText.trim()) { onAddNote(pratica.id, stepId, newTaskText); setNewTaskText(''); onCellClick(pratica.id, stepId, 'task', false); } }}/>
+            </div>
+            <div className="flex justify-end mt-1">
+              <button className="text-xs text-gray-500 mr-1" onClick={(e) => { e.stopPropagation(); onCellClick(pratica.id, stepId, 'task', false); }}> Annulla </button>
+              <button className="text-xs text-blue-600" onClick={(e) => { e.stopPropagation(); if (newTaskText.trim()) { onAddNote(pratica.id, stepId, newTaskText); setNewTaskText(''); } }}> Aggiungi </button>
+            </div>
           </div>
-          <div className="flex justify-end mt-1">
+      )}
+
+      {/* Form per aggiungere note INTERNE se attivo (invariato) */}
+      {isActive && showNoteForm && editingItemIndex === null && (
+           <div className="mt-2">
+            <div className="flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mt-0.5 mr-1 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"> <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /> </svg>
+              <textarea className="w-full p-1 text-xs border border-gray-300 rounded" rows="1" value={newNoteText} onChange={(e) => setNewNoteText(e.target.value)} placeholder="Scrivi nota interna..." autoFocus onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && newNoteText.trim()) { e.preventDefault(); onAddNote(pratica.id, stepId, newNoteText, 'note'); setNewNoteText(''); setShowNoteForm(false); } }} onBlur={() => { if (newNoteText.trim()) { onAddNote(pratica.id, stepId, newNoteText, 'note'); setNewNoteText(''); setShowNoteForm(false); } }} />
+            </div>
+            <div className="flex justify-end mt-1">
+              <button className="text-xs text-gray-500 mr-1" onClick={(e) => { e.stopPropagation(); setShowNoteForm(false); }}> Annulla </button>
+              <button className="text-xs text-blue-600" onClick={(e) => { e.stopPropagation(); if (newNoteText.trim()) { onAddNote(pratica.id, stepId, newNoteText, 'note'); setNewNoteText(''); setShowNoteForm(false); } }}> Aggiungi </button>
+            </div>
+           </div>
+      )}
+
+      {/* MODIFICATO: Bottoni in hover */}
+      {!isActive && editingItemIndex === null && (
+        <div className={`flex flex-col space-y-1 text-xs absolute bottom-1 left-1 right-1 transition-opacity ${isHovering ? 'opacity-100' : 'opacity-0'}`} style={{ backgroundColor: 'transparent' }}>
+            {/* Pulsante Google Calendar */}
             <button
-              className="text-xs text-gray-500 mr-1"
-              onClick={(e) => {
-                e.stopPropagation();
-                onCellClick(pratica.id, stepId, 'task', false);
-              }}
+                className={`flex items-center justify-center py-1 px-2 border rounded ${isGoogleAuthenticated ? 'text-gray-600 hover:text-blue-700 hover:border-gray-300' : 'text-gray-600 hover:text-orange-700 hover:border-gray-300'} ${googleAuthLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={handleAddCalendarTaskClick}
+                disabled={googleAuthLoading}
+                title={isGoogleAuthenticated ? "Aggiungi task al calendario" : "Connetti Google Calendar"}
             >
-              Annulla
+                {isGoogleAuthenticated ? (
+                    <> <FaCalendarAlt className="mr-1" size={10} /> + Task Calendario </>
+                ) : (
+                    <> {googleAuthLoading ? 'Caricamento...' : <> <FaGoogle className="mr-1" size={10} /> Connetti Google </>} </>
+                )}
             </button>
+
+            {/* Pulsante Task Interna */}
             <button
-              className="text-xs text-blue-600"
-              onClick={(e) => {
+                className="text-gray-600 hover:text-gray-800 flex items-center justify-center py-1 px-2 border border-transparent hover:border-gray-300 rounded"
+                onClick={(e) => {
                 e.stopPropagation();
-                if (newTaskText.trim()) {
-                  onAddNote(pratica.id, stepId, newTaskText);
-                  setNewTaskText('');
-                }
-              }}
-            >
-              Aggiungi
-            </button>
-          </div>
-        </div>
-      ) : isActive && showNoteForm && editingItemIndex === null ? (
-        <div className="mt-2">
-          <div className="flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mt-0.5 mr-1 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <textarea
-              className="w-full p-1 text-xs border border-gray-300 rounded"
-              rows="1"
-              value={newNoteText}
-              onChange={(e) => setNewNoteText(e.target.value)}
-              placeholder="Scrivi nota..."
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey && newNoteText.trim()) {
-                  e.preventDefault();
-                  onAddNote(pratica.id, stepId, newNoteText, 'note');
-                  setNewNoteText('');
-                  setShowNoteForm(false);
-                }
-              }}
-              onBlur={() => {
-                if (newNoteText.trim()) {
-                  onAddNote(pratica.id, stepId, newNoteText, 'note');
-                  setNewNoteText('');
-                  setShowNoteForm(false);
-                }
-              }}
-            />
-          </div>
-          <div className="flex justify-end mt-1">
-            <button
-              className="text-xs text-gray-500 mr-1"
-              onClick={(e) => {
-                e.stopPropagation();
+                onCellClick(pratica.id, stepId, 'task', true);
                 setShowNoteForm(false);
-              }}
+                }}
             >
-              Annulla
+                + Task Interna
             </button>
+
+            {/* Pulsante Nota Interna */}
             <button
-              className="text-xs text-blue-600"
-              onClick={(e) => {
+                className="text-gray-600 hover:text-gray-800 flex items-center justify-center py-1 px-2 border border-transparent hover:border-gray-300 rounded"
+                onClick={(e) => {
                 e.stopPropagation();
-                if (newNoteText.trim()) {
-                  onAddNote(pratica.id, stepId, newNoteText, 'note');
-                  setNewNoteText('');
-                  setShowNoteForm(false);
-                }
-              }}
+                onCellClick(pratica.id, stepId, 'task', true); // Usa 'task' per attivare, ma poi setta showNoteForm
+                setShowNoteForm(true);
+                }}
             >
-              Aggiungi
+                + Nota Interna
             </button>
-          </div>
-        </div>
-      ) : (
-        // Mostra i bottoni per aggiungere task o nota solo al passaggio del mouse
-        <div className={`flex justify-between text-xs absolute bottom-1 left-1 right-1 transition-opacity ${isHovering ? 'opacity-100' : 'opacity-0'}`} style={{ backgroundColor: 'transparent' }}>
-          <button
-            className="text-gray-600 hover:text-gray-800"
-            onClick={(e) => {
-              e.stopPropagation();
-              onCellClick(pratica.id, stepId, 'task', true);
-            }}
-          >
-            + Aggiungi task
-          </button>
-          <button
-            className="text-gray-600 hover:text-gray-800"
-            onClick={(e) => {
-              e.stopPropagation();
-              onCellClick(pratica.id, stepId, 'task', true);
-              setShowNoteForm(true);
-            }}
-          >
-            + Aggiungi nota
-          </button>
         </div>
       )}
     </div>
