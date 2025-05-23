@@ -13,9 +13,9 @@ const EventModal = ({
   onRelatedPraticaChange,
   onSave,
   onDelete,
-  tutteLePratiche = [],
-  pratichePrivate = [],
-  calendarList = [], // Riceve la lista [{id: '...', name: '...'}]
+  tutteLePratiche = [], // Riceve la lista filtrata "in corso"
+  pratichePrivate = [], // Serve per etichetta (Priv.)
+  calendarList = [],   // Lista di {id, name} per il dropdown
 }) => {
   if (!showEventModal) {
     return null;
@@ -30,7 +30,7 @@ const EventModal = ({
     onSave();
   };
 
-  const isEditing = !!formState.id; // Verifica se siamo in modalità modifica
+  const isEditing = !!formState.id;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[1000] p-4">
@@ -112,17 +112,17 @@ const EventModal = ({
             </select>
           </div>
 
-          {/* Selettore Calendario (NUOVO) */}
+          {/* Selettore Calendario */}
           <div>
             <label htmlFor="targetCalendarModal" className="block text-sm font-medium text-gray-700">Salva su Calendario</label>
             <select
               id="targetCalendarModal"
-              name="targetCalendarId" // Usa questo nome per onFormChange
+              name="targetCalendarId"
               className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               value={formState.targetCalendarId}
-              onChange={onFormChange} // Usa onFormChange generico
-              disabled={isEditing} // Disabilitato se stiamo modificando
-              title={isEditing ? "Non è possibile spostare un evento esistente tra calendari da qui." : ""}
+              onChange={onFormChange}
+              disabled={isEditing}
+              title={isEditing ? "Non è possibile spostare un evento esistente tra calendari." : ""}
             >
               {calendarList.map((cal) => (
                 <option key={cal.id} value={cal.id}>
@@ -130,10 +130,8 @@ const EventModal = ({
                 </option>
               ))}
             </select>
-             {isEditing && <p className="text-xs text-gray-500 mt-1">Non è possibile spostare un evento esistente tra calendari.</p>}
+             {isEditing && <p className="text-xs text-gray-500 mt-1">Non è possibile cambiare il calendario per un evento esistente.</p>}
           </div>
-
-          {/* CAMPI LUOGO E CATEGORIA RIMOSSI */}
 
           {/* Pulsanti */}
            <div className="flex justify-between items-center pt-4 mt-4 border-t">

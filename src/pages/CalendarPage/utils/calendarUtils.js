@@ -15,14 +15,10 @@ export const localizer = dateFnsLocalizer({
   locales,
 });
 
-// =======================================================================
-//          ID COMPLETI DEI CALENDARI (Come da tua indicazione)
-// =======================================================================
+// ID COMPLETI DEI CALENDARI (Come da tua ultima indicazione)
 const ID_DE_ANTONI = 'cd68da211d6247f5a7d70a89942c1c588502d52ac04cae5489d9b87aeda65df6@group.calendar.google.com';
 const ID_CASTRO = '22ffa3657403100cf77f4e1a7162994f232fae6e8c347aff40b88d22301913f5@group.calendar.google.com';
 const ID_ANTONELLI = 'f9e5ceef7b9530ab26064892d7eda1703e13e6168ff21b2893af17b90ff73f05@group.calendar.google.com';
-// =======================================================================
-
 
 // Mappa dei colori personalizzata per calendario
 export const calendarColorMap = {
@@ -41,18 +37,23 @@ export const calendarNameMap = {
   [ID_ANTONELLI]: 'REALINE Antonelli',
 };
 
-// Funzione per determinare lo stile dell'evento (usa calendarColorMap)
+// Funzione per determinare lo stile dell'evento
 export const eventStyleGetter = (event) => {
   const backgroundColor = calendarColorMap[event.sourceCalendarId] || calendarColorMap['default'];
-  const darkColors = ['#FF6347', '#5A5A5A'];
-  const textColor = darkColors.includes(backgroundColor) ? '#FFFFFF' : '#333333';
+  // Semplice logica per il colore del testo basata sulla luminosità percepita
+  const hexColor = backgroundColor.replace("#", "");
+  const r = parseInt(hexColor.substring(0, 2), 16);
+  const g = parseInt(hexColor.substring(2, 4), 16);
+  const b = parseInt(hexColor.substring(4, 6), 16);
+  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+  const textColor = brightness > 150 ? '#333333' : '#FFFFFF';
 
   const style = {
     backgroundColor,
     borderRadius: '5px',
     opacity: 0.9,
     color: textColor,
-    border: `1px solid ${backgroundColor}`,
+    border: `1px solid ${backgroundColor}`, // O un colore di bordo più scuro/chiaro
     display: 'block',
     fontSize: '0.75em',
     padding: '1px 3px',
@@ -60,7 +61,7 @@ export const eventStyleGetter = (event) => {
   return { style };
 };
 
-// Messaggi tradotti per react-big-calendar (con 'work_week')
+// Messaggi tradotti per react-big-calendar
 export const messages = {
   allDay: 'Tutto il giorno',
   previous: 'Prec',
@@ -68,7 +69,7 @@ export const messages = {
   today: 'Oggi',
   month: 'Mese',
   week: 'Settimana',
-  work_week: 'Settimana Lavorativa',
+  work_week: 'Settimana Lavorativa', // Traduzione per la vista lavorativa
   day: 'Giorno',
   agenda: 'Agenda',
   date: 'Data',
@@ -78,12 +79,12 @@ export const messages = {
   showMore: total => `+ Altri ${total}`
 };
 
-// Costanti GAPI (invariate)
+// Costanti GAPI
 export const GAPI_SCRIPT_URL = 'https://apis.google.com/js/api.js';
 export const API_KEY = process.env.REACT_APP_FIREBASE_API_KEY;
 export const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'];
 
-// Esportiamo anche gli ID per usarli altrove
+// Esportiamo anche gli ID per usarli più facilmente
 export const calendarIds = {
     ID_DE_ANTONI,
     ID_CASTRO,

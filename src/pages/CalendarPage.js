@@ -3,15 +3,15 @@ import React, { useMemo, useCallback } from 'react';
 import { Calendar, Views } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 
-import { usePratiche } from '../contexts/PraticheContext';
-import { usePratichePrivato } from '../contexts/PratichePrivatoContext';
+import { usePratiche } from '../../contexts/PraticheContext';
+import { usePratichePrivato } from '../../contexts/PratichePrivatoContext';
 
 import {
   localizer,
   messages,
   eventStyleGetter,
-  calendarNameMap, // Importiamo la mappa dei nomi
-  calendarIds,    // Importiamo gli ID
+  calendarNameMap,
+  calendarIds,
 } from './CalendarPage/utils/calendarUtils';
 import { useCalendarState } from './CalendarPage/hooks/useCalendarState';
 import { useGoogleCalendarApi } from './CalendarPage/hooks/useGoogleCalendarApi';
@@ -20,14 +20,12 @@ import CalendarHeader from './CalendarPage/components/CalendarHeader';
 import EventModal from './CalendarPage/components/EventModal';
 import { FaCalendarCheck as FaCalendarCheckIcon } from 'react-icons/fa';
 
-// Creiamo la lista dei calendari per il dropdown
-// Assicurati che gli ID in calendarUtils.js siano completi e corretti!
 const calendarListForModal = [
     { id: 'primary', name: calendarNameMap['primary'] },
     { id: calendarIds.ID_DE_ANTONI, name: calendarNameMap[calendarIds.ID_DE_ANTONI] },
     { id: calendarIds.ID_CASTRO, name: calendarNameMap[calendarIds.ID_CASTRO] },
     { id: calendarIds.ID_ANTONELLI, name: calendarNameMap[calendarIds.ID_ANTONELLI] },
-];
+].filter(cal => cal.id && cal.name); // Filtra se per caso gli ID non sono stati ancora sostituiti e sono placeholder
 
 function CalendarPage() {
   const { pratiche: praticheStandard, loading: loadingPraticheStandard } = usePratiche();
@@ -39,6 +37,12 @@ function CalendarPage() {
     const prv = Array.isArray(pratichePrivate) ? pratichePrivate : [];
     return [...std, ...prv];
   }, [praticheStandard, pratichePrivate, loadingPraticheStandard, loadingPratichePrivate]);
+
+  const praticheInCorsoPerModal = useMemo(() => {
+    // ASSUNZIONE: pratica.stato === 'Completata' per le pratiche archiviate/completate
+    // Confermata dai tuoi file PraticheContext.js
+    return tutteLePratiche.filter(pratica => pratica.stato !== 'Completata');
+  }, [tutteLePratiche]);
 
   const {
     googleApiToken,
@@ -75,7 +79,7 @@ function CalendarPage() {
       return;
     }
     const eventResource = prepareEventForApi();
-    const targetCalendar = formState.targetCalendarId; // Ottieni il calendario target
+    const targetCalendar = formState.targetCalendarId;
 
     try {
       if (formState.id) {
@@ -86,69 +90,62 @@ function CalendarPage() {
       resetFormAndCloseModal();
     } catch (error) {
       console.error("Errore nel salvare l'evento (CalendarPage):", error);
-      alert("Si è verificato un errore nel salvare l'evento su Google Calendar.");
+      alert("Si è verificato un errore nel salvare l'evento su Google Calendar. Controlla la console.");
     }
   };
 
   const handleDeleteEvent = async () => {
-    if (!formState.id) return;
-    const targetCalendar = formState.targetCalendarId;
+    if (!formState.id || !formState.targetCalendarId) {
+        console.error("CalendarPage handleDeleteEvent: ID evento o ID calendario mancante.", formState);
+        alert("Impossibile eliminare l'evento: informazioni mancanti.");
+        return;
+    }
+    const calendarIdForDelete = formState.targetCalendarId;
+    const eventIdToDelete = formState.id;
 
     if (window.confirm("Sei sicuro di voler eliminare questo evento?")) {
       try {
-        await deleteGoogleEvent(formState.id, targetCalendar);
+        console.log(`DEBUG CalendarPage: Chiamata a deleteGoogleEvent con eventId: ${eventIdToDelete}, calendarId: ${calendarIdForDelete}`);
+        await deleteGoogleEvent(eventIdToDelete, calendarIdForDelete);
         resetFormAndCloseModal();
       } catch (error) {
         console.error("Errore nell'eliminare l'evento (CalendarPage):", error);
-        alert("Errore nell'eliminare l'evento.");
+        // L'alert più specifico (es. 404) dovrebbe venire dall'hook API se l'errore viene rilanciato
+        alert("Errore nell'eliminare l'evento. Controlla la console per i dettagli specifici.");
       }
     }
   };
 
   const handleEventDropOrResize = useCallback(async ({ event, start, end }) => {
     if (!gapiClientInitialized || !googleApiToken || !window.gapi?.client?.calendar) {
-        console.warn("Operazione drop/resize fallita: GAPI non pronto o token mancante.");
-        fetchGoogleEvents();
-        return;
+        fetchGoogleEvents(); return;
     }
     if (!event.googleEvent && !event.id) {
-        alert("Questa funzionalità è disponibile solo per eventi di Google Calendar salvati.");
-        fetchGoogleEvents();
-        return;
+        alert("Questa funzionalità è solo per eventi Google Calendar salvati.");
+        fetchGoogleEvents(); return;
     }
 
-    // Ricostruisci la risorsa evento, assicurandoti di non includere
-    // proprietà obsolete come 'category' se non le vuoi più gestire.
-    const extendedPrivateProperties = {
-      isPrivate: String(event.isPrivate || false),
-    };
-    if (event.relatedPraticaId) {
-      extendedPrivateProperties.relatedPraticaId = event.relatedPraticaId;
-    }
-    // Manteniamo la categoria se esiste sull'evento originale, anche se non la modifichiamo
-    if (event.category) {
-        extendedPrivateProperties.category = event.category;
-    }
+    const extendedPrivateProperties = { isPrivate: String(event.isPrivate || false) };
+    if (event.relatedPraticaId) extendedPrivateProperties.relatedPraticaId = event.relatedPraticaId;
+    // Non includere la category se non la gestiamo più attivamente
+    if (event.category) extendedPrivateProperties.category = event.category; // Manteniamo se presente nell'evento originale
 
     const eventResource = {
         summary: event.title,
         description: event.description,
-        location: event.location, // Lo manteniamo se esiste sull'evento originale
+        ...(event.location && { location: event.location }), // Includi location solo se esiste nell'evento originale
         start: { dateTime: new Date(start).toISOString() },
         end: { dateTime: new Date(end).toISOString() },
-        extendedProperties: {
-          private: extendedPrivateProperties
-        }
+        extendedProperties: { private: extendedPrivateProperties }
       };
 
     try {
       await updateGoogleEvent(event.id, eventResource, event.sourceCalendarId);
     } catch (error) {
-      console.error("Errore nell'aggiornare l'evento (drag/resize) (CalendarPage):", error);
+      console.error("Errore update drag/resize (CalendarPage):", error);
       fetchGoogleEvents();
     }
   }, [gapiClientInitialized, googleApiToken, updateGoogleEvent, fetchGoogleEvents]);
-
 
   return (
     <div className="container mx-auto p-4">
@@ -159,7 +156,7 @@ function CalendarPage() {
         isLoadingEvents={isLoadingEvents}
         onLogin={() => {
             if (gapiClientInitialized) loginToGoogle();
-            else alert("L'API di Google Calendar non è ancora pronta. Riprova tra poco.");
+            else alert("API Google Calendar non pronta. Riprova.");
         }}
         onLogout={logoutFromGoogle}
         onRefreshEvents={fetchGoogleEvents}
@@ -180,8 +177,8 @@ function CalendarPage() {
             startAccessor="start"
             endAccessor="end"
             style={{ height: '100%' }}
-            views={[Views.MONTH, Views.WORK_WEEK, Views.DAY, Views.AGENDA]} // Usa WORK_WEEK
-            defaultView={Views.WORK_WEEK} // Imposta come default
+            views={[Views.MONTH, Views.WORK_WEEK, Views.DAY, Views.AGENDA]}
+            defaultView={Views.WORK_WEEK}
             selectable
             onSelectSlot={handleSelectSlot}
             onSelectEvent={handleSelectEvent}
@@ -211,7 +208,7 @@ function CalendarPage() {
             <button
               onClick={() => {
                 if (gapiClientInitialized) loginToGoogle();
-                else alert("L'API di Google Calendar non è ancora pronta. Riprova tra poco.");
+                else alert("API Google Calendar non pronta. Riprova.");
               }}
               className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center mx-auto"
               disabled={isLoadingGapi}
@@ -232,9 +229,9 @@ function CalendarPage() {
           onRelatedPraticaChange={handleRelatedPraticaChange}
           onSave={handleSaveEvent}
           onDelete={handleDeleteEvent}
-          tutteLePratiche={tutteLePratiche}
+          tutteLePratiche={praticheInCorsoPerModal} // Passa la lista pratiche filtrata
           pratichePrivate={pratichePrivate}
-          calendarList={calendarListForModal} // Passa la lista calendari
+          calendarList={calendarListForModal}
         />
       )}
     </div>
