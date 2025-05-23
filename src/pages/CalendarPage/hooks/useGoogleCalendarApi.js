@@ -153,7 +153,7 @@ export const useGoogleCalendarApi = () => {
             relatedPraticaId: item.extendedProperties?.private?.relatedPraticaId || '',
             isPrivate: item.extendedProperties?.private?.isPrivate === 'true',
             googleEvent: true,
-            sourceCalendarId: calendarId,
+            sourceCalendarId: calendarId, // Importante per modifiche/cancellazioni
           }));
         }).catch(err => {
           console.error(`Errore nel caricare eventi da ${calendarId}:`, err);
@@ -184,8 +184,9 @@ export const useGoogleCalendarApi = () => {
     if (!gapiClientInitialized || !googleApiToken) throw new Error("API non pronta.");
     try {
       window.gapi.client.setToken({ access_token: googleApiToken });
-      await window.gapi.client.calendar.events.insert({ calendarId: targetCalendarId, resource: eventResource });
+      const response = await window.gapi.client.calendar.events.insert({ calendarId: targetCalendarId, resource: eventResource });
       await fetchGoogleEvents();
+      return response.result; // Restituisce l'evento creato
     } catch (error) {
       console.error(`Error creating event on ${targetCalendarId}:`, error);
       if (error?.result?.error?.code === 401) { clearAppAuthTokenAndState(); loginToGoogle(); }
@@ -197,12 +198,13 @@ export const useGoogleCalendarApi = () => {
     if (!gapiClientInitialized || !googleApiToken) throw new Error("API non pronta.");
     try {
       window.gapi.client.setToken({ access_token: googleApiToken });
-      await window.gapi.client.calendar.events.update({ calendarId: targetCalendarId, eventId: eventId, resource: eventResource });
+      const response = await window.gapi.client.calendar.events.update({ calendarId: targetCalendarId, eventId: eventId, resource: eventResource });
       await fetchGoogleEvents();
+      return response.result; // Restituisce l'evento aggiornato
     } catch (error) {
       console.error(`Error updating event on ${targetCalendarId}:`, error);
       if (error?.result?.error?.code === 401) { clearAppAuthTokenAndState(); loginToGoogle(); }
-      else { fetchGoogleEvents(); }
+      else { fetchGoogleEvents(); } // Risincronizza anche per altri errori
       throw error;
     }
   }, [gapiClientInitialized, googleApiToken, fetchGoogleEvents, clearAppAuthTokenAndState, loginToGoogle]);
@@ -211,18 +213,16 @@ export const useGoogleCalendarApi = () => {
     if (!gapiClientInitialized || !googleApiToken) throw new Error("API non pronta.");
     try {
       window.gapi.client.setToken({ access_token: googleApiToken });
-      // <<< DEBUG: Controlla quale calendarId viene usato per l'eliminazione >>>
-      console.log(`DEBUG useGoogleCalendarApi: Tentativo eliminazione evento ${eventId} da calendario ${targetCalendarId}`);
-      // <<< FINE DEBUG >>>
       await window.gapi.client.calendar.events.delete({ calendarId: targetCalendarId, eventId: eventId });
-      await fetchGoogleEvents();
+      await fetchGoogleEvents(); // Ricarica dopo la cancellazione
+      // Aggiorna anche lo stato locale degli eventi di calendario
+      setCalendarEvents(prevEvents => prevEvents.filter(event => event.id !== eventId));
     } catch (error) {
       console.error(`Error deleting event ${eventId} on calendar ${targetCalendarId}:`, error);
       if (error?.result?.error?.code === 401) {
         clearAppAuthTokenAndState(); loginToGoogle();
       } else if (error?.result?.error?.code === 404) {
-        // L'alert per 404 è già nell'errore originale dell'API, ma possiamo aggiungerne uno più specifico qui se vogliamo
-        alert(`Errore API (404): Evento ${eventId} non trovato sul calendario ${targetCalendarId}. L'URL della richiesta nella console del browser potrebbe mostrare 'primary' se il problema persiste.`);
+        alert(`Errore API (404): Evento ${eventId} non trovato sul calendario ${targetCalendarId}.`);
       }
       throw error;
     }
@@ -232,7 +232,7 @@ export const useGoogleCalendarApi = () => {
     try { googleLogout(); } catch (e) { console.error("Errore googleLogout:", e); }
     localStorage.removeItem('googleApiToken');
     setGoogleApiToken(null);
-    setCalendarEvents([]);
+    setCalendarEvents([]); // Pulisce gli eventi del calendario allo logout
     console.log("Logged out from Google API (hook).");
   }, []);
 

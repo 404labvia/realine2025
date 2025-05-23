@@ -1,127 +1,110 @@
 // src/pages/PratichePage/handlers/noteHandlers.js
 import { format } from 'date-fns';
 
-// Handler per aggiungere una nota
-export const handleAddNote = (praticaId, stepId, noteText, type = 'task', updatePratica, localPratiche, setLocalPratiche) => {
+// Handler per aggiungere una NOTA effettiva
+export const handleAddNote = (praticaId, stepId, noteText, type = 'note', updatePratica, localPratiche, setLocalPratiche) => {
   if (!noteText.trim()) {
     return;
   }
-  
+  if (type !== 'note') { // Questa funzione ora gestisce solo note
+    console.warn("handleAddNote chiamato con type diverso da 'note'. Per le task di calendario, usare il flusso apposito.");
+    return;
+  }
+
   const updatedPratiche = localPratiche.map(pratica => {
     if (pratica.id === praticaId) {
       const updatedWorkflow = { ...pratica.workflow };
       if (!updatedWorkflow[stepId]) {
-        updatedWorkflow[stepId] = { completed: false, notes: [], tasks: [] };
+        updatedWorkflow[stepId] = { completed: false, notes: [], tasks: [] }; // Assicura che esista tasks per compatibilità
       }
-      
-      // Gestisci differentemente in base al tipo
-      if (type === 'task') {
-        // Per task, aggiungi come task
-        if (!updatedWorkflow[stepId].tasks) {
-          updatedWorkflow[stepId].tasks = [];
-        }
-        
-        updatedWorkflow[stepId].tasks.push({
-          text: noteText,
-          completed: false,
-          completedDate: null,
-          createdDate: new Date().toISOString() // Aggiungi data di creazione
-        });
+
+      if (!updatedWorkflow[stepId].notes) {
+        updatedWorkflow[stepId].notes = [];
+      }
+
+      updatedWorkflow[stepId].notes.push({
+        text: noteText,
+        date: new Date().toISOString()
+      });
+
+      updatePratica(praticaId, { workflow: updatedWorkflow });
+
+      return {
+        ...pratica,
+        workflow: updatedWorkflow
+      };
+    }
+    return pratica;
+  });
+  setLocalPratiche(updatedPratiche);
+};
+
+// Handler per eliminare una NOTA o una TASK dal workflow
+// Se type è 'task', si assume sia una task di calendario e l'eliminazione dell'evento Google è gestita altrove.
+// Questa funzione rimuove solo l'elemento dall'array tasks o notes del workflow.
+export const handleDeleteNote = (praticaId, stepId, itemIndex, updatePratica, localPratiche, setLocalPratiche, itemType = 'task') => {
+  const updatedPratiche = localPratiche.map(pratica => {
+    if (pratica.id === praticaId) {
+      const updatedWorkflow = { ...pratica.workflow };
+
+      if (itemType === 'task' && updatedWorkflow[stepId]?.tasks) {
+        const updatedTasks = [...updatedWorkflow[stepId].tasks];
+        updatedTasks.splice(itemIndex, 1);
+        updatedWorkflow[stepId].tasks = updatedTasks;
+      } else if (itemType === 'note' && updatedWorkflow[stepId]?.notes) {
+        const updatedNotes = [...updatedWorkflow[stepId].notes];
+        updatedNotes.splice(itemIndex, 1);
+        updatedWorkflow[stepId].notes = updatedNotes;
       } else {
-        // Per note, aggiungi come nota
-        if (!updatedWorkflow[stepId].notes) {
-          updatedWorkflow[stepId].notes = [];
+        console.warn(`Impossibile eliminare l'elemento: array ${itemType}s non trovato o indice non valido per step ${stepId}`);
+        return pratica; // Nessuna modifica se non troviamo l'array o l'indice
+      }
+
+      updatePratica(praticaId, { workflow: updatedWorkflow });
+
+      return {
+        ...pratica,
+        workflow: updatedWorkflow
+      };
+    }
+    return pratica;
+  });
+
+  setLocalPratiche(updatedPratiche);
+};
+
+
+// Handler per aggiornare una NOTA
+// L'aggiornamento del testo di una TASK CALENDARIO dovrebbe avvenire tramite EventModal e updateGoogleEvent.
+export const handleUpdateNote = (praticaId, stepId, noteIndex, newText, type = 'note', updatePratica, localPratiche, setLocalPratiche) => {
+  if (type !== 'note') {
+      console.warn("handleUpdateNote chiamato con type != 'note'. La modifica del testo delle task di calendario avviene tramite EventModal.");
+      return;
+  }
+  const updatedPratiche = localPratiche.map(pratica => {
+    if (pratica.id === praticaId) {
+      const updatedWorkflow = { ...pratica.workflow };
+
+      if (updatedWorkflow[stepId]?.notes) {
+        const updatedNotes = [...updatedWorkflow[stepId].notes];
+        if (updatedNotes[noteIndex]) {
+            updatedNotes[noteIndex] = {
+            ...updatedNotes[noteIndex],
+            text: newText,
+            date: new Date().toISOString()
+            };
+            updatedWorkflow[stepId].notes = updatedNotes;
+        } else {
+            console.warn("Indice nota non valido per l'aggiornamento.");
+            return pratica;
         }
-        
-        updatedWorkflow[stepId].notes.push({
-          text: noteText, 
-          date: new Date().toISOString()
-        });
+      } else {
+          console.warn("Array note non trovato per l'aggiornamento.");
+          return pratica;
       }
-      
-      // Salva i dati aggiornati
-      updatePratica(praticaId, { workflow: updatedWorkflow });
-      
-      return {
-        ...pratica,
-        workflow: updatedWorkflow
-      };
-    }
-    return pratica;
-  });
-  
-  setLocalPratiche(updatedPratiche);
-};
 
-// Handler per eliminare una nota o una task
-export const handleDeleteNote = (praticaId, stepId, noteIndex, updatePratica, localPratiche, setLocalPratiche) => {
-  const updatedPratiche = localPratiche.map(pratica => {
-    if (pratica.id === praticaId) {
-      const updatedWorkflow = { ...pratica.workflow };
-      
-      // Controlla prima se è una task
-      if (updatedWorkflow[stepId].tasks && updatedWorkflow[stepId].tasks.length > noteIndex) {
-        // Rimuovi la task all'indice specificato
-        const updatedTasks = [...updatedWorkflow[stepId].tasks];
-        updatedTasks.splice(noteIndex, 1);
-        updatedWorkflow[stepId].tasks = updatedTasks;
-      } 
-      // Altrimenti controlla se è una nota
-      else if (updatedWorkflow[stepId].notes && updatedWorkflow[stepId].notes.length > 0) {
-        // Rimuovi la nota all'indice specificato
-        const updatedNotes = [...updatedWorkflow[stepId].notes];
-        updatedNotes.splice(noteIndex, 1);
-        updatedWorkflow[stepId].notes = updatedNotes;
-      }
-      
-      // Salva i dati aggiornati
       updatePratica(praticaId, { workflow: updatedWorkflow });
-      
-      return {
-        ...pratica,
-        workflow: updatedWorkflow
-      };
-    }
-    return pratica;
-  });
-  
-  setLocalPratiche(updatedPratiche);
-};
 
-// Handler per aggiornare una nota o task
-export const handleUpdateNote = (praticaId, stepId, noteIndex, newText, type = 'task', updatePratica, localPratiche, setLocalPratiche) => {
-  const updatedPratiche = localPratiche.map(pratica => {
-    if (pratica.id === praticaId) {
-      const updatedWorkflow = { ...pratica.workflow };
-      
-      // Gestisci differentemente in base al tipo 
-      if (type === 'task' && updatedWorkflow[stepId].tasks) {
-        const updatedTasks = [...updatedWorkflow[stepId].tasks];
-        
-        // Aggiorna il testo della task mantenendo gli altri campi
-        updatedTasks[noteIndex] = {
-          ...updatedTasks[noteIndex],
-          text: newText,
-          updatedAt: new Date().toISOString() // Aggiungi data di aggiornamento
-        };
-        
-        updatedWorkflow[stepId].tasks = updatedTasks;
-      } else if (type === 'note' && updatedWorkflow[stepId].notes) {
-        // Aggiorna nota normale
-        const updatedNotes = [...updatedWorkflow[stepId].notes];
-        
-        updatedNotes[noteIndex] = {
-          ...updatedNotes[noteIndex],
-          text: newText,
-          date: new Date().toISOString() // Aggiorna la data alla data di modifica
-        };
-        
-        updatedWorkflow[stepId].notes = updatedNotes;
-      }
-      
-      // Salva i dati aggiornati
-      updatePratica(praticaId, { workflow: updatedWorkflow });
-      
       return {
         ...pratica,
         workflow: updatedWorkflow
@@ -129,6 +112,6 @@ export const handleUpdateNote = (praticaId, stepId, noteIndex, newText, type = '
     }
     return pratica;
   });
-  
+
   setLocalPratiche(updatedPratiche);
 };

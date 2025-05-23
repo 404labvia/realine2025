@@ -1,6 +1,7 @@
 // src/pages/PratichePage/components/WorkflowTable.js
 import React from 'react';
-import { workflowSteps } from '../utils/praticheUtils';
+// Rinominiamo l'import per chiarezza, dato che workflowSteps è usato anche in PratichePage/index.js
+import { workflowSteps as tableWorkflowSteps } from '../utils/praticheUtils'; //
 import {
   HeaderCell,
   DetailCell,
@@ -25,21 +26,21 @@ function WorkflowTable({
   onPaymentChange,
   onChangeStato,
   onCellClick,
-  onSetTaskDueDate,
-  onRemoveTaskDueDate,
-  // onSyncWithCalendar, // Rimosso
+  // Rimuovi onSetTaskDueDate e onRemoveTaskDueDate se gestiti solo da EventModal
+  // onSetTaskDueDate,
+  // onRemoveTaskDueDate,
   activeCells,
   isGoogleAuthenticated,
-  // >>> NUOVE PROPS <<<
   onOpenCalendarModal,
+  onEditCalendarTask, // Nuova prop
+  onDeleteTaskFromWorkflow, // Nuova prop
   googleAuthLoading,
   loginToGoogleCalendar
 }) {
-  // Determina se la cella ha contenuto
   const cellHasContent = (stepData) => {
     return (
       (stepData?.notes?.length > 0) ||
-      (stepData?.tasks?.length > 0) ||
+      (stepData?.tasks?.length > 0) || // Anche le task di calendario contano come contenuto
       (stepData?.checklist && Object.values(stepData.checklist).some(item => item.completed)) ||
       !!stepData?.dataInvio ||
       (stepData?.importoBaseCommittente > 0) ||
@@ -48,10 +49,9 @@ function WorkflowTable({
     );
   };
 
-  // Calcola quali celle devono essere colorate per una pratica
   const calculateCellsToColor = (pratica) => {
     const cellsToColor = {};
-    const stepIds = workflowSteps.map(step => step.id);
+    const stepIds = tableWorkflowSteps.map(step => step.id); // Usa tableWorkflowSteps
     let lastStepWithContentIndex = -1;
 
     for (let i = stepIds.length - 1; i >= 0; i--) {
@@ -77,7 +77,6 @@ function WorkflowTable({
     return cellsToColor;
   };
 
-  // Calcola lo sfondo della cella
   const renderCellBackground = (step, pratica) => {
     const cellsToColor = calculateCellsToColor(pratica);
     if (step.id === 'intestazione' || step.id === 'dettagliPratica') {
@@ -87,7 +86,6 @@ function WorkflowTable({
     }
   };
 
-   // Determina quale componente usare per la cella
    const getCellComponent = (step, pratica, stepData, isActive) => {
     if (step.id === 'intestazione') {
       return <HeaderCell pratica={pratica} onEditPratica={onEditPratica} />;
@@ -98,18 +96,26 @@ function WorkflowTable({
 
     const currentStepData = stepData || { notes: [], tasks: [], checklist: {}, importoCommittente: 0, importoCollaboratore: 0, importoFirmatario: 0, dataInvio: null };
 
-    const taskLikeCells = ['inizioPratica', 'sopralluogo', 'espletamentoPratica1', 'presentazionePratica'];
-    if (taskLikeCells.includes(step.id) || step.type === 'task') {
+    // Tutte le celle che possono contenere task (ora solo di calendario)
+    // o note, usano TaskCell modificata
+    const taskLikeCellIds = tableWorkflowSteps.filter(s => s.type === 'task' || s.type === 'note' || ['inizioPratica', 'sopralluogo', 'espletamentoPratica1', 'presentazionePratica'].includes(s.id)).map(s=>s.id);
+
+
+    if (taskLikeCellIds.includes(step.id) ) {
       return (
         <TaskCell
           pratica={pratica} stepId={step.id} stepData={currentStepData} isActive={isActive}
-          onCellClick={onCellClick} onAddNote={onAddNote} onDeleteNote={onDeleteNote}
-          onToggleTaskItem={onToggleTaskItem} onUpdateNote={onUpdateNote}
-          onSetTaskDueDate={onSetTaskDueDate} onRemoveTaskDueDate={onRemoveTaskDueDate}
-          // onSyncWithCalendar={onSyncWithCalendar} // Rimosso
-          // >>> NUOVE PROPS PASSATE <<<
+          onCellClick={onCellClick}
+          onAddActualNote={onAddNote} // Passa la funzione per aggiungere note effettive
+          onUpdateActualNote={onUpdateNote} // Passa la funzione per aggiornare note effettive
+          onDeleteActualNote={onDeleteNote} // Passa la funzione per eliminare note effettive
+
+          onToggleTaskItem={onToggleTaskItem} // Per "completare" una task di calendario (flag locale)
+          onEditCalendarTask={onEditCalendarTask} // Per modificare una task di calendario
+          onDeleteTaskFromWorkflow={onDeleteTaskFromWorkflow} // Per eliminare una task di calendario
+
           isGoogleAuthenticated={isGoogleAuthenticated}
-          onOpenCalendarModal={onOpenCalendarModal}
+          onOpenCalendarModal={onOpenCalendarModal} // Per creare una nuova task di calendario
           googleAuthLoading={googleAuthLoading}
           loginToGoogleCalendar={loginToGoogleCalendar}
         />
@@ -139,18 +145,19 @@ function WorkflowTable({
             isActive={isActive} onCellClick={onCellClick} onPaymentChange={onPaymentChange}
           />
         );
-      default:
-        return (
-          <NoteCell
+      default: // Se qualche step non è task/note ma non ha un tipo specifico, usa NoteCell di fallback (o una cella vuota)
+         return (
+          <NoteCell // Questo ora gestisce solo NOTE effettive
             pratica={pratica} stepId={step.id} stepData={currentStepData} isActive={isActive}
-            onCellClick={onCellClick} onAddNote={onAddNote} onDeleteNote={onDeleteNote}
-            onUpdateNote={onUpdateNote}
+            onCellClick={onCellClick}
+            onAddNote={onAddNote} // rinominato in PratichePage
+            onDeleteNote={onDeleteNote} // rinominato
+            onUpdateNote={onUpdateNote} // rinominato
           />
         );
     }
   };
 
-  // Funzione per formattare il nome della fase
   const formatStepLabel = (label) => {
     const multiLineLabels = [
       'Inizio Pratica', 'Completamento Pratica',
@@ -182,7 +189,7 @@ function WorkflowTable({
             {pratiche.map(pratica => <col key={pratica.id} className="column-practice" />)}
           </colgroup>
           <tbody>
-            {workflowSteps.map((step, index) => (
+            {tableWorkflowSteps.map((step, index) => ( // Usa tableWorkflowSteps
               <tr
                 key={step.id}
                 className={`border-b border-gray-300 ${index === 0 ? 'sticky-top-row' : ''}`}
@@ -223,13 +230,14 @@ function WorkflowTable({
                         zIndex: index === 0 ? 10 : 'auto'
                       }}
                       onClick={(e) => {
-                        // Impedisce l'attivazione della cella se si clicca su elementi interattivi
-                        // o se è una cella task (gestita dai bottoni interni)
+                        // Impedisce l'attivazione della cella per le TaskCell (gestite dai bottoni interni)
+                        // e per altri elementi interattivi
+                        const isTaskRelatedCell = tableWorkflowSteps.find(s => s.id === step.id && (s.type === 'task' || s.type === 'note' || ['inizioPratica', 'sopralluogo', 'espletamentoPratica1', 'presentazionePratica'].includes(s.id)));
                         if (
                           !e.target.closest('input') && !e.target.closest('textarea') &&
                           !e.target.closest('button') && !e.target.closest('select') &&
                           step.id !== 'intestazione' && step.id !== 'dettagliPratica' &&
-                          step.type !== 'task' && !workflowSteps.find(s => s.id === step.id && (s.type === 'task' || ['inizioPratica', 'sopralluogo', 'espletamentoPratica1', 'presentazionePratica'].includes(s.id))) &&
+                          !isTaskRelatedCell && // Non attivare le TaskCell/NoteCell con un click generico
                           onCellClick
                         ) {
                            onCellClick(pratica.id, step.id, step.type);

@@ -16,12 +16,14 @@ import EventModal from '../CalendarPage/components/EventModal';
 
 // Importa servizi
 import automationService from '../../services/AutomationService';
+import { auth } from '../../firebase'; // <-- IMPORT CORRETTO
 
 // Importa utilità
 import {
   customStyles,
   agenzieCollaboratori,
   generatePDF,
+  // workflowSteps as workflowStepsDefinition // Rinominiamo per evitare conflitti
 } from './utils';
 import { calendarIds, calendarNameMap } from '../CalendarPage/utils/calendarUtils';
 
@@ -38,12 +40,6 @@ import {
   handleChangeStato
 } from './handlers';
 
-import {
-  handleSetTaskDueDate,
-  handleRemoveTaskDueDate,
-  // handleSyncTaskWithCalendar // Rimosso
-} from './handlers/taskHandlers';
-
 // Lista dei calendari per il dropdown nel modale
 const calendarListForModal = [
     { id: 'primary', name: calendarNameMap['primary'] },
@@ -55,7 +51,7 @@ const calendarListForModal = [
 
 function PratichePage() {
   const { pratiche, loading, deletePratica, addPratica, updatePratica } = usePratiche();
-  const { pratiche: pratichePrivate, loading: loadingPratichePrivate } = usePratichePrivato();
+  const { pratiche: pratichePrivateData, loading: loadingPratichePrivate } = usePratichePrivato();
 
   // Stati locali di UI
   const [showNewPraticaForm, setShowNewPraticaForm] = useState(false);
@@ -65,12 +61,12 @@ function PratichePage() {
   const [showExportOptions, setShowExportOptions] = useState(false);
   const [lastTaskEvent, setLastTaskEvent] = useState(null);
   const [showTaskNotification, setShowTaskNotification] = useState(false);
+  const [currentStepIdForCalendar, setCurrentStepIdForCalendar] = useState(null);
 
   // Usa i custom hooks
   const {
     activeCells,
     handleCellClick,
-    // isCellActive // Non più usato direttamente
   } = useActiveCells();
 
   const {
@@ -82,36 +78,35 @@ function PratichePage() {
     removeLocalPratica
   } = useLocalPratiche(pratiche, loading, filtroAgenzia, filtroStato);
 
-    // Combina pratiche standard e private
-    const tutteLePratiche = useMemo(() => {
+    const tutteLePratichePerModal = useMemo(() => {
         if (loading || loadingPratichePrivate) return [];
         const std = Array.isArray(pratiche) ? pratiche : [];
-        const prv = Array.isArray(pratichePrivate) ? pratichePrivate : [];
+        const prv = Array.isArray(pratichePrivateData) ? pratichePrivateData : [];
         return [...std, ...prv];
-    }, [pratiche, pratichePrivate, loading, loadingPratichePrivate]);
+    }, [pratiche, pratichePrivateData, loading, loadingPratichePrivate]);
 
-    // Filtra le pratiche per mostrare solo quelle "in corso"
     const praticheInCorsoPerModal = useMemo(() => {
-        return tutteLePratiche.filter(pratica => pratica.stato !== 'Completata');
-    }, [tutteLePratiche]);
+        return tutteLePratichePerModal.filter(pratica => pratica.stato !== 'Completata');
+    }, [tutteLePratichePerModal]);
 
-
-  // Hooks per Google Calendar API e stato del modale
   const {
     googleApiToken,
     gapiClientInitialized,
     isLoadingGapi,
+    calendarEvents,
     isLoadingEvents,
     loginToGoogle,
+    logoutFromGoogle,
     fetchGoogleEvents,
     createGoogleEvent,
     updateGoogleEvent,
-    deleteGoogleEvent,
+    deleteGoogleEvent: deleteGoogleCalendarEvent,
   } = useGoogleCalendarApi();
 
   const {
     showEventModal,
     formState: calendarFormState,
+    handleSelectEvent: handleSelectCalendarEventForModal,
     resetFormAndCloseModal: resetCalendarFormAndCloseModal,
     openNewEventModal: openNewCalendarEventModal,
     handleFormChange: handleCalendarFormChange,
@@ -119,55 +114,184 @@ function PratichePage() {
     handleTimeChange: handleCalendarTimeChange,
     handleRelatedPraticaChange: handleCalendarRelatedPraticaChange,
     prepareEventForApi: prepareCalendarEventForApi,
-  } = useCalendarState(tutteLePratiche, pratichePrivate);
+  } = useCalendarState(tutteLePratichePerModal, pratichePrivateData);
 
-  // Wrapper per aprire il modale del calendario da TaskCell
+
   const handleOpenCalendarModalForTask = useCallback((praticaId, stepId) => {
-      // Passa praticaId per pre-compilazione
+      setCurrentStepIdForCalendar(stepId);
       openNewCalendarEventModal(new Date(), praticaId);
   }, [openNewCalendarEventModal]);
 
+  const handleEditCalendarTask = useCallback((task, praticaIdOfTask, stepId) => {
+    setCurrentStepIdForCalendar(stepId);
+    const eventToEdit = calendarEvents.find(e => e.id === task.googleCalendarEventId);
 
-  // Salva evento calendario
+    // Definiamo praticaIdCollegata qui, usando praticaIdOfTask che viene passato
+    // Questo assicura che praticaIdCollegata sia definito nello scope corretto
+    const praticaIdCollegata = task.relatedPraticaId || praticaIdOfTask;
+
+    if (eventToEdit) {
+      handleSelectCalendarEventForModal(eventToEdit);
+    } else {
+      console.warn("Evento di calendario non trovato localmente per la modifica, apertura con i dati della task.");
+      const praticaOriginale = tutteLePratichePerModal.find(p => p.id === praticaIdCollegata);
+      const isPrivate = pratichePrivateData.some(p => p.id === praticaIdCollegata);
+
+      let initialTitle = task.text;
+      if (task.text && task.text.includes('(Pratica:')) {
+          initialTitle = task.text.substring(0, task.text.indexOf('(Pratica:')).trim();
+      }
+
+
+      handleSelectCalendarEventForModal({
+          id: task.googleCalendarEventId,
+          title: initialTitle, // Usiamo il titolo pulito per il form
+          start: new Date(task.dueDate),
+          end: task.endDate ? new Date(task.endDate) : new Date(new Date(task.dueDate).getTime() + (60 * 60 * 1000)),
+          description: task.description || '',
+          relatedPraticaId: praticaIdCollegata,
+          isPrivate: isPrivate,
+          sourceCalendarId: task.sourceCalendarId || 'primary',
+          // Qui potresti voler passare anche priority e reminder se li salvi nella task
+          // e se useCalendarState li gestisce nel suo formState iniziale quando popola da un evento.
+      });
+    }
+  }, [calendarEvents, handleSelectCalendarEventForModal, tutteLePratichePerModal, pratichePrivateData]);
+
+
   const handleSaveCalendarEvent = async () => {
     if (new Date(calendarFormState.end) <= new Date(calendarFormState.start)) {
       alert("L'ora di fine deve essere successiva all'ora di inizio.");
       return;
     }
     const eventResource = prepareCalendarEventForApi();
-    const targetCalendar = calendarFormState.targetCalendarId;
+    const targetCalendarForApi = calendarFormState.targetCalendarId;
+    const praticaIdCollegata = calendarFormState.relatedPraticaId;
 
     try {
+      let savedGoogleEvent;
       if (calendarFormState.id) {
-        await updateGoogleEvent(calendarFormState.id, eventResource, targetCalendar);
+        savedGoogleEvent = await updateGoogleEvent(calendarFormState.id, eventResource, targetCalendarForApi);
       } else {
-        await createGoogleEvent(eventResource, targetCalendar);
+        savedGoogleEvent = await createGoogleEvent(eventResource, targetCalendarForApi);
+      }
+
+      if (savedGoogleEvent && praticaIdCollegata && currentStepIdForCalendar) {
+        const praticaDaAggiornare = localPratiche.find(p => p.id === praticaIdCollegata);
+        if (praticaDaAggiornare) {
+          const updatedWorkflow = JSON.parse(JSON.stringify(praticaDaAggiornare.workflow || {}));
+
+          if (!updatedWorkflow[currentStepIdForCalendar]) {
+            updatedWorkflow[currentStepIdForCalendar] = { tasks: [], notes: [] };
+          }
+          if (!updatedWorkflow[currentStepIdForCalendar].tasks) {
+            updatedWorkflow[currentStepIdForCalendar].tasks = [];
+          }
+
+          const taskIndex = updatedWorkflow[currentStepIdForCalendar].tasks.findIndex(
+            (t) => t.googleCalendarEventId === savedGoogleEvent.id
+          );
+
+          let determinedSourceCalendarId = targetCalendarForApi;
+          if (savedGoogleEvent.organizer && auth.currentUser && savedGoogleEvent.organizer.email === auth.currentUser.email) {
+            determinedSourceCalendarId = 'primary';
+          } else if (savedGoogleEvent.calendarId) {
+             determinedSourceCalendarId = savedGoogleEvent.calendarId;
+          }
+
+
+          const taskData = {
+            text: savedGoogleEvent.summary || eventResource.summary,
+            dueDate: new Date(savedGoogleEvent.start?.dateTime || savedGoogleEvent.start?.date).toISOString(),
+            endDate: savedGoogleEvent.end?.dateTime ? new Date(savedGoogleEvent.end.dateTime).toISOString() : new Date(new Date(savedGoogleEvent.start?.dateTime || savedGoogleEvent.start?.date).getTime() + (60 * 60 * 1000)).toISOString(),
+            googleCalendarEventId: savedGoogleEvent.id,
+            sourceCalendarId: determinedSourceCalendarId,
+            priority: calendarFormState.priority || 'normal',
+            reminder: calendarFormState.reminder || 60,
+            completed: calendarFormState.id && taskIndex > -1 ? (updatedWorkflow[currentStepIdForCalendar].tasks[taskIndex]?.completed || false) : false,
+            relatedPraticaId: praticaIdCollegata,
+            description: savedGoogleEvent.description || '',
+            location: savedGoogleEvent.location || '',
+            isPrivate: calendarFormState.isPrivate || false,
+            stepId: currentStepIdForCalendar
+          };
+
+          if (taskIndex > -1) {
+            const existingTask = updatedWorkflow[currentStepIdForCalendar].tasks[taskIndex];
+            updatedWorkflow[currentStepIdForCalendar].tasks[taskIndex] = {
+                ...existingTask,
+                ...taskData,
+                updatedAt: new Date().toISOString(),
+            };
+          } else {
+            updatedWorkflow[currentStepIdForCalendar].tasks.push({
+                ...taskData,
+                createdDate: new Date().toISOString(),
+            });
+          }
+
+          setLocalPratiche(prevPratiche =>
+            prevPratiche.map(p =>
+              p.id === praticaIdCollegata
+                ? { ...p, workflow: updatedWorkflow }
+                : p
+            )
+          );
+          await updatePratica(praticaIdCollegata, { workflow: updatedWorkflow });
+        }
       }
       resetCalendarFormAndCloseModal();
-      fetchGoogleEvents(); // Ricarica gli eventi
     } catch (error) {
-      console.error("Errore nel salvare l'evento:", error);
-      alert("Si è verificato un errore nel salvare l'evento su Google Calendar.");
+      console.error("Errore nel salvare l'evento di calendario e aggiornare la pratica:", error);
+      alert("Si è verificato un errore nel salvare l'evento e aggiornare la pratica.");
+    } finally {
+        setCurrentStepIdForCalendar(null);
     }
   };
 
-  // Handler per eliminare un evento (per coerenza, anche se non usato attivamente da qui)
-  const handleDeleteCalendarEvent = async () => {
-    if (!calendarFormState.id || !calendarFormState.targetCalendarId) return;
-    if (window.confirm("Sei sicuro di voler eliminare questo evento dal calendario?")) {
+  const handleDeleteCalendarEventAndTask = async () => {
+    if (!calendarFormState.id || !calendarFormState.targetCalendarId) {
+      alert("Impossibile eliminare l'evento: informazioni mancanti.");
+      return;
+    }
+
+    if (window.confirm("Sei sicuro di voler eliminare questo evento dal calendario e la task associata dalla pratica?")) {
       try {
-        await deleteGoogleEvent(calendarFormState.id, calendarFormState.targetCalendarId);
+        await deleteGoogleCalendarEvent(calendarFormState.id, calendarFormState.targetCalendarId);
+
+        const praticaIdCollegata = calendarFormState.relatedPraticaId;
+        const googleEventIdToDelete = calendarFormState.id;
+        const stepIdDaCuiEliminare = currentStepIdForCalendar;
+
+
+        if (praticaIdCollegata && stepIdDaCuiEliminare && googleEventIdToDelete) {
+          const praticaDaAggiornare = localPratiche.find(p => p.id === praticaIdCollegata);
+          if (praticaDaAggiornare && praticaDaAggiornare.workflow && praticaDaAggiornare.workflow[stepIdDaCuiEliminare] && praticaDaAggiornare.workflow[stepIdDaCuiEliminare].tasks) {
+            const updatedWorkflow = JSON.parse(JSON.stringify(praticaDaAggiornare.workflow));
+            updatedWorkflow[stepIdDaCuiEliminare].tasks = updatedWorkflow[stepIdDaCuiEliminare].tasks.filter(
+              (task) => task.googleCalendarEventId !== googleEventIdToDelete
+            );
+
+            setLocalPratiche(prevPratiche =>
+                prevPratiche.map(p =>
+                  p.id === praticaIdCollegata
+                    ? { ...p, workflow: updatedWorkflow }
+                    : p
+                )
+            );
+            await updatePratica(praticaIdCollegata, { workflow: updatedWorkflow });
+          }
+        }
         resetCalendarFormAndCloseModal();
-        fetchGoogleEvents();
       } catch (error) {
-        console.error("Errore nell'eliminare l'evento:", error);
-        alert("Errore nell'eliminare l'evento.");
+        console.error("Errore nell'eliminare l'evento di calendario e/o la task:", error);
+        alert("Errore nell'eliminare l'evento e/o la task associata.");
+      } finally {
+        setCurrentStepIdForCalendar(null);
       }
     }
   };
 
-
-  // Handler per aggiungere una nuova pratica
   const handleAddNewPratica = async (praticaData) => {
     try {
       const newId = await addPratica(praticaData);
@@ -179,12 +303,10 @@ function PratichePage() {
     }
   };
 
-  // Handler per modificare una pratica
   const handleEditPratica = (praticaId) => {
     setEditingPraticaId(praticaId);
   };
 
-  // Handler per salvare le modifiche
   const handleSaveEditedPratica = async (praticaId, updates) => {
     try {
       await updatePratica(praticaId, updates);
@@ -208,7 +330,6 @@ function PratichePage() {
     }
   };
 
-  // Handler per eliminare una pratica
   const handleDeletePratica = async (praticaId) => {
     try {
       await deletePratica(praticaId);
@@ -220,26 +341,38 @@ function PratichePage() {
     }
   };
 
-  // Wrapper per handler di celle workflow
   const handleCellClickWrapper = (praticaId, stepId, stepType, isActive = true) => {
     handleCellClick(praticaId, stepId, stepType, isActive);
   };
 
-  // Funzioni wrapper per handlers
-  const handleAddNoteWrapper = (praticaId, stepId, noteText, type = 'task') => {
-    handleAddNote(praticaId, stepId, noteText, type, updatePratica, localPratiche, setLocalPratiche);
+  const handleAddActualNote = (praticaId, stepId, noteText) => {
+    handleAddNote(praticaId, stepId, noteText, 'note', updatePratica, localPratiche, setLocalPratiche);
   };
 
-  const handleDeleteNoteWrapper = (praticaId, stepId, noteIndex) => {
-    handleDeleteNote(praticaId, stepId, noteIndex, updatePratica, localPratiche, setLocalPratiche);
+  const handleDeleteNoteWrapper = (praticaId, stepId, noteIndex, type = 'note') => {
+    handleDeleteNote(praticaId, stepId, noteIndex, updatePratica, localPratiche, setLocalPratiche, type);
   };
 
-  const handleUpdateNoteWrapper = (praticaId, stepId, noteIndex, newText, type) => {
-    handleUpdateNote(praticaId, stepId, noteIndex, newText, type, updatePratica, localPratiche, setLocalPratiche);
+  const handleUpdateActualNote = (praticaId, stepId, noteIndex, newText) => {
+    handleUpdateNote(praticaId, stepId, noteIndex, newText, 'note', updatePratica, localPratiche, setLocalPratiche);
   };
 
   const handleToggleTaskItemWrapper = (praticaId, stepId, taskIndex, completed) => {
     handleToggleTaskItem(praticaId, stepId, taskIndex, completed, updatePratica, localPratiche, setLocalPratiche);
+  };
+
+  const handleDeleteTaskFromWorkflow = async (praticaId, stepId, taskIndex, googleEventId, sourceCalendarId) => {
+    if (googleEventId && sourceCalendarId) {
+      if (window.confirm("Vuoi eliminare questa task anche da Google Calendar?")) {
+        try {
+          await deleteGoogleCalendarEvent(googleEventId, sourceCalendarId);
+        } catch (error) {
+          console.error("Errore eliminazione evento Google Calendar:", error);
+          alert("Errore durante l'eliminazione dell'evento da Google Calendar. La task sarà rimossa solo localmente dalla pratica.");
+        }
+      }
+    }
+    handleDeleteNote(praticaId, stepId, taskIndex, updatePratica, localPratiche, setLocalPratiche, 'task');
   };
 
   const handleToggleChecklistItemWrapper = (praticaId, stepId, itemId, completed) => {
@@ -293,22 +426,11 @@ function PratichePage() {
     handleChangeStato(praticaId, nuovoStato, updatePratica, localPratiche, setLocalPratiche);
   };
 
-  // Handlers specifici per task
-  const handleSetTaskDueDateWrapper = (praticaId, stepId, taskIndex, dueDateInfo) => {
-    handleSetTaskDueDate(praticaId, stepId, taskIndex, dueDateInfo, updatePratica, localPratiche, setLocalPratiche);
-  };
-
-  const handleRemoveTaskDueDateWrapper = (praticaId, stepId, taskIndex) => {
-    handleRemoveTaskDueDate(praticaId, stepId, taskIndex, updatePratica, localPratiche, setLocalPratiche);
-  };
-
-  // Handler per generare PDF
   const handleGeneratePDF = async (filtroAgenziaPerPdf = '') => {
     await generatePDF(localPratiche, filtroAgenziaPerPdf);
     setShowExportOptions(false);
   };
 
-  // Componente per notifica creazione task automatiche
   const TaskNotification = ({ event, onClose }) => {
     if (!event) return null;
     let message = '';
@@ -325,14 +447,13 @@ function PratichePage() {
           <div className="flex-shrink-0"><FaClock className="h-5 w-5 text-green-500" /></div>
           <div className="ml-3">
             <p className="text-sm text-green-700">{message}</p>
-            <p className="mt-1 text-xs text-green-700">Le task sono state aggiunte alla lista</p>
+            <p className="mt-1 text-xs text-green-700">Le task sono state aggiunte alla lista e/o sincronizzate con Google Calendar</p>
           </div>
           <button className="ml-auto text-green-500 hover:text-green-700" onClick={onClose}>&times;</button>
         </div>
       </div>
     );
   };
-
 
   if (loading || loadingPratichePrivate || (isLoadingGapi && !googleApiToken)) {
     return <div className="flex justify-center items-center h-full">Caricamento...</div>;
@@ -342,10 +463,7 @@ function PratichePage() {
 
   return (
     <div className="container mx-auto">
-      {/* CSS personalizzato */}
       <style>{customStyles}</style>
-
-      {/* Intestazione e bottone nuova pratica */}
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold text-gray-800">Gestione Pratiche</h1>
         <button
@@ -356,7 +474,6 @@ function PratichePage() {
         </button>
       </div>
 
-      {/* Filtro per agenzia, stato ed esportazione */}
       <div className="bg-white p-3 rounded-lg shadow mb-4">
           <div className="flex items-center justify-between">
               <div className="flex items-center mr-4">
@@ -382,7 +499,6 @@ function PratichePage() {
                       </button>
                   )}
               </div>
-
               <div className="flex items-center">
                   <div className="mr-4">
                       <label className="text-sm font-medium text-gray-700 mr-2">Stato:</label>
@@ -396,7 +512,6 @@ function PratichePage() {
                           <option value="Completata">Completata</option>
                       </select>
                   </div>
-
                   <div className="relative">
                       <button
                           onClick={() => setShowExportOptions(!showExportOptions)}
@@ -404,7 +519,6 @@ function PratichePage() {
                       >
                           <FaFilePdf className="mr-1" size={14} /> Esporta PDF
                       </button>
-
                       {showExportOptions && (
                           <div className="absolute right-0 mt-1 bg-white shadow-lg rounded-md z-20 w-48 top-10">
                               <ul className="py-1">
@@ -434,15 +548,12 @@ function PratichePage() {
           </div>
       </div>
 
-      {/* Form modale per nuova pratica */}
       {showNewPraticaForm && (
         <NewPraticaForm
           onClose={() => setShowNewPraticaForm(false)}
           onSave={handleAddNewPratica}
         />
       )}
-
-      {/* Form modale per modifica pratica */}
       {editingPraticaId && (
         <EditPraticaForm
           praticaId={editingPraticaId}
@@ -453,55 +564,52 @@ function PratichePage() {
         />
       )}
 
-      {/* Tabella Workflow */}
       <WorkflowTable
         pratiche={praticheFiltered}
         onEditPratica={handleEditPratica}
-        onAddNote={handleAddNoteWrapper}
+        onAddNote={handleAddActualNote}
         onDeleteNote={handleDeleteNoteWrapper}
         onToggleChecklistItem={handleToggleChecklistItemWrapper}
         onToggleTaskItem={handleToggleTaskItemWrapper}
-        onUpdateNote={handleUpdateNoteWrapper}
+        onUpdateNote={handleUpdateActualNote}
         onDateTimeChange={handleDateTimeChangeWrapper}
         onDeleteDateTime={handleDeleteDateTimeWrapper}
         onPaymentChange={handlePaymentChangeWrapper}
         onChangeStato={handleChangeStatoWrapper}
         onCellClick={handleCellClickWrapper}
-        onSetTaskDueDate={handleSetTaskDueDateWrapper}
-        onRemoveTaskDueDate={handleRemoveTaskDueDateWrapper}
-        // onSyncWithCalendar={handleSyncTaskWithCalendarWrapper} // Rimosso
-        activeCells={activeCells}
-        isGoogleAuthenticated={isGoogleAuthenticated}
+
         onOpenCalendarModal={handleOpenCalendarModalForTask}
+        onEditCalendarTask={handleEditCalendarTask}
+        onDeleteTaskFromWorkflow={handleDeleteTaskFromWorkflow}
+
+        isGoogleAuthenticated={isGoogleAuthenticated}
         googleAuthLoading={isLoadingGapi || isLoadingEvents}
         loginToGoogleCalendar={loginToGoogle}
+        activeCells={activeCells}
       />
 
-      {/* Modale per Eventi Calendario */}
       {showEventModal && (
         <EventModal
           showEventModal={showEventModal}
-          onClose={resetCalendarFormAndCloseModal}
+          onClose={() => {
+            resetCalendarFormAndCloseModal();
+            setCurrentStepIdForCalendar(null);
+          }}
           formState={calendarFormState}
           onFormChange={handleCalendarFormChange}
           onDateChange={handleCalendarDateChange}
           onTimeChange={handleCalendarTimeChange}
           onRelatedPraticaChange={handleCalendarRelatedPraticaChange}
           onSave={handleSaveCalendarEvent}
-          onDelete={handleDeleteCalendarEvent}
+          onDelete={handleDeleteCalendarEventAndTask}
           tutteLePratiche={praticheInCorsoPerModal}
-          pratichePrivate={pratichePrivate} // Passa pratichePrivate
+          pratichePrivate={pratichePrivateData}
           calendarList={calendarListForModal}
         />
       )}
 
-
-      {/* Notifica task automatiche */}
       {showTaskNotification && (
-        <TaskNotification
-          event={lastTaskEvent}
-          onClose={() => setShowTaskNotification(false)}
-        />
+        <TaskNotification event={lastTaskEvent} onClose={() => setShowTaskNotification(false)} />
       )}
     </div>
   );
