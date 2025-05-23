@@ -10,17 +10,24 @@ import {
   localizer,
   messages,
   eventStyleGetter,
-  eventColors, // Importato per passarlo a EventModal
+  calendarNameMap, // Importiamo la mappa dei nomi
+  calendarIds,    // Importiamo gli ID
 } from './CalendarPage/utils/calendarUtils';
 import { useCalendarState } from './CalendarPage/hooks/useCalendarState';
 import { useGoogleCalendarApi } from './CalendarPage/hooks/useGoogleCalendarApi';
 
 import CalendarHeader from './CalendarPage/components/CalendarHeader';
 import EventModal from './CalendarPage/components/EventModal';
-
-// Icona per il messaggio "Connetti..." se gapi è inizializzato ma non c'è token
 import { FaCalendarCheck as FaCalendarCheckIcon } from 'react-icons/fa';
 
+// Creiamo la lista dei calendari per il dropdown
+// Assicurati che gli ID in calendarUtils.js siano completi e corretti!
+const calendarListForModal = [
+    { id: 'primary', name: calendarNameMap['primary'] },
+    { id: calendarIds.ID_DE_ANTONI, name: calendarNameMap[calendarIds.ID_DE_ANTONI] },
+    { id: calendarIds.ID_CASTRO, name: calendarNameMap[calendarIds.ID_CASTRO] },
+    { id: calendarIds.ID_ANTONELLI, name: calendarNameMap[calendarIds.ID_ANTONELLI] },
+];
 
 function CalendarPage() {
   const { pratiche: praticheStandard, loading: loadingPraticheStandard } = usePratiche();
@@ -68,26 +75,28 @@ function CalendarPage() {
       return;
     }
     const eventResource = prepareEventForApi();
+    const targetCalendar = formState.targetCalendarId; // Ottieni il calendario target
+
     try {
       if (formState.id) {
-        await updateGoogleEvent(formState.id, eventResource);
+        await updateGoogleEvent(formState.id, eventResource, targetCalendar);
       } else {
-        await createGoogleEvent(eventResource);
+        await createGoogleEvent(eventResource, targetCalendar);
       }
       resetFormAndCloseModal();
     } catch (error) {
       console.error("Errore nel salvare l'evento (CalendarPage):", error);
       alert("Si è verificato un errore nel salvare l'evento su Google Calendar.");
-      // Non chiudere il modale in caso di errore, così l'utente può riprovare o correggere.
     }
   };
 
   const handleDeleteEvent = async () => {
-    if (!formState.id) return; // Dovrebbe essere già gestito dal modale
+    if (!formState.id) return;
+    const targetCalendar = formState.targetCalendarId;
 
     if (window.confirm("Sei sicuro di voler eliminare questo evento?")) {
       try {
-        await deleteGoogleEvent(formState.id);
+        await deleteGoogleEvent(formState.id, targetCalendar);
         resetFormAndCloseModal();
       } catch (error) {
         console.error("Errore nell'eliminare l'evento (CalendarPage):", error);
@@ -99,41 +108,44 @@ function CalendarPage() {
   const handleEventDropOrResize = useCallback(async ({ event, start, end }) => {
     if (!gapiClientInitialized || !googleApiToken || !window.gapi?.client?.calendar) {
         console.warn("Operazione drop/resize fallita: GAPI non pronto o token mancante.");
-        fetchGoogleEvents(); // Risincronizza per sicurezza
+        fetchGoogleEvents();
         return;
     }
-    // Verifica se l'evento è un evento di Google Calendar (se hai altri tipi di eventi locali)
-    if (!event.googleEvent && !event.id) { // event.id potrebbe non esserci se l'evento non è mai stato salvato
+    if (!event.googleEvent && !event.id) {
         alert("Questa funzionalità è disponibile solo per eventi di Google Calendar salvati.");
         fetchGoogleEvents();
         return;
     }
 
-    // Costruisci la risorsa evento basandoti sull'evento originale e le nuove date
-    // Assicurati che il titolo e altre proprietà rilevanti siano preservate.
-    // Se il titolo contiene dettagli della pratica, potresti volerli rigenerare o usare il titolo esistente.
-    // Per semplicità, qui usiamo le proprietà esistenti dell'evento per tutto tranne start/end.
+    // Ricostruisci la risorsa evento, assicurandoti di non includere
+    // proprietà obsolete come 'category' se non le vuoi più gestire.
+    const extendedPrivateProperties = {
+      isPrivate: String(event.isPrivate || false),
+    };
+    if (event.relatedPraticaId) {
+      extendedPrivateProperties.relatedPraticaId = event.relatedPraticaId;
+    }
+    // Manteniamo la categoria se esiste sull'evento originale, anche se non la modifichiamo
+    if (event.category) {
+        extendedPrivateProperties.category = event.category;
+    }
+
     const eventResource = {
-        summary: event.title, // Potrebbe essere necessario aggiornarlo se il titolo è dinamico
+        summary: event.title,
         description: event.description,
-        location: event.location,
+        location: event.location, // Lo manteniamo se esiste sull'evento originale
         start: { dateTime: new Date(start).toISOString() },
         end: { dateTime: new Date(end).toISOString() },
         extendedProperties: {
-          private: { // Assicurati che queste proprietà esistano sull'oggetto evento trascinato
-            category: event.category || 'altro',
-            relatedPraticaId: event.relatedPraticaId || "",
-            isPrivate: String(event.isPrivate || false),
-          }
+          private: extendedPrivateProperties
         }
       };
 
     try {
-      await updateGoogleEvent(event.id, eventResource);
-      // fetchGoogleEvents() è già chiamato da updateGoogleEvent in caso di successo.
+      await updateGoogleEvent(event.id, eventResource, event.sourceCalendarId);
     } catch (error) {
       console.error("Errore nell'aggiornare l'evento (drag/resize) (CalendarPage):", error);
-      fetchGoogleEvents(); // Risincronizza in caso di errore
+      fetchGoogleEvents();
     }
   }, [gapiClientInitialized, googleApiToken, updateGoogleEvent, fetchGoogleEvents]);
 
@@ -146,24 +158,17 @@ function CalendarPage() {
         isLoadingGapi={isLoadingGapi}
         isLoadingEvents={isLoadingEvents}
         onLogin={() => {
-            // Assicura che GAPI sia pronto prima di tentare il login
-            if (gapiClientInitialized) {
-                loginToGoogle();
-            } else {
-                // Potresti voler richiamare loadGapiScript qui se fallisce,
-                // ma l'hook useGoogleCalendarApi dovrebbe già tentare al mount.
-                // Oppure, mostrare un messaggio all'utente.
-                alert("L'API di Google Calendar non è ancora pronta. Riprova tra poco.");
-            }
+            if (gapiClientInitialized) loginToGoogle();
+            else alert("L'API di Google Calendar non è ancora pronta. Riprova tra poco.");
         }}
         onLogout={logoutFromGoogle}
         onRefreshEvents={fetchGoogleEvents}
-        onShowCreationModal={() => openNewEventModal(new Date())} // Passa la data corrente come default
+        onShowCreationModal={() => openNewEventModal(new Date())}
       />
 
-      {(isLoadingGapi && !googleApiToken && !gapiClientInitialized) && ( // Mostra solo se GAPI non è ancora inizializzato
+      {(isLoadingGapi && !googleApiToken && !gapiClientInitialized) && (
         <div className="text-center py-4 text-gray-600 bg-yellow-50 p-3 rounded-md">
-          Inizializzazione API di Google in corso... Se il messaggio persiste, verifica la console per errori.
+          Inizializzazione API di Google in corso...
         </div>
       )}
 
@@ -171,15 +176,15 @@ function CalendarPage() {
         <div style={{ height: 'calc(100vh - 220px)' }} className="bg-white p-2 sm:p-4 rounded-lg shadow-md">
           <Calendar
             localizer={localizer}
-            events={calendarEvents} // Eventi dall'hook API
+            events={calendarEvents}
             startAccessor="start"
             endAccessor="end"
             style={{ height: '100%' }}
-            views={[Views.MONTH, Views.WEEK, Views.DAY, Views.AGENDA]}
-            defaultView={Views.WEEK}
+            views={[Views.MONTH, Views.WORK_WEEK, Views.DAY, Views.AGENDA]} // Usa WORK_WEEK
+            defaultView={Views.WORK_WEEK} // Imposta come default
             selectable
-            onSelectSlot={handleSelectSlot} // Dall'hook state
-            onSelectEvent={handleSelectEvent} // Dall'hook state
+            onSelectSlot={handleSelectSlot}
+            onSelectEvent={handleSelectEvent}
             onEventDrop={handleEventDropOrResize}
             onEventResize={handleEventDropOrResize}
             resizable
@@ -199,7 +204,7 @@ function CalendarPage() {
             timeslots={4}
           />
         </div>
-      ) : !googleApiToken && gapiClientInitialized ? ( // GAPI pronto, ma utente non loggato
+      ) : !googleApiToken && gapiClientInitialized ? (
         <div className="text-center py-10 text-gray-700 bg-gray-50 p-6 rounded-lg shadow">
             <FaCalendarCheckIcon className="mx-auto text-4xl text-blue-500 mb-3" />
             <p className="text-lg">Connetti il tuo Google Calendar per visualizzare e gestire gli eventi.</p>
@@ -209,12 +214,12 @@ function CalendarPage() {
                 else alert("L'API di Google Calendar non è ancora pronta. Riprova tra poco.");
               }}
               className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center mx-auto"
-              disabled={isLoadingGapi} // Disabilitato mentre GAPI carica, o se non inizializzato
+              disabled={isLoadingGapi}
             >
               Connetti Google Calendar
             </button>
         </div>
-      ) : null} {/* Non mostrare nulla se GAPI sta ancora caricando e non c'è token */}
+      ) : null}
 
       {showEventModal && (
         <EventModal
@@ -228,8 +233,8 @@ function CalendarPage() {
           onSave={handleSaveEvent}
           onDelete={handleDeleteEvent}
           tutteLePratiche={tutteLePratiche}
-          pratichePrivate={pratichePrivate} // Passato per la logica di visualizzazione nel select
-          eventColors={eventColors} // Passa l'oggetto eventColors
+          pratichePrivate={pratichePrivate}
+          calendarList={calendarListForModal} // Passa la lista calendari
         />
       )}
     </div>
