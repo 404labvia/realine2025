@@ -52,11 +52,15 @@ export function AccessoAttiProvider({ children }) {
     );
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const accessiList = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        dataCreazione: doc.data().dataCreazione?.toDate(),
-        dataUltimaModifica: doc.data().dataUltimaModifica?.toDate(),
+      const accessiList = querySnapshot.docs.map(docSnapshot => ({ // Rinominato doc in docSnapshot per chiarezza
+        id: docSnapshot.id,
+        ...docSnapshot.data(),
+        dataCreazione: docSnapshot.data().dataCreazione?.toDate(),
+        dataUltimaModifica: docSnapshot.data().dataUltimaModifica?.toDate(),
+        // Converti anche le date delle fasi di progresso se esistono
+        dataFaseDocumentiDelega: docSnapshot.data().dataFaseDocumentiDelega?.toDate(),
+        dataFaseRichiestaInviata: docSnapshot.data().dataFaseRichiestaInviata?.toDate(),
+        dataFaseDocumentiRicevuti: docSnapshot.data().dataFaseDocumentiRicevuti?.toDate(),
       }));
       setAccessi(accessiList);
       setLoading(false);
@@ -78,18 +82,23 @@ export function AccessoAttiProvider({ children }) {
       throw new Error("Utente non autenticato.");
     }
     try {
-      const docRef = await addDoc(collection(db, 'accessi_atti'), {
+      const dataToSave = {
         ...accessoData,
         userId: auth.currentUser.uid,
         dataCreazione: serverTimestamp(),
         dataUltimaModifica: serverTimestamp(),
-        // Inizializza i nuovi campi booleani per il progresso
         faseDocumentiDelegaCompletata: accessoData.faseDocumentiDelegaCompletata || false,
+        dataFaseDocumentiDelega: accessoData.faseDocumentiDelegaCompletata ? serverTimestamp() : null,
         faseRichiestaInviataCompletata: accessoData.faseRichiestaInviataCompletata || false,
+        dataFaseRichiestaInviata: accessoData.faseRichiestaInviataCompletata ? serverTimestamp() : null,
         faseDocumentiRicevutiCompletata: accessoData.faseDocumentiRicevutiCompletata || false,
-        stato: accessoData.stato || "In Attesa", // Stato di default se non fornito
-        // Rimuovi il vecchio campo 'progresso' se non più necessario o aggiornalo in base alle checkbox
-      });
+        dataFaseDocumentiRicevuti: accessoData.faseDocumentiRicevutiCompletata ? serverTimestamp() : null,
+        // Rimosso 'stato' e 'progresso' testuali se non più usati direttamente
+      };
+      // delete dataToSave.stato; // Se non vuoi più salvare il campo stato testuale
+      // delete dataToSave.progresso; // Se non vuoi più salvare il campo progresso testuale
+
+      const docRef = await addDoc(collection(db, 'accessi_atti'), dataToSave);
       return docRef.id;
     } catch (error) {
       console.error("Errore aggiungendo accesso atti: ", error);
@@ -100,10 +109,20 @@ export function AccessoAttiProvider({ children }) {
   const updateAccesso = async (id, updates) => {
     try {
       const accessoRef = doc(db, 'accessi_atti', id);
-      await updateDoc(accessoRef, {
-        ...updates,
-        dataUltimaModifica: serverTimestamp(),
-      });
+      const dataToUpdate = { ...updates, dataUltimaModifica: serverTimestamp() };
+
+      // Gestione date per le fasi di progresso durante l'aggiornamento
+      if (updates.hasOwnProperty('faseDocumentiDelegaCompletata')) {
+        dataToUpdate.dataFaseDocumentiDelega = updates.faseDocumentiDelegaCompletata ? serverTimestamp() : null;
+      }
+      if (updates.hasOwnProperty('faseRichiestaInviataCompletata')) {
+        dataToUpdate.dataFaseRichiestaInviata = updates.faseRichiestaInviataCompletata ? serverTimestamp() : null;
+      }
+      if (updates.hasOwnProperty('faseDocumentiRicevutiCompletata')) {
+        dataToUpdate.dataFaseDocumentiRicevuti = updates.faseDocumentiRicevutiCompletata ? serverTimestamp() : null;
+      }
+
+      await updateDoc(accessoRef, dataToUpdate);
       return true;
     } catch (error) {
       console.error("Errore aggiornando accesso atti: ", error);

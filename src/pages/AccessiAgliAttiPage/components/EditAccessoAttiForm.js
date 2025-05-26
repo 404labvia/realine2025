@@ -1,15 +1,15 @@
 // src/pages/AccessiAgliAttiPage/components/EditAccessoAttiForm.js
 import React, { useState, useEffect } from 'react';
-import { FaSave, FaTimes } from 'react-icons/fa';
+import { FaSave, FaTimes, FaTrashAlt } from 'react-icons/fa'; // Aggiunta FaTrashAlt
+import { format } from 'date-fns'; // Per formattare le date di completamento fase
 
-// Definiamo le fasi di progresso anche qui per coerenza
 const FASI_PROGRESSO_CONFIG = [
-  { label: "Documenti/Delega", field: "faseDocumentiDelegaCompletata" },
-  { label: "Richiesta inviata", field: "faseRichiestaInviataCompletata" },
-  { label: "Documenti ricevuti", field: "faseDocumentiRicevutiCompletata" },
+  { label: "Documenti/Delega", field: "faseDocumentiDelegaCompletata", dateField: "dataFaseDocumentiDelega" },
+  { label: "Richiesta inviata", field: "faseRichiestaInviataCompletata", dateField: "dataFaseRichiestaInviata" },
+  { label: "Documenti ricevuti", field: "faseDocumentiRicevutiCompletata", dateField: "dataFaseDocumentiRicevuti" },
 ];
 
-function EditAccessoAttiForm({ accesso, onClose, onSave, agenzieDisponibili }) {
+function EditAccessoAttiForm({ accesso, onClose, onSave, onDelete, agenzieDisponibili }) { // Aggiunto onDelete
   const [formData, setFormData] = useState({
     codice: '',
     indirizzo: '',
@@ -19,7 +19,10 @@ function EditAccessoAttiForm({ accesso, onClose, onSave, agenzieDisponibili }) {
     faseDocumentiDelegaCompletata: false,
     faseRichiestaInviataCompletata: false,
     faseDocumentiRicevutiCompletata: false,
-    // Lo stato è stato rimosso
+    // Campi per le date delle fasi (informativi nel form, gestiti dal context/tablerow)
+    dataFaseDocumentiDelega: null,
+    dataFaseRichiestaInviata: null,
+    dataFaseDocumentiRicevuti: null,
   });
   const [errors, setErrors] = useState({});
 
@@ -32,8 +35,11 @@ function EditAccessoAttiForm({ accesso, onClose, onSave, agenzieDisponibili }) {
         agenzia: accesso.agenzia || '',
         note: accesso.note || '',
         faseDocumentiDelegaCompletata: accesso.faseDocumentiDelegaCompletata || false,
+        dataFaseDocumentiDelega: accesso.dataFaseDocumentiDelega || null,
         faseRichiestaInviataCompletata: accesso.faseRichiestaInviataCompletata || false,
+        dataFaseRichiestaInviata: accesso.dataFaseRichiestaInviata || null,
         faseDocumentiRicevutiCompletata: accesso.faseDocumentiRicevutiCompletata || false,
+        dataFaseDocumentiRicevuti: accesso.dataFaseDocumentiRicevuti || null,
       });
     }
   }, [accesso]);
@@ -61,10 +67,26 @@ function EditAccessoAttiForm({ accesso, onClose, onSave, agenzieDisponibili }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
-        const dataToSave = { ...formData };
-        // delete dataToSave.stato; // Rimuovi il vecchio campo stato se presente
-        // delete dataToSave.progresso; // Rimuovi il vecchio campo progresso testuale se presente
+      // Prepara i dati da salvare, includendo l'aggiornamento delle date delle fasi
+      // in base allo stato delle checkbox. Il context gestirà il serverTimestamp.
+      const dataToSave = {
+        codice: formData.codice,
+        indirizzo: formData.indirizzo,
+        proprieta: formData.proprieta,
+        agenzia: formData.agenzia,
+        note: formData.note,
+        faseDocumentiDelegaCompletata: formData.faseDocumentiDelegaCompletata,
+        faseRichiestaInviataCompletata: formData.faseRichiestaInviataCompletata,
+        faseDocumentiRicevutiCompletata: formData.faseDocumentiRicevutiCompletata,
+      };
       onSave(accesso.id, dataToSave);
+    }
+  };
+
+  const handleDeleteClick = () => {
+    if (window.confirm("Sei sicuro di voler eliminare questo accesso agli atti? Questa azione è irreversibile.")) {
+        onDelete(accesso.id);
+        onClose(); // Chiudi il form dopo l'eliminazione
     }
   };
 
@@ -120,7 +142,7 @@ function EditAccessoAttiForm({ accesso, onClose, onSave, agenzieDisponibili }) {
           </div>
 
           <div>
-            <label htmlFor="edit-agenzia" className="block text-sm font-medium text-gray-700 mb-1">Agenzia Collegata (Opzionale)</label>
+            <label htmlFor="edit-agenzia" className="block text-sm font-medium text-gray-700 mb-1">Agenzia Collegata</label>
             <select
               name="agenzia"
               id="edit-agenzia"
@@ -137,27 +159,34 @@ function EditAccessoAttiForm({ accesso, onClose, onSave, agenzieDisponibili }) {
 
           <fieldset>
             <legend className="block text-sm font-medium text-gray-700 mb-1">Progresso</legend>
-            <div className="mt-2 space-y-2 sm:space-y-0 sm:flex sm:space-x-4">
+            <div className="mt-2 space-y-2">
               {FASI_PROGRESSO_CONFIG.map(fase => (
-                <div key={fase.field} className="flex items-center">
-                  <input
-                    id={`edit-${fase.field}`}
-                    name={fase.field}
-                    type="checkbox"
-                    checked={formData[fase.field]}
-                    onChange={handleChange}
-                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <label htmlFor={`edit-${fase.field}`} className="ml-2 block text-sm text-gray-900">
-                    {fase.label}
-                  </label>
+                <div key={fase.field} className="flex items-center justify-between">
+                    <div className="flex items-center">
+                        <input
+                            id={`edit-${fase.field}`}
+                            name={fase.field}
+                            type="checkbox"
+                            checked={formData[fase.field]}
+                            onChange={handleChange}
+                            className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <label htmlFor={`edit-${fase.field}`} className="ml-2 block text-sm text-gray-900">
+                            {fase.label}
+                        </label>
+                    </div>
+                    {formData[fase.dateField] && (
+                        <span className="text-xs text-gray-500">
+                            {format(new Date(formData[fase.dateField]), 'dd/MM/yyyy HH:mm')}
+                        </span>
+                    )}
                 </div>
               ))}
             </div>
           </fieldset>
 
           <div>
-            <label htmlFor="edit-note" className="block text-sm font-medium text-gray-700 mb-1">Note (Opzionale)</label>
+            <label htmlFor="edit-note" className="block text-sm font-medium text-gray-700 mb-1">Note</label>
             <textarea
               name="note"
               id="edit-note"
@@ -168,20 +197,29 @@ function EditAccessoAttiForm({ accesso, onClose, onSave, agenzieDisponibili }) {
             ></textarea>
           </div>
 
-          <div className="flex justify-end space-x-3 pt-4">
+          <div className="flex justify-between items-center pt-4">
             <button
               type="button"
-              onClick={onClose}
-              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 text-sm"
+              onClick={handleDeleteClick}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center text-sm"
             >
-              <FaTimes className="inline mr-1" /> Annulla
+              <FaTrashAlt className="inline mr-2" /> Elimina Pratica
             </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center text-sm"
-            >
-              <FaSave className="inline mr-1" /> Salva Modifiche
-            </button>
+            <div className="space-x-3">
+                <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 text-sm"
+                >
+                <FaTimes className="inline mr-1" /> Annulla
+                </button>
+                <button
+                type="submit"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center text-sm"
+                >
+                <FaSave className="inline mr-1" /> Salva Modifiche
+                </button>
+            </div>
           </div>
         </form>
       </div>
