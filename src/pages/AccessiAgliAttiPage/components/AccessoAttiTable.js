@@ -2,10 +2,9 @@
 import React from 'react';
 import AccessoAttiTableRow from './AccessoAttiTableRow';
 
-const ITEMS_PER_PAGE = 5; // Numero di righe da visualizzare, come da tua richiesta
+const ITEMS_PER_PAGE = 5;
 
 function AccessoAttiTable({ accessi, onEdit, onDelete, onUpdate }) {
-  // Per ora mostriamo solo i primi ITEMS_PER_PAGE, implementeremo paginazione/scroll in seguito se necessario.
   const accessiDaVisualizzare = accessi.slice(0, ITEMS_PER_PAGE);
 
   if (!accessi || accessi.length === 0) {
@@ -26,9 +25,7 @@ function AccessoAttiTable({ accessi, onEdit, onDelete, onUpdate }) {
             <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Proprietà
             </th>
-            <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Stato
-            </th>
+            {/* Colonna Stato Rimossa */}
             <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Progresso
             </th>

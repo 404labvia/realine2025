@@ -2,8 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { FaSave, FaTimes } from 'react-icons/fa';
 
-const STATI_DISPONIBILI = ["In Attesa", "In Corso", "Completato (Accesso Eseguito)", "Richiede Integrazioni", "Respinto"];
-const PROGRESSO_FASI = ["Documenti/Delega", "Richiesta Inviata", "Documenti Ricevuti"];
+// Definiamo le fasi di progresso anche qui per coerenza
+const FASI_PROGRESSO_CONFIG = [
+  { label: "Documenti/Delega", field: "faseDocumentiDelegaCompletata" },
+  { label: "Richiesta inviata", field: "faseRichiestaInviataCompletata" },
+  { label: "Documenti ricevuti", field: "faseDocumentiRicevutiCompletata" },
+];
 
 function EditAccessoAttiForm({ accesso, onClose, onSave, agenzieDisponibili }) {
   const [formData, setFormData] = useState({
@@ -11,10 +15,11 @@ function EditAccessoAttiForm({ accesso, onClose, onSave, agenzieDisponibili }) {
     indirizzo: '',
     proprieta: '',
     agenzia: '',
-    stato: '',
-    progresso: '',
     note: '',
-    // Aggiungi altri campi se necessario (es. date specifiche)
+    faseDocumentiDelegaCompletata: false,
+    faseRichiestaInviataCompletata: false,
+    faseDocumentiRicevutiCompletata: false,
+    // Lo stato è stato rimosso
   });
   const [errors, setErrors] = useState({});
 
@@ -25,16 +30,20 @@ function EditAccessoAttiForm({ accesso, onClose, onSave, agenzieDisponibili }) {
         indirizzo: accesso.indirizzo || '',
         proprieta: accesso.proprieta || '',
         agenzia: accesso.agenzia || '',
-        stato: accesso.stato || 'In Attesa',
-        progresso: accesso.progresso || 'Documenti/Delega',
         note: accesso.note || '',
+        faseDocumentiDelegaCompletata: accesso.faseDocumentiDelegaCompletata || false,
+        faseRichiestaInviataCompletata: accesso.faseRichiestaInviataCompletata || false,
+        faseDocumentiRicevutiCompletata: accesso.faseDocumentiRicevutiCompletata || false,
       });
     }
   }, [accesso]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: null }));
     }
@@ -52,7 +61,10 @@ function EditAccessoAttiForm({ accesso, onClose, onSave, agenzieDisponibili }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
-      onSave(accesso.id, formData); // Passa l'ID e i dati aggiornati
+        const dataToSave = { ...formData };
+        // delete dataToSave.stato; // Rimuovi il vecchio campo stato se presente
+        // delete dataToSave.progresso; // Rimuovi il vecchio campo progresso testuale se presente
+      onSave(accesso.id, dataToSave);
     }
   };
 
@@ -116,42 +128,33 @@ function EditAccessoAttiForm({ accesso, onClose, onSave, agenzieDisponibili }) {
               onChange={handleChange}
               className="w-full p-2 border border-gray-300 rounded-md text-sm bg-white"
             >
-              <option value="">Nessuna / Altro</option>
+              <option value="">Nessuna / ALTRO</option>
               {agenzieDisponibili.map(agenzia => (
                 <option key={agenzia} value={agenzia}>{agenzia}</option>
               ))}
             </select>
           </div>
 
-           <div>
-            <label htmlFor="edit-stato" className="block text-sm font-medium text-gray-700 mb-1">Stato</label>
-            <select
-              name="stato"
-              id="edit-stato"
-              value={formData.stato}
-              onChange={handleChange}
-              className="w-full p-2 border border-gray-300 rounded-md text-sm bg-white"
-            >
-              {STATI_DISPONIBILI.map(statoOpt => (
-                <option key={statoOpt} value={statoOpt}>{statoOpt}</option>
+          <fieldset>
+            <legend className="block text-sm font-medium text-gray-700 mb-1">Progresso</legend>
+            <div className="mt-2 space-y-2 sm:space-y-0 sm:flex sm:space-x-4">
+              {FASI_PROGRESSO_CONFIG.map(fase => (
+                <div key={fase.field} className="flex items-center">
+                  <input
+                    id={`edit-${fase.field}`}
+                    name={fase.field}
+                    type="checkbox"
+                    checked={formData[fase.field]}
+                    onChange={handleChange}
+                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor={`edit-${fase.field}`} className="ml-2 block text-sm text-gray-900">
+                    {fase.label}
+                  </label>
+                </div>
               ))}
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="edit-progresso" className="block text-sm font-medium text-gray-700 mb-1">Progresso</label>
-            <select
-              name="progresso"
-              id="edit-progresso"
-              value={formData.progresso}
-              onChange={handleChange}
-              className="w-full p-2 border border-gray-300 rounded-md text-sm bg-white"
-            >
-              {PROGRESSO_FASI.map(faseOpt => (
-                <option key={faseOpt} value={faseOpt}>{faseOpt}</option>
-              ))}
-            </select>
-          </div>
+            </div>
+          </fieldset>
 
           <div>
             <label htmlFor="edit-note" className="block text-sm font-medium text-gray-700 mb-1">Note (Opzionale)</label>

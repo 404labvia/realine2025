@@ -1,68 +1,31 @@
 // src/pages/AccessiAgliAttiPage/components/AccessoAttiTableRow.js
-import React, { useState, useEffect } from 'react';
+import React from 'react'; // Rimosso useState, useEffect se non servono più qui
 import { FaEdit, FaTrashAlt } from 'react-icons/fa';
-import { formatDistanceToNow, parseISO } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { it } from 'date-fns/locale';
 
-const STATI_DISPONIBILI = ["In Attesa", "In Corso", "Completato (Accesso Eseguito)", "Richiede Integrazioni", "Respinto"];
-const PROGRESSO_FASI = ["Documenti/Delega", "Richiesta Inviata", "Documenti Ricevuti"];
-
-// Funzione per ottenere classi Tailwind per i badge di stato
-const getStatoBadgeClass = (stato) => {
-  switch (stato) {
-    case "In Attesa": return "bg-yellow-100 text-yellow-800";
-    case "In Corso": return "bg-blue-100 text-blue-800";
-    case "Completato (Accesso Eseguito)": return "bg-green-100 text-green-800";
-    case "Richiede Integrazioni": return "bg-orange-100 text-orange-800";
-    case "Respinto": return "bg-red-100 text-red-800";
-    default: return "bg-gray-100 text-gray-800";
-  }
-};
-
-// Funzione per ottenere classi Tailwind per i badge di progresso
-const getProgressoBadgeClass = (progresso) => {
-    // Puoi personalizzare i colori per ogni fase se vuoi
-    switch (progresso) {
-        case "Documenti/Delega": return "bg-purple-100 text-purple-800";
-        case "Richiesta Inviata": return "bg-indigo-100 text-indigo-800";
-        case "Documenti Ricevuti": return "bg-teal-100 text-teal-800";
-        default: return "bg-gray-100 text-gray-800";
-    }
-};
-
+// Definiamo le fasi e i loro campi booleani corrispondenti e colori
+const FASI_PROGRESSO_CONFIG = [
+  { label: "Documenti/Delega", field: "faseDocumentiDelegaCompletata", color: "bg-purple-200 hover:bg-purple-300", textColor: "text-purple-800", borderColor: "border-purple-400" },
+  { label: "Richiesta inviata", field: "faseRichiestaInviataCompletata", color: "bg-indigo-200 hover:bg-indigo-300", textColor: "text-indigo-800", borderColor: "border-indigo-400" },
+  { label: "Documenti ricevuti", field: "faseDocumentiRicevutiCompletata", color: "bg-teal-200 hover:bg-teal-300", textColor: "text-teal-800", borderColor: "border-teal-400" },
+];
 
 function AccessoAttiTableRow({ accesso, onEdit, onDelete, onUpdate }) {
-  const [currentStato, setCurrentStato] = useState(accesso.stato);
-  const [currentProgresso, setCurrentProgresso] = useState(accesso.progresso);
 
-  // Aggiorna stato e progresso locali se l'oggetto accesso cambia dall'esterno
-  useEffect(() => {
-    setCurrentStato(accesso.stato);
-    setCurrentProgresso(accesso.progresso);
-  }, [accesso.stato, accesso.progresso]);
-
-  const handleStatoChange = (e) => {
-    const newStato = e.target.value;
-    setCurrentStato(newStato);
-    onUpdate(accesso.id, { stato: newStato });
-  };
-
-  const handleProgressoChange = (e) => {
-    const newProgresso = e.target.value;
-    setCurrentProgresso(newProgresso);
-    onUpdate(accesso.id, { progresso: newProgresso });
+  const handleProgressoChange = (faseField, currentValue) => {
+    onUpdate(accesso.id, { [faseField]: !currentValue });
   };
 
   const dataUltimaModificaFormattata = accesso.dataUltimaModifica
     ? formatDistanceToNow(accesso.dataUltimaModifica, { addSuffix: true, locale: it })
     : 'N/D';
 
-
   return (
     <tr className="hover:bg-gray-50">
       <td className="px-3 py-3 whitespace-nowrap">
+        {/* ID Documento Firestore rimosso da sotto il codice */}
         <div className="text-sm font-medium text-gray-900">{accesso.codice}</div>
-        <div className="text-xs text-gray-500">ID: {accesso.id.substring(0, 5)}...</div>
       </td>
       <td className="px-3 py-3 whitespace-nowrap">
         <div className="text-sm text-gray-900">{accesso.indirizzo}</div>
@@ -71,33 +34,30 @@ function AccessoAttiTableRow({ accesso, onEdit, onDelete, onUpdate }) {
         <div className="text-sm text-gray-900">{accesso.proprieta}</div>
         {accesso.agenzia && <div className="text-xs text-gray-500">{accesso.agenzia}</div>}
       </td>
+      {/* Colonna Stato Rimossa */}
       <td className="px-3 py-3 whitespace-nowrap">
-        <select
-          value={currentStato}
-          onChange={handleStatoChange}
-          className={`text-xs font-semibold p-1 border-none rounded-md focus:outline-none focus:ring-0 appearance-none ${getStatoBadgeClass(currentStato)}`}
-          style={{ minWidth: '120px' }} // Per dare spazio al testo
-        >
-          {STATI_DISPONIBILI.map(stato => (
-            <option key={stato} value={stato} className="bg-white text-gray-800">
-              {stato}
-            </option>
-          ))}
-        </select>
-      </td>
-      <td className="px-3 py-3 whitespace-nowrap">
-         <select
-          value={currentProgresso}
-          onChange={handleProgressoChange}
-          className={`text-xs font-semibold p-1 border-none rounded-md focus:outline-none focus:ring-0 appearance-none ${getProgressoBadgeClass(currentProgresso)}`}
-          style={{ minWidth: '140px' }} // Per dare spazio al testo
-        >
-          {PROGRESSO_FASI.map(fase => (
-            <option key={fase} value={fase} className="bg-white text-gray-800">
-              {fase}
-            </option>
-          ))}
-        </select>
+        <div className="flex space-x-1 sm:space-x-2">
+          {FASI_PROGRESSO_CONFIG.map(fase => {
+            const isChecked = accesso[fase.field] || false;
+            return (
+              <button
+                key={fase.field}
+                type="button"
+                onClick={() => handleProgressoChange(fase.field, isChecked)}
+                title={fase.label}
+                className={`px-2 py-1 text-xs font-medium rounded-md border transition-colors duration-150
+                            ${isChecked
+                                ? `${fase.color} ${fase.textColor} ${fase.borderColor}`
+                                : `bg-white text-gray-600 border-gray-300 hover:bg-gray-100 hover:border-gray-400`
+                            }`}
+              >
+                {/* Checkbox visiva (opzionale) o solo testo */}
+                {/* <input type="checkbox" readOnly checked={isChecked} className="mr-1 h-3 w-3 rounded text-transparent focus:ring-0" /> */}
+                {fase.label}
+              </button>
+            );
+          })}
+        </div>
       </td>
       <td className="px-3 py-3 whitespace-nowrap text-center text-sm">
         <button

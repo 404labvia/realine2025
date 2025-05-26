@@ -1,26 +1,47 @@
 // src/pages/AccessiAgliAttiPage/index.js
 import React, { useState, useMemo } from 'react';
-import { FaPlus, FaFilter } from 'react-icons/fa';
+import { FaPlus } from 'react-icons/fa'; // FaFilter non più necessaria
 import { useAccessiAtti } from './contexts/AccessoAttiContext';
 import NewAccessoAttiForm from './components/NewAccessoAttiForm';
 import EditAccessoAttiForm from './components/EditAccessoAttiForm';
 import AccessoAttiCard from './components/AccessoAttiCard';
-// Potresti voler creare un file CSS specifico AccessiAgliAttiPage.css
 
-const AGENZIE_CARD = ["Barner LUCCA", "Barner ALTOPASCIO", "Barner MASSA", "Barner QUERCETA"];
+// Nuovo ordine e lista agenzie
+const AGENZIE_CARD_ORDINATE = [
+  "Barner VIAREGGIO",
+  "Barner CAMAIORE",
+  "Barner MASSAROSA",
+  "Barner LUCCA",
+  "Barner ALTOPASCIO",
+  "Barner PISA",
+  "Barner QUERCETA",
+  "Barner PIETRASANTA",
+  "Barner MASSA"
+];
 
 function AccessiAgliAttiPage() {
   const { accessi, loading, addAccesso, updateAccesso, deleteAccesso } = useAccessiAtti();
   const [showNewForm, setShowNewForm] = useState(false);
-  const [editingAccesso, setEditingAccesso] = useState(null); // Oggetto accesso da modificare o null
+  const [editingAccesso, setEditingAccesso] = useState(null);
 
-  // Stati per i filtri
-  const [filtroStato, setFiltroStato] = useState(''); // es. 'In Corso', 'In Attesa', 'Completato'
-  // Aggiungi altri filtri se necessario (es. filtroProgresso)
+  // filtroStato non è più usato per filtrare la lista principale,
+  // ma potrebbe essere utile per il form di creazione/modifica se vogliamo preimpostarlo.
+  // Per ora, lo commento o rimuovo se non serve altrove.
+  // const [filtroStato, setFiltroStato] = useState('');
 
   const handleAddNewAccesso = async (formData) => {
     try {
-      await addAccesso(formData);
+      // Assicurati che i campi booleani del progresso siano inizializzati se non presenti in formData
+      const dataToSave = {
+        ...formData,
+        faseDocumentiDelegaCompletata: formData.faseDocumentiDelegaCompletata || false,
+        faseRichiestaInviataCompletata: formData.faseRichiestaInviataCompletata || false,
+        faseDocumentiRicevutiCompletata: formData.faseDocumentiRicevutiCompletata || false,
+        // Rimuoviamo il vecchio campo 'progresso' se non serve più
+        // delete dataToSave.progresso;
+        // Lo stato viene ora gestito nel form o dal context
+      };
+      await addAccesso(dataToSave);
       setShowNewForm(false);
     } catch (error) {
       alert(`Errore nell'aggiunta dell'accesso: ${error.message}`);
@@ -50,28 +71,21 @@ function AccessiAgliAttiPage() {
     }
   };
 
-  const accessiFiltrati = useMemo(() => {
-    return accessi.filter(acc => {
-      const matchStato = !filtroStato || acc.stato === filtroStato;
-      // Aggiungi logica per altri filtri qui
-      return matchStato;
-    });
-  }, [accessi, filtroStato]);
-
+  // accessiFiltrati ora non ha più il filtro per stato, li passiamo tutti
   const accessiPerAgenzia = useMemo(() => {
     const raggruppati = {};
-    AGENZIE_CARD.forEach(agenzia => raggruppati[agenzia] = []);
-    raggruppati["ALTRO"] = []; // Categoria per accessi non nelle agenzie specificate o senza agenzia
+    AGENZIE_CARD_ORDINATE.forEach(agenzia => raggruppati[agenzia] = []);
+    raggruppati["ALTRO"] = [];
 
-    accessiFiltrati.forEach(acc => {
-      if (acc.agenzia && AGENZIE_CARD.includes(acc.agenzia)) {
+    accessi.forEach(acc => { // Usa 'accessi' direttamente
+      if (acc.agenzia && AGENZIE_CARD_ORDINATE.includes(acc.agenzia)) {
         raggruppati[acc.agenzia].push(acc);
       } else {
         raggruppati["ALTRO"].push(acc);
       }
     });
     return raggruppati;
-  }, [accessiFiltrati]);
+  }, [accessi]);
 
 
   if (loading) {
@@ -90,43 +104,23 @@ function AccessiAgliAttiPage() {
         </button>
       </div>
 
-      {/* Sezione Filtri */}
-      <div className="bg-white p-4 rounded-lg shadow mb-6">
-        <div className="flex items-center">
-          <FaFilter className="text-gray-600 mr-2" />
-          <h3 className="text-lg font-medium text-gray-700 mr-4">Filtri</h3>
-          <select
-            value={filtroStato}
-            onChange={(e) => setFiltroStato(e.target.value)}
-            className="p-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">Tutti gli Stati</option>
-            <option value="In Attesa">In Attesa</option>
-            <option value="In Corso">In Corso</option>
-            <option value="Completato (Accesso Eseguito)">Completato (Accesso Eseguito)</option>
-            <option value="Richiede Integrazioni">Richiede Integrazioni</option>
-            <option value="Respinto">Respinto</option>
-            {/* Aggiungi altri stati se necessario */}
-          </select>
-          {/* Aggiungi altri controlli di filtro qui */}
-        </div>
-      </div>
+      {/* Sezione Filtri Rimossa */}
 
-      {/* Griglia per le Card delle Agenzie */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-6"> {/* 2 card per riga su schermi grandi */}
-        {AGENZIE_CARD.map(agenziaNome => (
+      {/* Lista delle Card delle Agenzie (una per riga) */}
+      <div className="space-y-6"> {/* Aggiunge spazio verticale tra le card */}
+        {AGENZIE_CARD_ORDINATE.map(agenziaNome => (
           <AccessoAttiCard
             key={agenziaNome}
             titolo={agenziaNome}
             accessi={accessiPerAgenzia[agenziaNome]}
             onEdit={handleEditAccesso}
             onDelete={handleDeleteAccesso}
-            onUpdate={updateAccesso} // Passa la funzione di aggiornamento per modifiche rapide
+            onUpdate={updateAccesso}
           />
         ))}
          <AccessoAttiCard
             key="ALTRO"
-            titolo="Altro / Non Specificato"
+            titolo="ALTRO" // Modificato titolo
             accessi={accessiPerAgenzia["ALTRO"]}
             onEdit={handleEditAccesso}
             onDelete={handleDeleteAccesso}
@@ -138,7 +132,7 @@ function AccessiAgliAttiPage() {
         <NewAccessoAttiForm
           onClose={() => setShowNewForm(false)}
           onSave={handleAddNewAccesso}
-          agenzieDisponibili={AGENZIE_CARD} // Passa le agenzie per il dropdown
+          agenzieDisponibili={AGENZIE_CARD_ORDINATE}
         />
       )}
 
@@ -147,7 +141,7 @@ function AccessiAgliAttiPage() {
           accesso={editingAccesso}
           onClose={() => setEditingAccesso(null)}
           onSave={handleUpdateAccesso}
-          agenzieDisponibili={AGENZIE_CARD} // Passa le agenzie per il dropdown
+          agenzieDisponibili={AGENZIE_CARD_ORDINATE}
         />
       )}
     </div>

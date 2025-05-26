@@ -1,6 +1,6 @@
 // src/pages/AccessiAgliAttiPage/contexts/AccessoAttiContext.js
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { db, auth } from '../../../firebase'; // Assicurati che il percorso a firebase.js sia corretto
+import { db, auth } from '../../../firebase';
 import {
   collection,
   query,
@@ -31,7 +31,7 @@ export function AccessoAttiProvider({ children }) {
         setCurrentUserId(user.uid);
       } else {
         setCurrentUserId(null);
-        setAccessi([]); // Pulisci i dati se l'utente fa logout
+        setAccessi([]);
       }
     });
     return () => unsubscribeAuth();
@@ -41,15 +41,13 @@ export function AccessoAttiProvider({ children }) {
     if (!currentUserId) {
       setLoading(false);
       setAccessi([]);
-      return () => {}; // Funzione di cleanup vuota
+      return () => {};
     }
 
     setLoading(true);
-    // Per ora, recuperiamo tutti gli accessi dell'utente loggato.
-    // Potresti voler aggiungere filtri più specifici qui in futuro.
     const q = query(
       collection(db, 'accessi_atti'),
-      where('userId', '==', currentUserId), // Filtra per utente corrente
+      where('userId', '==', currentUserId),
       orderBy('dataCreazione', 'desc')
     );
 
@@ -57,7 +55,6 @@ export function AccessoAttiProvider({ children }) {
       const accessiList = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
-        // Converte i timestamp di Firestore in oggetti Date JavaScript, se necessario
         dataCreazione: doc.data().dataCreazione?.toDate(),
         dataUltimaModifica: doc.data().dataUltimaModifica?.toDate(),
       }));
@@ -68,14 +65,13 @@ export function AccessoAttiProvider({ children }) {
       setLoading(false);
     });
 
-    return unsubscribe; // Restituisce la funzione di unsubscribe per useEffect
+    return unsubscribe;
   }, [currentUserId]);
 
   useEffect(() => {
     const unsubscribe = fetchAccessi();
-    return () => unsubscribe(); // Cleanup all'unmount del provider o al cambio di fetchAccessi
+    return () => unsubscribe();
   }, [fetchAccessi]);
-
 
   const addAccesso = async (accessoData) => {
     if (!auth.currentUser) {
@@ -84,9 +80,15 @@ export function AccessoAttiProvider({ children }) {
     try {
       const docRef = await addDoc(collection(db, 'accessi_atti'), {
         ...accessoData,
-        userId: auth.currentUser.uid, // Associa l'accesso all'utente corrente
+        userId: auth.currentUser.uid,
         dataCreazione: serverTimestamp(),
         dataUltimaModifica: serverTimestamp(),
+        // Inizializza i nuovi campi booleani per il progresso
+        faseDocumentiDelegaCompletata: accessoData.faseDocumentiDelegaCompletata || false,
+        faseRichiestaInviataCompletata: accessoData.faseRichiestaInviataCompletata || false,
+        faseDocumentiRicevutiCompletata: accessoData.faseDocumentiRicevutiCompletata || false,
+        stato: accessoData.stato || "In Attesa", // Stato di default se non fornito
+        // Rimuovi il vecchio campo 'progresso' se non più necessario o aggiornalo in base alle checkbox
       });
       return docRef.id;
     } catch (error) {
@@ -125,7 +127,7 @@ export function AccessoAttiProvider({ children }) {
     addAccesso,
     updateAccesso,
     deleteAccesso,
-    fetchAccessi, // Esponi per refresh manuale se necessario
+    fetchAccessi,
   };
 
   return (

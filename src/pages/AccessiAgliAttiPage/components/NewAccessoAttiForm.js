@@ -2,24 +2,34 @@
 import React, { useState } from 'react';
 import { FaSave, FaTimes } from 'react-icons/fa';
 
-const STATI_INIZIALI = ["In Attesa", "In Corso"]; // Puoi espandere o modificare
-const PROGRESSO_INIZIALE = ["Documenti/Delega", "Richiesta Inviata", "Documenti Ricevuti"];
+// Definiamo le fasi di progresso anche qui per coerenza e per inizializzare i valori
+const FASI_PROGRESSO_CONFIG = [
+  { label: "Documenti/Delega", field: "faseDocumentiDelegaCompletata" },
+  { label: "Richiesta inviata", field: "faseRichiestaInviataCompletata" },
+  { label: "Documenti ricevuti", field: "faseDocumentiRicevutiCompletata" },
+];
 
 function NewAccessoAttiForm({ onClose, onSave, agenzieDisponibili }) {
   const [formData, setFormData] = useState({
     codice: '',
     indirizzo: '',
     proprieta: '',
-    agenzia: '', // Sarà un menu a tendina
-    stato: 'In Attesa', // Valore di default
-    progresso: 'Documenti/Delega', // Valore di default
+    agenzia: '',
     note: '',
+    // Inizializza i campi booleani per le fasi di progresso
+    faseDocumentiDelegaCompletata: false,
+    faseRichiestaInviataCompletata: false,
+    faseDocumentiRicevutiCompletata: false,
+    // Lo stato non è più un input diretto qui, verrà gestito dal context o derivato
   });
   const [errors, setErrors] = useState({});
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: null }));
     }
@@ -30,7 +40,6 @@ function NewAccessoAttiForm({ onClose, onSave, agenzieDisponibili }) {
     if (!formData.codice.trim()) newErrors.codice = "Il codice è obbligatorio.";
     if (!formData.indirizzo.trim()) newErrors.indirizzo = "L'indirizzo è obbligatorio.";
     if (!formData.proprieta.trim()) newErrors.proprieta = "La proprietà è obbligatoria.";
-    // Aggiungi altre validazioni se necessario
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -38,7 +47,10 @@ function NewAccessoAttiForm({ onClose, onSave, agenzieDisponibili }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
-      onSave(formData);
+      const dataToSave = { ...formData };
+      // Rimuoviamo il vecchio campo 'progresso' (testuale) se non più usato
+      // delete dataToSave.progresso;
+      onSave(dataToSave);
     }
   };
 
@@ -100,15 +112,34 @@ function NewAccessoAttiForm({ onClose, onSave, agenzieDisponibili }) {
               onChange={handleChange}
               className="w-full p-2 border border-gray-300 rounded-md text-sm bg-white"
             >
-              <option value="">Nessuna / Altro</option>
+              <option value="">Nessuna / ALTRO</option>
               {agenzieDisponibili.map(agenzia => (
                 <option key={agenzia} value={agenzia}>{agenzia}</option>
               ))}
             </select>
           </div>
 
-          {/* Stato e Progresso non sono modificabili qui, avranno valori di default o gestiti dal sistema */}
-          {/* Potresti aggiungerli se vuoi che l'utente li imposti alla creazione */}
+          {/* Checkbox per le fasi di progresso */}
+          <fieldset>
+            <legend className="block text-sm font-medium text-gray-700 mb-1">Progresso Iniziale</legend>
+            <div className="mt-2 space-y-2 sm:space-y-0 sm:flex sm:space-x-4">
+              {FASI_PROGRESSO_CONFIG.map(fase => (
+                <div key={fase.field} className="flex items-center">
+                  <input
+                    id={`new-${fase.field}`}
+                    name={fase.field}
+                    type="checkbox"
+                    checked={formData[fase.field]}
+                    onChange={handleChange}
+                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor={`new-${fase.field}`} className="ml-2 block text-sm text-gray-900">
+                    {fase.label}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </fieldset>
 
           <div>
             <label htmlFor="note" className="block text-sm font-medium text-gray-700 mb-1">Note (Opzionale)</label>
