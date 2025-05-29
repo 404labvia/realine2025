@@ -104,8 +104,8 @@ function AccessiAgliAttiPage() {
 
   return (
     <div className="container mx-auto p-4 pt-0 relative">
-      <div className="flex justify-between items-center mb-6 sticky top-0 py-4 z-10 px-4 -mx-4 border-b border-gray-300 dark:border-gray-700">
-        <h1 className="text-2xl font-semibold text-gray-800 dark:text-white">Accessi agli Atti</h1>
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold text-gray-800">Accesso Atti</h1>
         <button
           onClick={() => setShowNewForm(true)}
           className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center text-sm"
