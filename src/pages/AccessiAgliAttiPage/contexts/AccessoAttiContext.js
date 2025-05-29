@@ -131,7 +131,22 @@ export function AccessoAttiProvider({ children }) {
       const promemoriaGiaEsistente = accessoOriginale.promemoriaLicenzeCalendarEventId;
 
       const indirizzoPerEvento = updates.indirizzo || accessoOriginale.indirizzo || 'Indirizzo non specificato';
+ // LOG DI DEBUG PER GOOGLE CALENDAR API STATUS
+      console.log("AccessoAttiContext DEBUG Calendar Automation Trigger:", {
+        flagRichiestaInviataImpostato,
+        promemoriaGiaEsistente: !!promemoriaGiaEsistente, // logga come booleano
+        gapiClientInitialized,
+        hasGoogleApiToken: !!googleApiToken, // logga se il token esiste
+        isAddGoogleEventFunction: typeof addGoogleEvent === 'function',
+        addGoogleEventFunction: addGoogleEvent // logga la funzione stessa per ispezionarla se necessario
+      });
 
+      if (flagRichiestaInviataImpostato && !promemoriaGiaEsistente && gapiClientInitialized && googleApiToken && typeof addGoogleEvent === 'function') {
+        // ... resto della logica di creazione evento ...
+      } else if (flagRichiestaInviataImpostato && !promemoriaGiaEsistente) { // Modificato per loggare solo se le condizioni API falliscono
+        console.warn(`AccessoAttiContext: Impossibile creare evento Google Calendar per accesso ID: ${id}. Dettagli API:`, {gapiClientInitialized, hasToken: !!googleApiToken, isFunc: typeof addGoogleEvent === 'function'});
+        alert("L'accesso atti è stato aggiornato, ma il promemoria su Google Calendar non può essere creato in questo momento. Assicurati di essere autenticato con Google e che l'API di Calendar sia accessibile. Controlla la console per dettagli.");
+      }
       if (flagRichiestaInviataImpostato && !promemoriaGiaEsistente && gapiClientInitialized && googleApiToken && typeof addGoogleEvent === 'function') {
         console.log(`AccessoAttiContext: Trigger automazione promemoria Google Calendar per accesso ID: ${id}`);
 
