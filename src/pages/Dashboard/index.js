@@ -1,45 +1,50 @@
 // src/pages/Dashboard/index.js
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { usePratiche } from '../../contexts/PraticheContext';
 import StatistichePrincipali from './components/StatistichePrincipali';
-import TaskList from './components/TaskList';
-import UpcomingDeadlines from './components/UpcomingDeadlines';
-import DashboardCalendar from './components/DashboardCalendar';
+import TaskList from './components/TaskList'; // Componente esistente per task da Firestore
+import UpcomingDeadlines from './components/UpcomingDeadlines'; // Componente esistente
+import DashboardCalendar from './components/DashboardCalendar'; // Componente esistente (con suoi eventi)
 import ChartAgenzie from './components/ChartAgenzie';
 import ChartFatturato from './components/ChartFatturato';
-import TaskNotification from './components/TaskNotification';
-import { useDashboardTasks } from './hooks/useDashboardTasks';
-import { useDashboardCalendar } from './hooks/useDashboardCalendar';
+import TaskNotification from './components/TaskNotification'; // Per notifiche di automazione task Firestore
+import TaskDetails from './components/TaskDetails'; // Modale per task Firestore
+
+import { useDashboardTasks } from './hooks/useDashboardTasks'; // Hook per task Firestore
+import { useDashboardCalendar } from './hooks/useDashboardCalendar'; // Hook per eventi DashboardCalendar
+
+import TodoList from './components/TodoList'; // <-- NUOVA IMPORTAZIONE PER LA TODO LIST BASATA SU GCAL
 
 function Dashboard() {
-  // Context e stati base
+  // 'loading' si riferisce al caricamento delle pratiche per statistiche e grafici
   const { pratiche, loading, updatePratica } = usePratiche();
   const [filtroStatoDistribuzione, setFiltroStatoDistribuzione] = useState('In Corso');
   const [filtroStatoFatturato, setFiltroStatoFatturato] = useState('Tutte');
+
+  // Stati per i componenti esistenti che usano useDashboardTasks
   const [showTaskDetails, setShowTaskDetails] = useState(null);
   const [showTaskNotification, setShowTaskNotification] = useState(false);
   const [lastTaskEvent, setLastTaskEvent] = useState(null);
 
-  // Utilizza i custom hooks
+  // Hook esistente per TaskList e UpcomingDeadlines (task da Firestore)
   const {
-    pendingTasks,
     upcomingDeadlines,
     taskFilter,
     setTaskFilter,
     currentTaskPage,
     setCurrentTaskPage,
     totalTaskPages,
-    filteredTasks,
-    currentTasks,
-    handleToggleTask
+    currentTasks, // Usato da TaskList
+    handleToggleTask // Funzione per completare task da Firestore
   } = useDashboardTasks(pratiche, loading, updatePratica);
 
+  // Hook esistente per DashboardCalendar
   const {
     currentDate,
     setCurrentDate,
     calendarView,
     setCalendarView,
-    events,
+    events, // Eventi gestiti specificamente da useDashboardCalendar
     isLoadingEvents,
     lastSync,
     fetchEvents,
@@ -48,20 +53,29 @@ function Dashboard() {
     navigateToday
   } = useDashboardCalendar();
 
+  // Loader principale basato sul caricamento delle pratiche (per Statistiche, Grafici)
   if (loading) {
-    return <div className="flex justify-center items-center h-full">Caricamento...</div>;
+    return (
+      <div className="flex justify-center items-center h-screen bg-gray-100">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
+        <p className="ml-3 text-gray-700">Caricamento Dashboard...</p>
+      </div>
+    );
   }
 
   return (
-    <div className="container mx-auto">
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Dashboard</h1>
+    <div className="container mx-auto p-2 sm:p-4">
+      {/* Il titolo principale della pagina è gestito da App.js */}
 
-      {/* Statistiche principali */}
       <StatistichePrincipali pratiche={pratiche} />
 
-      {/* Grid layout per task e calendario */}
+      {/* NUOVA SEZIONE: To-Do List basata su Google Calendar */}
+      <div className="my-6"> {/* Aggiunto margine sopra e sotto */}
+        <TodoList /> {/* TodoList gestisce il suo caricamento e dati internamente */}
+      </div>
+
+      {/* Sezioni esistenti del Dashboard */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Task da completare */}
         <TaskList
           currentTasks={currentTasks}
           taskFilter={taskFilter}
@@ -69,28 +83,25 @@ function Dashboard() {
           currentTaskPage={currentTaskPage}
           totalTaskPages={totalTaskPages}
           handlePageChange={setCurrentTaskPage}
-          handleToggleTask={handleToggleTask}
+          handleToggleTask={handleToggleTask} // Questa funzione opera sulle task di Firestore
           onViewTaskDetails={(task) => setShowTaskDetails(task)}
         />
-
-        {/* Calendario */}
         <DashboardCalendar
           currentDate={currentDate}
           setCurrentDate={setCurrentDate}
           calendarView={calendarView}
           setCalendarView={setCalendarView}
-          events={events}
+          events={events} // Questi sono gli eventi gestiti da useDashboardCalendar
           isLoadingEvents={isLoadingEvents}
           lastSync={lastSync}
           fetchEvents={fetchEvents}
-          pendingTasks={pendingTasks}
+          pendingTasks={currentTasks} // Passa le task da useDashboardTasks
           navigatePrev={navigatePrev}
           navigateNext={navigateNext}
           navigateToday={navigateToday}
         />
       </div>
 
-      {/* Grafici */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
         <ChartAgenzie
           pratiche={pratiche}
@@ -104,91 +115,28 @@ function Dashboard() {
         />
       </div>
 
-      {/* Scadenze imminenti */}
       <UpcomingDeadlines
         deadlines={upcomingDeadlines}
-        handleToggleTask={handleToggleTask}
+        handleToggleTask={handleToggleTask} // Questa funzione opera sulle task di Firestore
         onViewTaskDetails={(task) => setShowTaskDetails(task)}
       />
 
-      {/* Modale dettagli task */}
+      {/* Modale per i dettagli delle task di Firestore (da TaskList/UpcomingDeadlines) */}
       {showTaskDetails && (
         <TaskDetails
           task={showTaskDetails}
           onClose={() => setShowTaskDetails(null)}
-          onComplete={handleToggleTask}
+          onComplete={handleToggleTask} // Questa funzione opera sulle task di Firestore
         />
       )}
 
-      {/* Notifica task automatiche */}
+      {/* Notifica per task automatiche (legate al vecchio sistema di task Firestore) */}
       {showTaskNotification && (
         <TaskNotification
           event={lastTaskEvent}
           onClose={() => setShowTaskNotification(false)}
         />
       )}
-    </div>
-  );
-}
-
-// Componente TaskDetails
-function TaskDetails({ task, onClose, onComplete }) {
-  if (!task) return null;
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white p-5 rounded-lg shadow-xl w-full max-w-md">
-        <div className="flex justify-between items-start mb-4">
-          <h2 className="text-lg font-semibold pr-4">{task.taskText}</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            ×
-          </button>
-        </div>
-
-        {/* Contenuto del TaskDetails */}
-        <div className="space-y-3">
-          <div className="flex items-center">
-            <span className="text-sm">
-              Pratica: <strong>{task.praticaIndirizzo}</strong>
-            </span>
-          </div>
-
-          <div className="flex items-center">
-            <span className="text-sm">
-              Cliente: <strong>{task.praticaCliente}</strong>
-            </span>
-          </div>
-
-          {task.dueDate && (
-            <div className="flex items-center">
-              <span className="text-sm">
-                Scadenza: <strong>{new Date(task.dueDate).toLocaleString('it-IT')}</strong>
-              </span>
-            </div>
-          )}
-        </div>
-
-        <div className="mt-6 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 mr-3 hover:bg-gray-100"
-          >
-            Chiudi
-          </button>
-          <button
-            onClick={() => {
-              onComplete(task.praticaId, task.stepId, task.taskIndex);
-              onClose();
-            }}
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-          >
-            Completa
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
