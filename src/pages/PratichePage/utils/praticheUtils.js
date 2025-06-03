@@ -17,7 +17,8 @@ export const agenzieCollaboratori = [
 // Collaboratori aggiuntivi
 export const collaboratoriAggiuntivi = [
   "Geom. Alessandro De Antoni", // Virgola aggiunta qui
-  "Arch. Luciano Casprini"
+  "Arch. Luciano Casprini",
+  "Geom. Simone Parducci"
   // Aggiungi altri se necessario
 ];
 
