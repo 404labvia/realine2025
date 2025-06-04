@@ -17,11 +17,11 @@ import { FaCalendarAlt, FaRobot } from 'react-icons/fa';
 
 import { AuthProvider } from './contexts/AuthContext';
 import { PraticheProvider } from './contexts/PraticheContext';
-import { PratichePrivatoProvider } from './contexts/PratichePrivatoContext';
+import { PratichePrivatoProvider } from './contexts/PratichePrivatoContext'; // Assicurati che questo import sia corretto
 import { AccessoAttiProvider } from './pages/AccessiAgliAttiPage/contexts/AccessoAttiContext';
-import AccessiAgliAttiPage from './pages/AccessiAgliAttiPage';
 
 import Dashboard from './pages/Dashboard';
+import AccessiAgliAttiPage from './pages/AccessiAgliAttiPage';
 import PratichePage from './pages/PratichePage';
 import PratichePrivatoPage from './pages/PratichePrivatoPage';
 import CalendarPage from './pages/CalendarPage';
@@ -56,6 +56,8 @@ function AppContent() {
   const handleSignOut = async () => {
     try {
       await firebaseLogoutUser();
+      // La navigazione alla pagina di login dovrebbe avvenire automaticamente
+      // a causa del cambio di stato di 'user' che renderizzerà <LoginPage />
     } catch (error) {
       console.error("Errore durante il logout:", error);
     }
@@ -71,6 +73,8 @@ function AppContent() {
   }
 
   if (!user) {
+    // Se non c'è utente, renderizza solo la pagina di Login.
+    // Non c'è bisogno di Routes qui se Login gestisce la sua logica e reindirizzamento.
     return <LoginPage />;
   }
 
@@ -90,76 +94,63 @@ function AppContent() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      <aside className={`${sidebarOpen ? 'w-52' : 'w-16'} bg-white text-gray-800 transition-all duration-300 ease-in-out overflow-y-auto shadow-md flex flex-col justify-between`}>
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
+      <aside className={`${sidebarOpen ? 'w-52' : 'w-16'} bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 transition-all duration-300 ease-in-out overflow-y-auto shadow-lg flex flex-col justify-between`}>
         <div>
           <div className="p-4 flex flex-col">
             <div className={`flex ${sidebarOpen ? 'justify-between' : 'justify-center'} w-full items-center`}>
               {sidebarOpen ? (
                 <div className="flex flex-col items-center w-full">
                   <img src="/logo.png" alt="Realine Studio Logo" className="h-20 mb-3"/>
-                  <h1 className="text-xl font-bold text-gray-800">Realine Studio</h1>
-                  <p className="text-xs text-gray-500">Gestione Pratiche</p>
+                  <h1 className="text-xl font-bold text-gray-800 dark:text-white">Realine Studio</h1>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Gestione Pratiche</p>
                 </div>
               ) : (
-                <img src="/favicon.ico" alt="R" className="h-8 w-8 mx-auto" />
+                <img src="/favicon.ico" alt="R" className="h-8 w-8 mx-auto" /> // Usa favicon quando collassata
               )}
-              <button className={`p-1 rounded-full hover:bg-gray-100 text-gray-600 ${!sidebarOpen && 'mt-4 fixed left-14 top-3 z-50 bg-white'}`} onClick={() => setSidebarOpen(!sidebarOpen)}>
+              <button
+                className={`p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 ${!sidebarOpen && 'mt-4 fixed left-14 top-3 z-50 bg-white dark:bg-gray-800 shadow-md'}`}
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                aria-label={sidebarOpen ? "Collassa sidebar" : "Espandi sidebar"}
+              >
                 {sidebarOpen ? <MdChevronLeft size={20} /> : <MdChevronRight size={20} />}
               </button>
             </div>
           </div>
           <nav className="mt-6">
-            <NavLink to="/" className={({isActive}) => `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}>
-              <span className={sidebarOpen ? 'mr-3' : ''} title={!sidebarOpen ? "Dashboard" : ""}><MdHome className="h-5 w-5" /></span>
-              {sidebarOpen && <span>Dashboard</span>}
-            </NavLink>
-            <NavLink
-              to="/accessi-atti"
-              className={({isActive}) => `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}
-            >
-              <span className={sidebarOpen ? 'mr-3' : ''} title={!sidebarOpen ? "Accessi Atti" : ""}>
-                <MdFolderOpen className="h-5 w-5" />
-              </span>
-              {sidebarOpen && <span>Accessi Atti</span>}
-            </NavLink>
-            <NavLink to="/pratiche" className={({isActive}) => `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}>
-              <span className={sidebarOpen ? 'mr-3' : ''} title={!sidebarOpen ? "Pratiche" : ""}><MdDescription className="h-5 w-5" /></span>
-              {sidebarOpen && <span>Pratiche</span>}
-            </NavLink>
-            <NavLink to="/pratiche-privato" className={({isActive}) => `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}>
-              <span className={sidebarOpen ? 'mr-3' : ''} title={!sidebarOpen ? "Pratiche Privato" : ""}><MdFolderSpecial className="h-5 w-5" /></span>
-              {sidebarOpen && <span>Pratiche Privato</span>}
-            </NavLink>
-            <NavLink to="/finanze" className={({isActive}) => `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}>
-              <span className={sidebarOpen ? 'mr-3' : ''} title={!sidebarOpen ? "Finanze" : ""}><MdAttachMoney className="h-5 w-5" /></span>
-              {sidebarOpen && <span>Finanze</span>}
-            </NavLink>
-            <NavLink to="/calendario" className={({isActive}) => `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}>
-              <span className={sidebarOpen ? 'mr-3' : ''} title={!sidebarOpen ? "Calendario" : ""}><FaCalendarAlt className="h-5 w-5" /></span>
-              {sidebarOpen && <span>Calendario</span>}
-            </NavLink>
-            <NavLink to="/prezziario" className={({isActive}) => `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}>
-              <span className={sidebarOpen ? 'mr-3' : ''} title={!sidebarOpen ? "Prezziario" : ""}><MdFormatListBulleted className="h-5 w-5" /></span>
-              {sidebarOpen && <span>Prezziario</span>}
-            </NavLink>
-            <NavLink to="/automazioni" className={({isActive}) => `flex items-center py-3 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}>
-              <span className={sidebarOpen ? 'mr-3' : ''} title={!sidebarOpen ? "Automazioni" : ""}><FaRobot className="h-5 w-5" /></span>
-              {sidebarOpen && <span>Automazioni</span>}
-            </NavLink>
+            {[
+              { to: "/", label: "Dashboard", icon: MdHome },
+              { to: "/accessi-atti", label: "Accessi Atti", icon: MdFolderOpen },
+              { to: "/pratiche", label: "Pratiche", icon: MdDescription },
+              { to: "/pratiche-privato", label: "Pratiche Privato", icon: MdFolderSpecial },
+              { to: "/finanze", label: "Finanze", icon: MdAttachMoney },
+              { to: "/calendario", label: "Calendario", icon: FaCalendarAlt },
+              { to: "/prezziario", label: "Prezziario", icon: MdFormatListBulleted },
+              { to: "/automazioni", label: "Automazioni", icon: FaRobot },
+            ].map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                className={({isActive}) => `flex items-center py-3 transition-colors duration-150 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 dark:bg-blue-700/30 text-blue-600 dark:text-blue-400 border-r-2 border-blue-600 dark:border-blue-400' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700' }`}
+                title={!sidebarOpen ? item.label : ""}
+              >
+                <span className={sidebarOpen ? 'mr-3' : ''}><item.icon className="h-5 w-5" /></span>
+                {sidebarOpen && <span>{item.label}</span>}
+              </NavLink>
+            ))}
           </nav>
         </div>
         {user && (
           <div className={`mb-6 ${sidebarOpen ? 'px-4' : 'px-0 text-center'}`}>
             {sidebarOpen ? (
-              <div className="p-3 bg-gray-100 rounded-md">
+              <div className="p-3 bg-gray-100 dark:bg-gray-700 rounded-md">
                 <div className="flex items-center mb-2">
-                  <MdAccountCircle className="h-6 w-6 text-gray-600 mr-2" />
-                  <span className="text-sm text-gray-700 truncate">{user.email}</span>
+                  <MdAccountCircle className="h-6 w-6 text-gray-600 dark:text-gray-300 mr-2" />
+                  <span className="text-sm text-gray-700 dark:text-gray-200 truncate">{user.email}</span>
                 </div>
-                <button onClick={handleSignOut} className="flex items-center justify-center w-full py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
-                  <MdLogout className="h-4 w-4 mr-1" />
-                  <span className="text-sm">Logout</span>
+                <button onClick={handleSignOut} className="flex items-center justify-center w-full py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm">
+                  <MdLogout className="h-4 w-4 mr-1.5" />
+                  Logout
                 </button>
               </div>
             ) : (
@@ -174,29 +165,22 @@ function AppContent() {
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white border-b p-4 flex items-center justify-between">
-          <h1 className="text-xl font-semibold">{getPageTitle()}</h1>
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-1">
-              <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 font-semibold">
-                {user?.email?.charAt(0).toUpperCase() || 'U'}
-              </div>
-              <span className="hidden sm:inline text-sm text-gray-700">{user?.email}</span>
-            </div>
-          </div>
+        <header className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 p-4 flex items-center justify-between shadow-sm">
+          <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100">{getPageTitle()}</h1>
+          {/* Qui puoi aggiungere altri elementi dell'header se necessario */}
         </header>
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-gray-900 p-4">
           <Routes>
-            {/* AVVOLGI DASHBOARD CON PRATICHEPROVIDER */}
             <Route
               path="/"
               element={
                 <PraticheProvider>
-                  <Dashboard />
+                  <PratichePrivatoProvider> {/* PROVIDER AGGIUNTO */}
+                    <Dashboard />
+                  </PratichePrivatoProvider>
                 </PraticheProvider>
               }
             />
-
             <Route
               path="/accessi-atti"
               element={
@@ -219,14 +203,16 @@ function AppContent() {
               path="/pratiche-privato"
               element={
                 <PratichePrivatoProvider>
-                  {/* Modificato PratichePage in PratichePrivatoPage per questa rotta */}
                   <PratichePrivatoPage />
                 </PratichePrivatoProvider>
               }
             />
             <Route path="/finanze" element={
               <PraticheProvider>
-                 <FinanzePage />
+                {/* Se FinanzePage necessita anche di PratichePrivatoContext, aggiungilo qui */}
+                <PratichePrivatoProvider>
+                  <FinanzePage />
+                </PratichePrivatoProvider>
               </PraticheProvider>
             } />
             <Route
@@ -241,6 +227,7 @@ function AppContent() {
             />
             <Route path="/prezziario" element={<PrezziarioPage />} />
             <Route path="/automazioni" element={<AutomationConfigPage />} />
+            {/* Aggiungi altre rotte protette qui */}
           </Routes>
         </main>
       </div>
@@ -249,6 +236,7 @@ function AppContent() {
 }
 
 function App() {
+  // AuthProvider è già qui, il che è corretto
   return (
     <AuthProvider>
       <AppContent />
