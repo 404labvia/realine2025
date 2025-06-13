@@ -2,158 +2,130 @@
 import React, { useState } from 'react';
 import { FaSave, FaTimes } from 'react-icons/fa';
 
-// Definiamo le fasi di progresso anche qui per coerenza e per inizializzare i valori
-const FASI_PROGRESSO_CONFIG = [
-  { label: "Documenti/Delega", field: "faseDocumentiDelegaCompletata" },
-  { label: "Richiesta inviata", field: "faseRichiestaInviataCompletata" },
-  { label: "Documenti ricevuti", field: "faseDocumentiRicevutiCompletata" },
-];
-
-function NewAccessoAttiForm({ onClose, onSave, agenzieDisponibili }) {
+/**
+ * Form per la creazione di un nuovo accesso agli atti.
+ * @param {function} onClose - Funzione per chiudere il form modale.
+ * @param {function} onSave - Funzione per salvare i dati del nuovo accesso.
+ * @param {string[]} agenzieDisponibili - Array di stringhe con i nomi delle agenzie.
+ * @param {object} initialData - Oggetto opzionale con i dati iniziali per pre-compilare il form (es. { agenzia: 'Nome Agenzia' }).
+ */
+function NewAccessoAttiForm({ onClose, onSave, agenzieDisponibili, initialData }) {
+  // Lo stato del form viene inizializzato con campi vuoti,
+  // che vengono poi sovrascritti dai valori presenti in `initialData` se forniti.
   const [formData, setFormData] = useState({
     codice: '',
     indirizzo: '',
     proprieta: '',
-    agenzia: '',
+    agenzia: '', // Valore di default
     note: '',
-    // Inizializza i campi booleani per le fasi di progresso
-    faseDocumentiDelegaCompletata: false,
-    faseRichiestaInviataCompletata: false,
-    faseDocumentiRicevutiCompletata: false,
-    // Lo stato non è più un input diretto qui, verrà gestito dal context o derivato
+    ...initialData, // Questa è l'unica modifica: applica l'agenzia pre-compilata.
   });
-  const [errors, setErrors] = useState({});
 
+  // Funzione standard per aggiornare lo stato quando l'utente scrive nei campi.
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: null }));
-    }
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const validateForm = () => {
-    const newErrors = {};
-    if (!formData.codice.trim()) newErrors.codice = "Il codice è obbligatorio.";
-    if (!formData.indirizzo.trim()) newErrors.indirizzo = "L'indirizzo è obbligatorio.";
-    if (!formData.proprieta.trim()) newErrors.proprieta = "La proprietà è obbligatoria.";
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
+  // Funzione per gestire l'invio del form.
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (validateForm()) {
-      const dataToSave = { ...formData };
-      // Rimuoviamo il vecchio campo 'progresso' (testuale) se non più usato
-      // delete dataToSave.progresso;
-      onSave(dataToSave);
+    // Validazione per assicurarsi che un'agenzia sia sempre selezionata.
+    if (!formData.agenzia) {
+      alert('Per favore, seleziona un\'agenzia.');
+      return;
     }
+    // Chiama la funzione onSave passata dal componente genitore.
+    onSave(formData);
   };
 
+  // Il resto del componente è la struttura JSX originale del form.
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">Nuovo Accesso agli Atti</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <FaTimes size={20} />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="codice" className="block text-sm font-medium text-gray-700 mb-1">Codice *</label>
-            <input
-              type="text"
-              name="codice"
-              id="codice"
-              value={formData.codice}
-              onChange={handleChange}
-              className={`w-full p-2 border rounded-md text-sm ${errors.codice ? 'border-red-500' : 'border-gray-300'}`}
-            />
-            {errors.codice && <p className="text-red-500 text-xs mt-1">{errors.codice}</p>}
-          </div>
-
-          <div>
-            <label htmlFor="indirizzo" className="block text-sm font-medium text-gray-700 mb-1">Indirizzo *</label>
-            <input
-              type="text"
-              name="indirizzo"
-              id="indirizzo"
-              value={formData.indirizzo}
-              onChange={handleChange}
-              className={`w-full p-2 border rounded-md text-sm ${errors.indirizzo ? 'border-red-500' : 'border-gray-300'}`}
-            />
-            {errors.indirizzo && <p className="text-red-500 text-xs mt-1">{errors.indirizzo}</p>}
-          </div>
-
-          <div>
-            <label htmlFor="proprieta" className="block text-sm font-medium text-gray-700 mb-1">Proprietà *</label>
-            <input
-              type="text"
-              name="proprieta"
-              id="proprieta"
-              value={formData.proprieta}
-              onChange={handleChange}
-              className={`w-full p-2 border rounded-md text-sm ${errors.proprieta ? 'border-red-500' : 'border-gray-300'}`}
-            />
-            {errors.proprieta && <p className="text-red-500 text-xs mt-1">{errors.proprieta}</p>}
-          </div>
-
-          <div>
-            <label htmlFor="agenzia" className="block text-sm font-medium text-gray-700 mb-1">Agenzia Collegata (Opzionale)</label>
-            <select
-              name="agenzia"
-              id="agenzia"
-              value={formData.agenzia}
-              onChange={handleChange}
-              className="w-full p-2 border border-gray-300 rounded-md text-sm bg-white"
-            >
-              <option value="">Nessuna / ALTRO</option>
-              {agenzieDisponibili.map(agenzia => (
-                <option key={agenzia} value={agenzia}>{agenzia}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Checkbox per le fasi di progresso */}
-          <fieldset>
-            <legend className="block text-sm font-medium text-gray-700 mb-1">Progresso Iniziale</legend>
-            <div className="mt-2 space-y-2 sm:space-y-0 sm:flex sm:space-x-4">
-              {FASI_PROGRESSO_CONFIG.map(fase => (
-                <div key={fase.field} className="flex items-center">
-                  <input
-                    id={`new-${fase.field}`}
-                    name={fase.field}
-                    type="checkbox"
-                    checked={formData[fase.field]}
-                    onChange={handleChange}
-                    className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <label htmlFor={`new-${fase.field}`} className="ml-2 block text-sm text-gray-900">
-                    {fase.label}
-                  </label>
-                </div>
-              ))}
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg">
+        <form onSubmit={handleSubmit}>
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Nuovo Accesso agli Atti</h2>
+              <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-600">
+                <FaTimes size={20} />
+              </button>
             </div>
-          </fieldset>
 
-          <div>
-            <label htmlFor="note" className="block text-sm font-medium text-gray-700 mb-1">Note (Opzionale)</label>
-            <textarea
-              name="note"
-              id="note"
-              rows="3"
-              value={formData.note}
-              onChange={handleChange}
-              className="w-full p-2 border border-gray-300 rounded-md text-sm"
-            ></textarea>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Campo: Codice Pratica */}
+              <div>
+                <label htmlFor="new-codice" className="block text-sm font-medium text-gray-700 mb-1">Codice Pratica</label>
+                <input
+                  type="text"
+                  name="codice"
+                  id="new-codice"
+                  value={formData.codice}
+                  onChange={handleChange}
+                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                />
+              </div>
+
+              {/* Campo: Agenzia (dropdown) */}
+              <div>
+                <label htmlFor="new-agenzia" className="block text-sm font-medium text-gray-700 mb-1">Agenzia *</label>
+                <select
+                  name="agenzia"
+                  id="new-agenzia"
+                  value={formData.agenzia}
+                  onChange={handleChange}
+                  required
+                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                >
+                  <option value="">Seleziona un'agenzia</option>
+                  {agenzieDisponibili.map(agn => <option key={agn} value={agn}>{agn}</option>)}
+                  <option value="ALTRO">Altro</option>
+                </select>
+              </div>
+
+              {/* Campo: Indirizzo */}
+              <div className="md:col-span-2">
+                <label htmlFor="new-indirizzo" className="block text-sm font-medium text-gray-700 mb-1">Indirizzo</label>
+                <input
+                  type="text"
+                  name="indirizzo"
+                  id="new-indirizzo"
+                  value={formData.indirizzo}
+                  onChange={handleChange}
+                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                />
+              </div>
+
+              {/* Campo: Proprietà */}
+              <div className="md:col-span-2">
+                <label htmlFor="new-proprieta" className="block text-sm font-medium text-gray-700 mb-1">Proprietà</label>
+                <input
+                  type="text"
+                  name="proprieta"
+                  id="new-proprieta"
+                  value={formData.proprieta}
+                  onChange={handleChange}
+                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                />
+              </div>
+
+              {/* Campo: Note */}
+              <div className="md:col-span-2">
+                <label htmlFor="new-note" className="block text-sm font-medium text-gray-700 mb-1">Note</label>
+                <textarea
+                  name="note"
+                  id="new-note"
+                  rows="3"
+                  value={formData.note}
+                  onChange={handleChange}
+                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
+                ></textarea>
+              </div>
+            </div>
           </div>
 
-          <div className="flex justify-end space-x-3 pt-4">
+          {/* Pulsanti di Azione in fondo al form */}
+          <div className="bg-gray-50 px-6 py-3 flex justify-end space-x-3">
             <button
               type="button"
               onClick={onClose}
@@ -165,7 +137,7 @@ function NewAccessoAttiForm({ onClose, onSave, agenzieDisponibili }) {
               type="submit"
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center text-sm"
             >
-              <FaSave className="inline mr-1" /> Salva Accesso
+              <FaSave className="inline mr-1" /> Salva Accesso Atti
             </button>
           </div>
         </form>
