@@ -38,84 +38,67 @@ function AccessiAgliAttiPage() {
     setEditingAccesso(accesso);
   };
 
-  const handleSaveAccesso = async (datiAccessoModificati) => {
-    if (!datiAccessoModificati || !datiAccessoModificati.id) {
-      console.error("AccessiAgliAttiPage: Dati accesso o ID mancanti per l'aggiornamento.");
-      alert("Errore: Dati incompleti per l'aggiornamento.");
-      return;
-    }
-    try {
-      await updateAccesso(datiAccessoModificati.id, datiAccessoModificati);
-      setEditingAccesso(null);
-    } catch (error) {
-      console.error("AccessiAgliAttiPage: Errore durante l'aggiornamento dell'accesso (form):", error);
-      alert(`Errore durante l'aggiornamento: ${error.message}`);
-    }
-  };
-
   const handleDeleteAccesso = async (id) => {
-    if (!id) {
-      console.error("AccessiAgliAttiPage: ID dell'accesso mancante, impossibile eliminare.");
-      alert("Errore: ID dell'accesso mancante.");
-      return;
-    }
-    try {
+    if (window.confirm("Sei sicuro di voler eliminare questo accesso?")) {
       await deleteAccesso(id);
-      setEditingAccesso(null);
-    } catch (error) {
-      console.error("AccessiAgliAttiPage: Errore durante l'eliminazione dell'accesso agli atti:", error);
-      alert(`Si è verificato un errore durante l'eliminazione: ${error.message}`);
     }
   };
 
-  const handleAddNewAccesso = async (nuovoAccessoDati) => {
-    try {
-      await addAccesso(nuovoAccessoDati);
-      setShowNewForm(false);
-    } catch (error) {
-      console.error("AccessiAgliAttiPage: Errore durante l'aggiunta del nuovo accesso:", error);
-      alert(`Errore durante l'aggiunta: ${error.message}`);
-    }
+  const handleAddNewAccesso = async (nuovoAccesso) => {
+    await addAccesso(nuovoAccesso);
+    setShowNewForm(false);
+  };
+
+  const handleSaveEditedAccesso = async (accessoModificato) => {
+    await updateAccesso(accessoModificato.id, accessoModificato);
+    setEditingAccesso(null);
   };
 
   const accessiPerAgenzia = useMemo(() => {
     const raggruppati = accessi.reduce((acc, accesso) => {
-      const agenziaKey = accesso.agenzia && AGENZIE_CARD_ORDINATE.includes(accesso.agenzia) ? accesso.agenzia : "ALTRO";
-      if (!acc[agenziaKey]) {
-        acc[agenziaKey] = [];
+      const agenzia = accesso.agenzia || 'ALTRO';
+      if (!acc[agenzia]) {
+        acc[agenzia] = [];
       }
-      acc[agenziaKey].push(accesso);
+      acc[agenzia].push(accesso);
       return acc;
     }, {});
-    AGENZIE_CARD_ORDINATE.forEach(agenzia => {
-      if (!raggruppati[agenzia]) {
-        raggruppati[agenzia] = [];
-      }
-    });
-    if (!raggruppati["ALTRO"]) {
-        raggruppati["ALTRO"] = [];
+
+    // Ordina gli accessi per data di scadenza (dal più vicino al più lontano)
+    for (const agenzia in raggruppati) {
+      raggruppati[agenzia].sort((a, b) => {
+        const dateA = a.dataScadenza ? new Date(a.dataScadenza) : new Date(0);
+        const dateB = b.dataScadenza ? new Date(b.dataScadenza) : new Date(0);
+        return dateA - dateB;
+      });
     }
+
     return raggruppati;
   }, [accessi]);
 
+  const agenzieOrdinate = useMemo(() => {
+    return AGENZIE_CARD_ORDINATE.filter(nome => accessiPerAgenzia[nome] && accessiPerAgenzia[nome].length > 0);
+  }, [accessiPerAgenzia]);
+
   if (loading) {
-    return <div className="text-center p-10">Caricamento accessi agli atti...</div>;
+    return <div>Caricamento in corso...</div>;
   }
 
   return (
-    <div className="container mx-auto p-4 pt-0 relative">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-gray-800">Accesso Atti</h1>
+    <div className="container mx-auto p-4">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Accessi agli Atti</h1>
         <button
           onClick={() => setShowNewForm(true)}
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center text-sm"
+          className="flex items-center bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
         >
-          <FaPlus className="mr-2" /> Nuovo Accesso Atti
+          <FaPlus className="mr-2" />
+          + Nuovo accesso atti
         </button>
       </div>
 
-      <div className="space-y-6">
-        {AGENZIE_CARD_ORDINATE.map(agenziaNome => {
+      <div className="grid grid-cols-1 gap-6">
+        {agenzieOrdinate.map(agenziaNome => {
           const accessiDellAgenzia = accessiPerAgenzia[agenziaNome] || [];
           return (
             <AccessoAttiCard
@@ -123,8 +106,9 @@ function AccessiAgliAttiPage() {
               titolo={agenziaNome}
               accessi={accessiDellAgenzia}
               onEdit={handleEditAccesso}
-              onDelete={handleDeleteAccesso} // Rimosso il ">" in eccesso da qui
+              onDelete={handleDeleteAccesso}
               onUpdate={updateAccesso}
+              onAddNew={() => setShowNewForm(true)}
             />
           );
         })}
@@ -134,8 +118,9 @@ function AccessiAgliAttiPage() {
               titolo="ALTRO"
               accessi={accessiPerAgenzia["ALTRO"]}
               onEdit={handleEditAccesso}
-              onDelete={handleDeleteAccesso} // Rimosso il ">" in eccesso da qui (se presente prima)
+              onDelete={handleDeleteAccesso}
               onUpdate={updateAccesso}
+              onAddNew={() => setShowNewForm(true)}
             />
         )}
       </div>
@@ -152,8 +137,7 @@ function AccessiAgliAttiPage() {
         <EditAccessoAttiForm
           accesso={editingAccesso}
           onClose={() => setEditingAccesso(null)}
-          onSave={handleSaveAccesso}
-          onDelete={handleDeleteAccesso}
+          onSave={handleSaveEditedAccesso}
           agenzieDisponibili={agenzieDisponibiliPerForm}
         />
       )}
