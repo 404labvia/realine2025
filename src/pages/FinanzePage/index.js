@@ -81,15 +81,17 @@ const calcolaPagamentiInseritiCollaboratoriPratica = (pratica) => {
     return pagamenti;
 };
 
-// Logica Calcolo Profitto Pratica per Distribuzione Soci (basata su importi BASE)
+// Logica Calcolo Profitto Pratica per Distribuzione Soci (basata su importo base committente e importi LORDI collaboratori)
 const calcolaProfittoPraticaPerSoci = (pratica) => {
     const baseCommittente = pratica?.importoBaseCommittente || 0; // Aggiunto controllo esistenza pratica
     if (baseCommittente <= 0) {
         return 0;
     }
-    const baseCollaboratore = pratica.importoBaseCollaboratore || 0;
-    const baseFirmatario = pratica.importoBaseFirmatario || 0;
-    const profitto = baseCommittente - (baseCollaboratore + baseFirmatario);
+    // Modifica: Utilizzo degli importi totali (lordi) dei collaboratori invece degli importi base (netti)
+    const costoCollaboratore = pratica.importoCollaboratore || 0;
+    const costoFirmatario = pratica.importoFirmatario || 0;
+    // Il profitto da distribuire è calcolato sottraendo i costi lordi dei collaboratori dal ricavo base.
+    const profitto = baseCommittente - (costoCollaboratore + costoFirmatario);
     return profitto > 0 ? profitto : 0;
 };
 
