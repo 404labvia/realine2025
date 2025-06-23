@@ -35,7 +35,7 @@ const formatDate = (date, formatString = 'dd/MM/yyyy HH:mm') => {
 
 // --- Main Export Function ---
 
-export const generateSchedePDF = async (localPratiche, filtroAgenzia = '') => {
+export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
   try {
     const praticheDaEsportare = filtroAgenzia
       ? localPratiche.filter(p => p.agenzia === filtroAgenzia)
