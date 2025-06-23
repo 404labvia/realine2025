@@ -8,18 +8,18 @@ import jsPDF from 'jspdf';
 
 /**
  * Formatta un numero come valuta in Euro.
- * @param {number} amount - L'importo da formattare.
+ * @param {number | null | undefined} amount - L'importo da formattare.
  * @returns {string} - L'importo formattato (es. "1.234,56 €").
  */
 const formatCurrency = (amount) => {
-  if (typeof amount !== 'number') return '';
+  if (typeof amount !== 'number') return '0,00 €';
   return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(amount);
 };
 
 /**
  * Formatta una data. Se la data non è valida, restituisce una stringa vuota.
  * @param {string | Date} date - La data da formattare.
- * @param {string} formatString - Il formato desiderato (es. 'dd/MM/yyyy').
+ * @param {string} formatString - Il formato desiderato.
  * @returns {string} - La data formattata.
  */
 const formatDate = (date, formatString = 'dd/MM/yyyy HH:mm') => {
@@ -27,7 +27,7 @@ const formatDate = (date, formatString = 'dd/MM/yyyy HH:mm') => {
     if (!date) return '';
     return format(new Date(date), formatString, { locale: it });
   } catch (error) {
-    return ''; // Restituisce una stringa vuota se la data non è valida
+    return '';
   }
 };
 
@@ -45,24 +45,22 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
       return;
     }
 
-    console.log(`Inizio generazione PDF per ${praticheDaEsportare.length} pratiche...`);
     const pdf = new jsPDF('portrait', 'mm', 'a4');
 
-    // Definiamo la struttura degli step in colonna singola, come da mockup.
     const workflowLayout = [
         { id: 'inizioPratica', label: 'INIZIO PRATICA' },
         { id: 'sopralluogo', label: 'SOPRALLUOGO' },
         { id: 'incarico', label: 'INCARICO' },
-        { id: 'acconto30', label: 'ACCONTO 30%' },
+        { id: 'acconto30', label: 'ACCONTO' },
         { id: 'completamentoPratica', label: 'COMPLETAMENTO PRATICA' },
         { id: 'presentazionePratica', label: 'PRESENTAZIONE PRATICA' },
-        { id: 'saldo40', label: 'SALDO 40%' },
+        { id: 'saldo40', label: 'SALDO' },
         { id: 'atto', label: 'ATTO' },
     ];
 
     for (let i = 0; i < praticheDaEsportare.length; i++) {
       const pratica = praticheDaEsportare[i];
-      console.log(`- Elaborazione pratica ${i + 1}/${praticheDaEsportare.length}: ${pratica.codice || pratica.indirizzo}`);
+      const workflow = pratica.workflow || {};
 
       const schedaContainer = document.createElement('div');
       schedaContainer.style.width = '1200px';
@@ -71,105 +69,134 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
       schedaContainer.style.fontFamily = "'Segoe UI', 'Helvetica Neue', sans-serif";
       schedaContainer.style.color = '#333';
 
-      const workflow = pratica.workflow || {};
-
       schedaContainer.innerHTML = `
         <style>
           .scheda-body { box-sizing: border-box; }
-          .scheda-header, .scheda-footer { margin-bottom: 25px; }
-          .info-grid div { font-size: 14px; padding: 5px 0; border-bottom: 1px solid #f0f0f0; }
-          .info-grid strong { color: #555; text-transform: uppercase; font-size: 12px; min-width: 180px; display: inline-block; }
+          .header-agenzia { font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 20px; }
+          .header-main-info { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
+          .header-main-info .nome { font-size: 32px; font-weight: bold; color: #000; }
+          .header-main-info .importo-totale { font-size: 32px; font-weight: bold; color: #000; text-align: right; }
 
-          /* Modifica #1: Layout a colonna singola per gli step */
-          .workflow-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-top: 30px;}
+          .header-sub-info { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 30px; }
+          .header-sub-info .section-divider { margin-top: 15px; }
+          .header-sub-info div { font-size: 14px; padding: 4px 0; }
+          .header-sub-info strong { text-transform: uppercase; font-size: 12px; min-width: 140px; display: inline-block; }
+
+          .workflow-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-top: 40px;}
           .step-box { border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; background-color: #fdfdfd; }
           .step-box h3 { font-size: 16px; margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 1px solid #eee; color: #003366; }
           .step-box .detail { margin-bottom: 12px; font-size: 14px; }
           .step-box .detail-label { font-weight: bold; color: #333; }
           .step-box ul { padding-left: 20px; margin: 5px 0; }
           .step-box li { font-size: 13px; color: #444; }
-
-          .scheda-footer { text-align: right; margin-top: 30px; padding-top: 15px; border-top: 2px solid #333; }
-          .scheda-footer strong { font-size: 18px; }
         </style>
 
         <div class="scheda-body">
-          <!-- SEZIONE INTESTAZIONE -->
+          <!-- Qui il contenuto HTML rimane invariato... -->
           <div class="scheda-header">
-            <div class="info-grid">
-              <!-- Modifica #2: Dati sulla stessa riga -->
-              <div><strong>Agenzia Immobiliare:</strong> <span>${pratica.agenzia || 'N/D'}</span></div>
-              <div><strong>Indirizzo:</strong> <span>${pratica.indirizzo || 'N/D'}</span></div>
-              <div><strong>Committente:</strong> <span>${pratica.cliente || 'N/D'}</span></div>
-              <div><strong>Collaboratore:</strong> <span>${pratica.collaboratore || 'N/D'}</span></div>
+            <div class="header-agenzia">${pratica.agenzia || 'N/D'}</div>
+            <div class="header-main-info">
+              <div class="nome">${pratica.cliente || 'N/D'}</div>
+              <div class="importo-totale">${formatCurrency(pratica.importoTotale)}</div>
+            </div>
+            <div class="header-sub-info">
+              <div class="section-divider">
+                <strong>Collaboratore:</strong> <span>${pratica.collaboratore || 'N/D'}</span>
+              </div>
+              <div>
+                <strong>Importo:</strong>
+                <span>
+                  ${(() => {
+                    const totaleBase = pratica.totaleBaseCollaboratore || 0;
+                    const applicaCassa = pratica.applyCassaCollaboratore !== false;
+                    if (applicaCassa) {
+                      const totaleLordo = totaleBase * 1.05;
+                      return `${formatCurrency(totaleBase)} + 5% = ${formatCurrency(totaleLordo)}`;
+                    }
+                    return formatCurrency(totaleBase);
+                  })()}
+                </span>
+              </div>
               <div><strong>Firmatario:</strong> <span>${pratica.firmatario || 'N/D'}</span></div>
-              <div><strong>Documenti:</strong> <span>${pratica.documenti || 'Nessun documento specificato'}</span></div>
+              <div>
+                 <strong>Importo:</strong>
+                 <span>
+                    ${(() => {
+                        const totaleBase = pratica.totaleBaseFirmatario || 0;
+                        const applicaCassa = pratica.applyCassaFirmatario !== false;
+                        if(applicaCassa) {
+                            const totaleLordo = totaleBase * 1.05;
+                            return `${formatCurrency(totaleBase)} + 5% = ${formatCurrency(totaleLordo)}`;
+                        }
+                        return formatCurrency(totaleBase);
+                    })()}
+                </span>
+              </div>
+              <div class="section-divider"><strong>Documenti:</strong> <span>${pratica.documenti || 'N/D'}</span></div>
+              <div><strong>Atto:</strong> <span>${formatDate(workflow.atto?.dataInvio)}</span></div>
             </div>
           </div>
-
-          <!-- SEZIONE WORKFLOW A GRIGLIA -->
           <div class="workflow-grid">
             ${workflowLayout.map(step => {
               const stepData = workflow[step.id] || {};
               let contentHTML = '';
-
               if (stepData.notes && stepData.notes.length > 0) {
                 contentHTML += `<div class="detail"><span class="detail-label">Note:</span><ul>${stepData.notes.map(n => `<li>${n.text}</li>`).join('')}</ul></div>`;
               }
               if (stepData.tasks && stepData.tasks.length > 0) {
                 contentHTML += `<div class="detail"><span class="detail-label">Task:</span><ul>${stepData.tasks.map(t => `<li>${t.text}</li>`).join('')}</ul></div>`;
               }
-              if (stepData.dataInvio) {
-                contentHTML += `<div class="detail"><span class="detail-label">Data:</span> ${formatDate(stepData.dataInvio, step.id === 'atto' ? 'dd/MM/yyyy HH:mm' : 'dd/MM/yyyy')}</div>`;
+              if (step.id === 'incarico' && stepData.dataInvio) {
+                contentHTML += `<div class="detail"><span class="detail-label">Data:</span> ${formatDate(stepData.dataInvio, 'dd/MM/yyyy')}</div>`;
               }
-              if (typeof stepData.importoBaseCommittente === 'number') {
-                 contentHTML += `<div class="detail"><span class="detail-label">Importo Committente:</span> ${formatCurrency(stepData.importoBaseCommittente)}</div>`;
+              if (step.id === 'acconto30' || step.id === 'saldo40') {
+                 const importoBase = stepData.importoBaseCommittente || 0;
+                 if (importoBase > 0) {
+                    const applicaIVA = stepData.applyIVACommittente !== false;
+                    if (applicaIVA) {
+                        const importoLordo = importoBase * 1.22;
+                        contentHTML += `<div class="detail"><span class="detail-label">Importo:</span> ${formatCurrency(importoBase)} + 22% = ${formatCurrency(importoLordo)}</div>`;
+                    } else {
+                        contentHTML += `<div class="detail"><span class="detail-label">Importo:</span> ${formatCurrency(importoBase)}</div>`;
+                    }
+                 }
               }
-              if (typeof stepData.importoBaseCollaboratore === 'number') {
-                 contentHTML += `<div class="detail"><span class="detail-label">Importo Collaboratore:</span> ${formatCurrency(stepData.importoBaseCollaboratore)}</div>`;
-              }
-              if (typeof stepData.importoBaseFirmatario === 'number') {
-                 contentHTML += `<div class="detail"><span class="detail-label">Importo Firmatario:</span> ${formatCurrency(stepData.importoBaseFirmatario)}</div>`;
-              }
-
-              return `
-                <div class="step-box">
-                  <h3>${step.label}</h3>
-                  ${contentHTML || '<p style="color: #999; font-size: 13px;">Nessun dato inserito.</p>'}
-                </div>
-              `;
+              return `<div class="step-box"><h3>${step.label}</h3>${contentHTML || '<p style="color: #999; font-size: 13px;">Nessun dato inserito.</p>'}</div>`;
             }).join('')}
-          </div>
-
-          <!-- SEZIONE PIÈ DI PAGINA -->
-          <div class="scheda-footer">
-            <strong>IMPORTO:</strong> <span>${formatCurrency(pratica.importoTotale)}</span>
           </div>
         </div>
       `;
 
       document.body.appendChild(schedaContainer);
-      const canvas = await html2canvas(schedaContainer, { scale: 2, useCORS: true });
+
+      // --- OTTIMIZZAZIONE #1: Riduci la scala di rendering ---
+      // Invece di `scale: 2`, usiamo un valore più basso come 1.5.
+      // Questo riduce drasticamente la dimensione dell'immagine senza perdere troppa qualità.
+      // Puoi sperimentare con valori come 1.2 o 1.8.
+      const canvas = await html2canvas(schedaContainer, { scale: 1.5, useCORS: true });
+
       document.body.removeChild(schedaContainer);
 
-      const imgData = canvas.toDataURL('image/png');
+      // --- OTTIMIZZAZIONE #2: Usa il formato JPEG invece di PNG ---
+      // JPEG è un formato con perdita (lossy) ma è perfetto per questo scopo e crea file molto più piccoli.
+      // Il secondo parametro (0.75) è la qualità, da 0 a 1. Un valore tra 0.7 e 0.8 è un ottimo compromesso.
+      const imgData = canvas.toDataURL('image/jpeg', 0.75);
+
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       const imgProps = pdf.getImageProperties(imgData);
       const imgRatio = imgProps.height / imgProps.width;
-
       let finalImgHeight = pdfWidth * imgRatio;
-      if (finalImgHeight > pdfHeight - 20) {
-        finalImgHeight = pdfHeight - 20;
-      }
+      if (finalImgHeight > pdfHeight - 20) { finalImgHeight = pdfHeight - 20; }
       const finalImgWidth = finalImgHeight / imgRatio;
       const imgX = (pdfWidth - finalImgWidth) / 2;
 
-      pdf.addImage(imgData, 'PNG', imgX, 10, finalImgWidth, finalImgHeight);
+      // --- OTTIMIZZAZIONE #3: Aggiungi la compressione a jsPDF ---
+      // Indichiamo a jsPDF di usare un algoritmo di compressione veloce per l'immagine JPEG.
+      // Il `undefined` è un placeholder per il parametro 'alias' che non ci serve.
+      pdf.addImage(imgData, 'JPEG', imgX, 10, finalImgWidth, finalImgHeight, undefined, 'FAST');
 
-      if (i < praticheDaEsportare.length - 1) {
-        pdf.addPage();
-      }
+      if (i < praticheDaEsportare.length - 1) { pdf.addPage(); }
     }
 
     const pdfName = filtroAgenzia
