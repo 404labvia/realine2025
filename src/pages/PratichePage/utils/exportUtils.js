@@ -1,160 +1,199 @@
-// src/pages/PratichePage/utils/exportUtils.js
+// src/utils/exportUtils.js
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
-// Funzione per generare e scaricare il PDF
-export const generatePDF = async (localPratiche, filtroAgenziaPerPdf = '') => {
+// --- Helper Functions ---
+
+/**
+ * Formatta un numero come valuta in Euro.
+ * @param {number} amount - L'importo da formattare.
+ * @returns {string} - L'importo formattato (es. "1.234,56 €").
+ */
+const formatCurrency = (amount) => {
+  if (typeof amount !== 'number') return '';
+  return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(amount);
+};
+
+/**
+ * Formatta una data. Se la data non è valida, restituisce una stringa vuota.
+ * @param {string | Date} date - La data da formattare.
+ * @param {string} formatString - Il formato desiderato (es. 'dd/MM/yyyy').
+ * @returns {string} - La data formattata.
+ */
+const formatDate = (date, formatString = 'dd/MM/yyyy HH:mm') => {
   try {
-    // Filtra le pratiche per agenzia se specificato
-    let praticheDaEsportare = localPratiche;
-    if (filtroAgenziaPerPdf) {
-      praticheDaEsportare = localPratiche.filter(p => p.agenzia === filtroAgenziaPerPdf);
-    }
-    
-    // Raggruppa le pratiche per agenzia
-    const pratichePerAgenzia = {};
-    praticheDaEsportare.forEach(pratica => {
-      if (!pratichePerAgenzia[pratica.agenzia]) {
-        pratichePerAgenzia[pratica.agenzia] = [];
-      }
-      pratichePerAgenzia[pratica.agenzia].push(pratica);
-    });
-    
-    // Conteggio pratiche per agenzia
-    const conteggioPerAgenzia = Object.keys(pratichePerAgenzia).reduce((acc, agenzia) => {
-      acc[agenzia] = pratichePerAgenzia[agenzia].length;
-      return acc;
-    }, {});
-    
-    // Calcola il totale delle pratiche
-    const totalePratiche = Object.values(conteggioPerAgenzia).reduce((a, b) => a + b, 0);
-    
-    // Crea un elemento div temporaneo per il PDF
-    const pdfContent = document.createElement('div');
-    pdfContent.style.padding = '20px';
-    pdfContent.style.fontFamily = 'Arial, sans-serif';
-    pdfContent.style.backgroundColor = 'white';
-    pdfContent.style.color = 'black';
-    
-    // Aggiunge il titolo
-    const title = document.createElement('h1');
-    title.textContent = `PRATICHE ${format(new Date(), 'MMMM yyyy', { locale: it }).toUpperCase()}`;
-    title.style.textAlign = 'center';
-    title.style.margin = '20px 0';
-    title.style.fontSize = '24px';
-    pdfContent.appendChild(title);
-    
-    // Aggiunge il totale
-    const totale = document.createElement('h2');
-    totale.textContent = `TOTALE IN CORSO ${totalePratiche}`;
-    totale.style.textAlign = 'center';
-    totale.style.margin = '10px 0 30px 0';
-    totale.style.fontSize = '18px';
-    pdfContent.appendChild(totale);
-    
-    // Aggiunge ogni agenzia con le sue pratiche
-    Object.keys(pratichePerAgenzia).forEach(agenzia => {
-      const agenziaContainer = document.createElement('div');
-      agenziaContainer.style.marginBottom = '30px';
-      
-      // Scegli un colore in base all'agenzia
-      let bgColor;
-      if (agenzia.includes('VIAREGGIO')) {
-        bgColor = '#4361ee';
-      } else if (agenzia.includes('LUCCA')) {
-        bgColor = '#ef476f';
-      } else if (agenzia.includes('CAMAIORE')) {
-        bgColor = '#ffd166';
-      } else if (agenzia.includes('QUERCETA')) {
-        bgColor = '#9d4edd';
-      } else if (agenzia.includes('PIETRASANTA')) {
-        bgColor = '#06d6a0';
-      } else if (agenzia.includes('ALTOPASCIO')) {
-        bgColor = '#76c893';
-      } else if (agenzia.includes('PISA')) {
-        bgColor = '#ff7b00';
-      } else if (agenzia.includes('MASSA')) {
-        bgColor = '#7209b7';
-      } else {
-        bgColor = '#6c757d';
-      }
-      
-      // Crea intestazione colorata solo per l'agenzia
-      const intestazioneAgenzia = document.createElement('div');
-      intestazioneAgenzia.style.backgroundColor = bgColor;
-      intestazioneAgenzia.style.color = '#ffffff';
-      intestazioneAgenzia.style.padding = '10px 15px';
-      intestazioneAgenzia.style.borderRadius = '8px';
-      
-      // Aggiunge il titolo dell'agenzia
-      const agenziaTitolo = document.createElement('h3');
-      agenziaTitolo.textContent = `${agenzia} ${conteggioPerAgenzia[agenzia]}`;
-      agenziaTitolo.style.margin = '0';
-      agenziaTitolo.style.fontSize = '16px';
-      intestazioneAgenzia.appendChild(agenziaTitolo);
-      agenziaContainer.appendChild(intestazioneAgenzia);
-      
-      // Contenuto in nero su sfondo bianco
-      const contenutoAgenzia = document.createElement('div');
-      contenutoAgenzia.style.padding = '10px 15px';
-      contenutoAgenzia.style.color = 'black';
-      
-      // Aggiunge il collaboratore
-      const collaboratore = document.createElement('div');
-      collaboratore.textContent = `Collaboratore: ${pratichePerAgenzia[agenzia][0]?.collaboratore || 'N/D'}`;
-      collaboratore.style.marginBottom = '10px';
-      collaboratore.style.fontSize = '14px';
-      contenutoAgenzia.appendChild(collaboratore);
-      
-      // Aggiunge l'elenco delle pratiche
-      pratichePerAgenzia[agenzia].forEach(pratica => {
-        const praticaItem = document.createElement('div');
-        praticaItem.textContent = `• ${pratica.codice ? pratica.codice + ' - ' : ''}${pratica.indirizzo} - ${pratica.cliente}`;
-        praticaItem.style.marginLeft = '10px';
-        praticaItem.style.fontSize = '14px';
-        contenutoAgenzia.appendChild(praticaItem);
-      });
-      
-      agenziaContainer.appendChild(contenutoAgenzia);
-      pdfContent.appendChild(agenziaContainer);
-    });
-    
-    // Aggiungi il div temporaneo al documento
-    document.body.appendChild(pdfContent);
-    
-    // Genera il PDF
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    
-    // Cattura il div come un'immagine
-    const canvas = await html2canvas(pdfContent);
-    const imgData = canvas.toDataURL('image/png');
-    
-    // Aggiungi l'immagine al PDF
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    const imgWidth = canvas.width;
-    const imgHeight = canvas.height;
-    const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-    const imgX = (pdfWidth - imgWidth * ratio) / 2;
-    const imgY = 0;
-    
-    pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
-    
-    // Rimuovi il div temporaneo
-    document.body.removeChild(pdfContent);
-    
-    // Scarica il PDF
-    const pdfName = filtroAgenziaPerPdf 
-      ? `Pratiche_${filtroAgenziaPerPdf.replace(/ /g, '_')}_${format(new Date(), 'MMM_yyyy', { locale: it })}.pdf`
-      : `Pratiche_${format(new Date(), 'MMM_yyyy', { locale: it })}.pdf`;
-    
-    pdf.save(pdfName);
-    
-    console.log('PDF generato e scaricato per:', filtroAgenziaPerPdf || 'Tutte le agenzie');
+    // Prova a formattare la data. Se fallisce (es. data non valida), il blocco catch gestirà l'errore.
+    if (!date) return '';
+    return format(new Date(date), formatString, { locale: it });
   } catch (error) {
-    console.error('Errore durante la generazione del PDF:', error);
-    alert('Si è verificato un errore durante la generazione del PDF. Riprova.');
+    return ''; // Restituisce una stringa vuota se la data non è valida
+  }
+};
+
+
+// --- Main Export Function ---
+
+export const generateSchedePDF = async (localPratiche, filtroAgenzia = '') => {
+  try {
+    const praticheDaEsportare = filtroAgenzia
+      ? localPratiche.filter(p => p.agenzia === filtroAgenzia)
+      : localPratiche;
+
+    if (praticheDaEsportare.length === 0) {
+      alert('Nessuna pratica da esportare per i filtri selezionati.');
+      return;
+    }
+
+    console.log(`Inizio generazione PDF per ${praticheDaEsportare.length} pratiche...`);
+    const pdf = new jsPDF('portrait', 'mm', 'a4');
+
+    // Definiamo la struttura degli step come da mockup.
+    // L'ID deve corrispondere alla chiave usata in `pratica.workflow`.
+    const workflowLayout = [
+      { id: 'inizioPratica', label: 'INIZIO PRATICA' },
+      { id: 'completamentoPratica', label: 'COMPLETAMENTO PRATICA' }, // Assumo questo ID
+      { id: 'sopralluogo', label: 'SOPRALLUOGO' },
+      { id: 'presentazionePratica', label: 'PRESENTAZIONE PRATICA' },
+      { id: 'incarico', label: 'INCARICO' },
+      { id: 'saldo40', label: 'SALDO 40%' }, // Assumo sia saldo40
+      { id: 'acconto30', label: 'ACCONTO 30%' },
+      { id: 'atto', label: 'ATTO' },
+    ];
+
+    for (let i = 0; i < praticheDaEsportare.length; i++) {
+      const pratica = praticheDaEsportare[i];
+      console.log(`- Elaborazione pratica ${i + 1}/${praticheDaEsportare.length}: ${pratica.codice || pratica.indirizzo}`);
+
+      const schedaContainer = document.createElement('div');
+      schedaContainer.style.width = '1200px'; // Aumentiamo la larghezza per una migliore qualità
+      schedaContainer.style.padding = '40px';
+      schedaContainer.style.backgroundColor = 'white';
+      schedaContainer.style.fontFamily = "'Segoe UI', 'Helvetica Neue', sans-serif";
+      schedaContainer.style.color = '#333';
+
+      const workflow = pratica.workflow || {};
+
+      schedaContainer.innerHTML = `
+        <style>
+          .scheda-body { box-sizing: border-box; }
+          .scheda-header, .scheda-footer { margin-bottom: 25px; }
+          .scheda-header .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; }
+          .info-grid div { font-size: 14px; padding: 4px 0; }
+          .info-grid strong { color: #555; text-transform: uppercase; font-size: 12px; }
+
+          .workflow-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+          .step-box { border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; background-color: #fcfcfc; }
+          .step-box h3 { font-size: 16px; margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 1px solid #eee; color: #003366; }
+          .step-box .detail { margin-bottom: 12px; font-size: 14px; }
+          .step-box .detail-label { font-weight: bold; color: #333; }
+          .step-box ul { padding-left: 20px; margin: 5px 0; }
+          .step-box li { font-size: 13px; color: #444; }
+
+          .scheda-footer .info-grid div { text-align: right; }
+          .scheda-footer .info-grid .full-width { grid-column: 1 / -1; }
+        </style>
+
+        <div class="scheda-body">
+          <!-- SEZIONE INTESTAZIONE -->
+          <div class="scheda-header">
+            <div class="info-grid">
+              <div><strong>Agenzia Immobiliare:</strong><br>${pratica.agenzia || 'N/D'}</div>
+              <div><strong>Indirizzo:</strong><br>${pratica.indirizzo || 'N/D'}</div>
+              <div><strong>Committente:</strong><br>${pratica.cliente || 'N/D'}</div>
+              <div><strong>Collaboratore:</strong><br>${pratica.collaboratore || 'N/D'}</div>
+              <div><strong>Firmatario:</strong><br>${pratica.firmatario || 'N/D'}</div>
+              <div><strong>Documenti:</strong><br>${pratica.documenti || 'Nessun documento specificato'}</div>
+            </div>
+          </div>
+
+          <!-- SEZIONE WORKFLOW A GRIGLIA -->
+          <div class="workflow-grid">
+            ${workflowLayout.map(step => {
+              const stepData = workflow[step.id] || {};
+              // Generiamo l'HTML per ogni box solo se ci sono dati da mostrare
+              let contentHTML = '';
+
+              // Note e Task (per campi di tipo 'note' o 'task')
+              if (stepData.notes && stepData.notes.length > 0) {
+                contentHTML += `<div class="detail"><span class="detail-label">Note:</span><ul>${stepData.notes.map(n => `<li>${n.text}</li>`).join('')}</ul></div>`;
+              }
+              if (stepData.tasks && stepData.tasks.length > 0) {
+                contentHTML += `<div class="detail"><span class="detail-label">Task:</span><ul>${stepData.tasks.map(t => `<li>${t.text}</li>`).join('')}</ul></div>`;
+              }
+
+              // Data (per campi di tipo 'date')
+              if (stepData.dataInvio) {
+                contentHTML += `<div class="detail"><span class="detail-label">Data:</span> ${formatDate(stepData.dataInvio, step.id === 'atto' ? 'dd/MM/yyyy HH:mm' : 'dd/MM/yyyy')}</div>`;
+              }
+
+              // Pagamenti (per campi di tipo 'payment')
+              if (typeof stepData.importoBaseCommittente === 'number') {
+                 contentHTML += `<div class="detail"><span class="detail-label">Importo Committente:</span> ${formatCurrency(stepData.importoBaseCommittente)}</div>`;
+              }
+              if (typeof stepData.importoBaseCollaboratore === 'number') {
+                 contentHTML += `<div class="detail"><span class="detail-label">Importo Collaboratore:</span> ${formatCurrency(stepData.importoBaseCollaboratore)}</div>`;
+              }
+              if (typeof stepData.importoBaseFirmatario === 'number') {
+                 contentHTML += `<div class="detail"><span class="detail-label">Importo Firmatario:</span> ${formatCurrency(stepData.importoBaseFirmatario)}</div>`;
+              }
+
+              return `
+                <div class="step-box">
+                  <h3>${step.label}</h3>
+                  ${contentHTML || '<p style="color: #999; font-size: 13px;">Nessun dato inserito.</p>'}
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- SEZIONE PIÈ DI PAGINA -->
+          <div class="scheda-footer">
+            <div class="info-grid">
+              <div></div> <!-- Spazio vuoto per allineamento -->
+              <div class="full-width" style="border-top: 1px solid #ccc; padding-top: 15px; margin-top: 15px;">
+                  <strong>IMPORTO:</strong> ${formatCurrency(pratica.importoTotale)}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(schedaContainer);
+      const canvas = await html2canvas(schedaContainer, { scale: 2, useCORS: true });
+      document.body.removeChild(schedaContainer);
+
+      const imgData = canvas.toDataURL('image/png');
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgProps = pdf.getImageProperties(imgData);
+      const imgRatio = imgProps.height / imgProps.width;
+
+      let finalImgHeight = pdfWidth * imgRatio;
+      // Se l'immagine è troppo alta per la pagina, la rimpiccioliamo
+      if (finalImgHeight > pdfHeight - 20) {
+        finalImgHeight = pdfHeight - 20; // con margine
+      }
+      const finalImgWidth = finalImgHeight / imgRatio;
+      const imgX = (pdfWidth - finalImgWidth) / 2;
+
+      pdf.addImage(imgData, 'PNG', imgX, 10, finalImgWidth, finalImgHeight);
+
+      if (i < praticheDaEsportare.length - 1) {
+        pdf.addPage();
+      }
+    }
+
+    const pdfName = filtroAgenzia
+      ? `Schede_Pratiche_${filtroAgenzia.replace(/ /g, '_')}_${format(new Date(), 'dd-MM-yyyy')}.pdf`
+      : `Schede_Pratiche_Tutte_${format(new Date(), 'dd-MM-yyyy')}.pdf`;
+
+    pdf.save(pdfName);
+    console.log('PDF con le schede generato con successo!');
+
+  } catch (error) {
+    console.error('Errore durante la generazione delle schede PDF:', error);
+    alert('Si è verificato un errore grave durante la generazione del PDF.');
   }
 };
