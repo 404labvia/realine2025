@@ -24,7 +24,6 @@ const formatCurrency = (amount) => {
  */
 const formatDate = (date, formatString = 'dd/MM/yyyy HH:mm') => {
   try {
-    // Prova a formattare la data. Se fallisce (es. data non valida), il blocco catch gestirà l'errore.
     if (!date) return '';
     return format(new Date(date), formatString, { locale: it });
   } catch (error) {
@@ -49,17 +48,16 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
     console.log(`Inizio generazione PDF per ${praticheDaEsportare.length} pratiche...`);
     const pdf = new jsPDF('portrait', 'mm', 'a4');
 
-    // Definiamo la struttura degli step come da mockup.
-    // L'ID deve corrispondere alla chiave usata in `pratica.workflow`.
+    // Definiamo la struttura degli step in colonna singola, come da mockup.
     const workflowLayout = [
-      { id: 'inizioPratica', label: 'INIZIO PRATICA' },
-      { id: 'completamentoPratica', label: 'COMPLETAMENTO PRATICA' }, // Assumo questo ID
-      { id: 'sopralluogo', label: 'SOPRALLUOGO' },
-      { id: 'presentazionePratica', label: 'PRESENTAZIONE PRATICA' },
-      { id: 'incarico', label: 'INCARICO' },
-      { id: 'saldo40', label: 'SALDO 40%' }, // Assumo sia saldo40
-      { id: 'acconto30', label: 'ACCONTO 30%' },
-      { id: 'atto', label: 'ATTO' },
+        { id: 'inizioPratica', label: 'INIZIO PRATICA' },
+        { id: 'sopralluogo', label: 'SOPRALLUOGO' },
+        { id: 'incarico', label: 'INCARICO' },
+        { id: 'acconto30', label: 'ACCONTO 30%' },
+        { id: 'completamentoPratica', label: 'COMPLETAMENTO PRATICA' },
+        { id: 'presentazionePratica', label: 'PRESENTAZIONE PRATICA' },
+        { id: 'saldo40', label: 'SALDO 40%' },
+        { id: 'atto', label: 'ATTO' },
     ];
 
     for (let i = 0; i < praticheDaEsportare.length; i++) {
@@ -67,7 +65,7 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
       console.log(`- Elaborazione pratica ${i + 1}/${praticheDaEsportare.length}: ${pratica.codice || pratica.indirizzo}`);
 
       const schedaContainer = document.createElement('div');
-      schedaContainer.style.width = '1200px'; // Aumentiamo la larghezza per una migliore qualità
+      schedaContainer.style.width = '1200px';
       schedaContainer.style.padding = '40px';
       schedaContainer.style.backgroundColor = 'white';
       schedaContainer.style.fontFamily = "'Segoe UI', 'Helvetica Neue', sans-serif";
@@ -79,32 +77,33 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
         <style>
           .scheda-body { box-sizing: border-box; }
           .scheda-header, .scheda-footer { margin-bottom: 25px; }
-          .scheda-header .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; }
-          .info-grid div { font-size: 14px; padding: 4px 0; }
-          .info-grid strong { color: #555; text-transform: uppercase; font-size: 12px; }
+          .info-grid div { font-size: 14px; padding: 5px 0; border-bottom: 1px solid #f0f0f0; }
+          .info-grid strong { color: #555; text-transform: uppercase; font-size: 12px; min-width: 180px; display: inline-block; }
 
-          .workflow-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-          .step-box { border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; background-color: #fcfcfc; }
+          /* Modifica #1: Layout a colonna singola per gli step */
+          .workflow-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-top: 30px;}
+          .step-box { border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; background-color: #fdfdfd; }
           .step-box h3 { font-size: 16px; margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 1px solid #eee; color: #003366; }
           .step-box .detail { margin-bottom: 12px; font-size: 14px; }
           .step-box .detail-label { font-weight: bold; color: #333; }
           .step-box ul { padding-left: 20px; margin: 5px 0; }
           .step-box li { font-size: 13px; color: #444; }
 
-          .scheda-footer .info-grid div { text-align: right; }
-          .scheda-footer .info-grid .full-width { grid-column: 1 / -1; }
+          .scheda-footer { text-align: right; margin-top: 30px; padding-top: 15px; border-top: 2px solid #333; }
+          .scheda-footer strong { font-size: 18px; }
         </style>
 
         <div class="scheda-body">
           <!-- SEZIONE INTESTAZIONE -->
           <div class="scheda-header">
             <div class="info-grid">
-              <div><strong>Agenzia Immobiliare:</strong><br>${pratica.agenzia || 'N/D'}</div>
-              <div><strong>Indirizzo:</strong><br>${pratica.indirizzo || 'N/D'}</div>
-              <div><strong>Committente:</strong><br>${pratica.cliente || 'N/D'}</div>
-              <div><strong>Collaboratore:</strong><br>${pratica.collaboratore || 'N/D'}</div>
-              <div><strong>Firmatario:</strong><br>${pratica.firmatario || 'N/D'}</div>
-              <div><strong>Documenti:</strong><br>${pratica.documenti || 'Nessun documento specificato'}</div>
+              <!-- Modifica #2: Dati sulla stessa riga -->
+              <div><strong>Agenzia Immobiliare:</strong> <span>${pratica.agenzia || 'N/D'}</span></div>
+              <div><strong>Indirizzo:</strong> <span>${pratica.indirizzo || 'N/D'}</span></div>
+              <div><strong>Committente:</strong> <span>${pratica.cliente || 'N/D'}</span></div>
+              <div><strong>Collaboratore:</strong> <span>${pratica.collaboratore || 'N/D'}</span></div>
+              <div><strong>Firmatario:</strong> <span>${pratica.firmatario || 'N/D'}</span></div>
+              <div><strong>Documenti:</strong> <span>${pratica.documenti || 'Nessun documento specificato'}</span></div>
             </div>
           </div>
 
@@ -112,23 +111,17 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
           <div class="workflow-grid">
             ${workflowLayout.map(step => {
               const stepData = workflow[step.id] || {};
-              // Generiamo l'HTML per ogni box solo se ci sono dati da mostrare
               let contentHTML = '';
 
-              // Note e Task (per campi di tipo 'note' o 'task')
               if (stepData.notes && stepData.notes.length > 0) {
                 contentHTML += `<div class="detail"><span class="detail-label">Note:</span><ul>${stepData.notes.map(n => `<li>${n.text}</li>`).join('')}</ul></div>`;
               }
               if (stepData.tasks && stepData.tasks.length > 0) {
                 contentHTML += `<div class="detail"><span class="detail-label">Task:</span><ul>${stepData.tasks.map(t => `<li>${t.text}</li>`).join('')}</ul></div>`;
               }
-
-              // Data (per campi di tipo 'date')
               if (stepData.dataInvio) {
                 contentHTML += `<div class="detail"><span class="detail-label">Data:</span> ${formatDate(stepData.dataInvio, step.id === 'atto' ? 'dd/MM/yyyy HH:mm' : 'dd/MM/yyyy')}</div>`;
               }
-
-              // Pagamenti (per campi di tipo 'payment')
               if (typeof stepData.importoBaseCommittente === 'number') {
                  contentHTML += `<div class="detail"><span class="detail-label">Importo Committente:</span> ${formatCurrency(stepData.importoBaseCommittente)}</div>`;
               }
@@ -150,12 +143,7 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
 
           <!-- SEZIONE PIÈ DI PAGINA -->
           <div class="scheda-footer">
-            <div class="info-grid">
-              <div></div> <!-- Spazio vuoto per allineamento -->
-              <div class="full-width" style="border-top: 1px solid #ccc; padding-top: 15px; margin-top: 15px;">
-                  <strong>IMPORTO:</strong> ${formatCurrency(pratica.importoTotale)}
-              </div>
-            </div>
+            <strong>IMPORTO:</strong> <span>${formatCurrency(pratica.importoTotale)}</span>
           </div>
         </div>
       `;
@@ -171,9 +159,8 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
       const imgRatio = imgProps.height / imgProps.width;
 
       let finalImgHeight = pdfWidth * imgRatio;
-      // Se l'immagine è troppo alta per la pagina, la rimpiccioliamo
       if (finalImgHeight > pdfHeight - 20) {
-        finalImgHeight = pdfHeight - 20; // con margine
+        finalImgHeight = pdfHeight - 20;
       }
       const finalImgWidth = finalImgHeight / imgRatio;
       const imgX = (pdfWidth - finalImgWidth) / 2;
