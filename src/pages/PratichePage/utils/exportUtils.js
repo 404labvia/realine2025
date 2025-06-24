@@ -36,12 +36,16 @@ const formatDate = (date, formatString = 'dd/MM/yyyy HH:mm') => {
 
 export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
   try {
+    const praticheFiltratePerStato = localPratiche.filter(
+      pratica => pratica.stato === 'In Corso' || !pratica.stato
+    );
+
     const praticheDaEsportare = filtroAgenzia
-      ? localPratiche.filter(p => p.agenzia === filtroAgenzia)
-      : localPratiche;
+      ? praticheFiltratePerStato.filter(p => p.agenzia === filtroAgenzia)
+      : praticheFiltratePerStato;
 
     if (praticheDaEsportare.length === 0) {
-      alert('Nessuna pratica da esportare per i filtri selezionati.');
+      alert('Nessuna pratica "In Corso" da esportare per i filtri selezionati.');
       return;
     }
 
@@ -55,12 +59,19 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
         { id: 'completamentoPratica', label: 'COMPLETAMENTO PRATICA' },
         { id: 'presentazionePratica', label: 'PRESENTAZIONE PRATICA' },
         { id: 'saldo40', label: 'SALDO' },
-        { id: 'atto', label: 'ATTO' },
     ];
 
     for (let i = 0; i < praticheDaEsportare.length; i++) {
       const pratica = praticheDaEsportare[i];
       const workflow = pratica.workflow || {};
+
+      // --- Logica di calcolo per il totale del Firmatario ---
+      let totaleLordoFirmatario = 0;
+      Object.values(workflow).forEach(step => {
+        if (typeof step.importoFirmatario === 'number') {
+            totaleLordoFirmatario += step.importoFirmatario;
+        }
+      });
 
       const schedaContainer = document.createElement('div');
       schedaContainer.style.width = '1200px';
@@ -73,16 +84,14 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
         <style>
           .scheda-body { box-sizing: border-box; }
           .header-agenzia { font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; }
-          .header-indirizzo { font-size: 32px; font-weight: bold; color: #000; margin-bottom: 20px; }
+          .header-indirizzo { display: block; visibility: visible; font-size: 32px; font-weight: bold; color: #000; margin-bottom: 20px; }
           .header-main-info { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
           .header-main-info .nome { font-size: 32px; font-weight: bold; color: #000; }
           .header-main-info .importo-totale { font-size: 32px; font-weight: bold; color: #000; text-align: right; }
-
           .header-sub-info { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 30px; }
           .header-sub-info .section-divider { margin-top: 15px; }
           .header-sub-info div { font-size: 14px; padding: 4px 0; }
           .header-sub-info strong { text-transform: uppercase; font-size: 12px; min-width: 140px; display: inline-block; }
-
           .workflow-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-top: 40px;}
           .step-box { border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; background-color: #fdfdfd; }
           .step-box h3 { font-size: 16px; margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 1px solid #eee; color: #003366; }
@@ -90,95 +99,89 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
           .step-box .detail-label { font-weight: bold; color: #333; }
           .step-box ul { padding-left: 20px; margin: 5px 0; }
           .step-box li { font-size: 13px; color: #444; }
+          .step-box-empty { min-height: 300px; }
         </style>
 
         <div class="scheda-body">
           <div class="scheda-header">
-            <div class="header-agenzia">${pratica.agenzia || 'N/D'}</div>
-
-            <!-- INDIRIZZO RIPRISTINATO -->
-            <div class="header-indirizzo">${pratica.indirizzo || 'N/D'}</div>
-
+            <div class="header-agenzia">${pratica.agenzia || ''}</div>
+            <div class="header-indirizzo">${pratica.indirizzo || ''}</div>
             <div class="header-main-info">
-              <div class="nome">${pratica.cliente || 'N/D'}</div>
+              <div class="nome">${pratica.cliente || ''}</div>
               <div class="importo-totale">${formatCurrency(pratica.importoTotale)}</div>
             </div>
             <div class="header-sub-info">
-              <div class="section-divider">
-                <strong>Collaboratore:</strong> <span>${pratica.collaboratore || 'N/D'}</span>
-              </div>
-              <div>
-                <strong>Importo:</strong>
-                <span>
-                  ${(() => {
-                    const totaleBase = pratica.totaleBaseCollaboratore || 0;
-                    const applicaCassa = pratica.applyCassaCollaboratore !== false;
-                    if (applicaCassa) {
-                      const totaleLordo = totaleBase * 1.05;
-                      return `${formatCurrency(totaleBase)} + 5% = ${formatCurrency(totaleLordo)}`;
-                    }
-                    return formatCurrency(totaleBase);
-                  })()}
-                </span>
-              </div>
-              <div><strong>Firmatario:</strong> <span>${pratica.firmatario || 'N/D'}</span></div>
-              <div>
-                 <strong>Importo:</strong>
-                 <span>
-                    ${(() => {
-                        const totaleBase = pratica.totaleBaseFirmatario || 0;
-                        const applicaCassa = pratica.applyCassaFirmatario !== false;
-                        if(applicaCassa) {
-                            const totaleLordo = totaleBase * 1.05;
-                            return `${formatCurrency(totaleBase)} + 5% = ${formatCurrency(totaleLordo)}`;
-                        }
-                        return formatCurrency(totaleBase);
-                    })()}
-                </span>
-              </div>
-              <div class="section-divider"><strong>Documenti:</strong> <span>${pratica.documenti || 'N/D'}</span></div>
-              <div><strong>Atto:</strong> <span>${formatDate(workflow.atto?.dataInvio)}</span></div>
+              <!-- MODIFICA: Visualizzazione solo dei totali nell'intestazione -->
+              ${pratica.collaboratore ? `
+                <div class="section-divider">
+                  <strong>Collaboratore:</strong> <span>${pratica.collaboratore}</span>
+                </div>
+                <div>
+                  <strong>Importo Totale:</strong>
+                  <span>${formatCurrency(pratica.importoCollaboratore)}</span>
+                </div>` : ''}
+
+              ${pratica.firmatario ? `
+                <div><strong>Firmatario:</strong> <span>${pratica.firmatario}</span></div>
+                <div>
+                  <strong>Importo Totale:</strong>
+                  <span>${formatCurrency(totaleLordoFirmatario)}</span>
+                </div>` : ''}
+
+              ${pratica.documenti ? `<div class="section-divider"><strong>Documenti:</strong> <span>${pratica.documenti}</span></div>` : ''}
+
+              ${pratica.dataFine ? `<div><strong>Atto:</strong> <span>${formatDate(pratica.dataFine)}</span></div>` : ''}
             </div>
           </div>
           <div class="workflow-grid">
             ${workflowLayout.map(step => {
               const stepData = workflow[step.id] || {};
               let contentHTML = '';
+              let extraClasses = '';
+
               if (stepData.notes && stepData.notes.length > 0) {
                 contentHTML += `<div class="detail"><span class="detail-label">Note:</span><ul>${stepData.notes.map(n => `<li>${n.text}</li>`).join('')}</ul></div>`;
               }
               if (stepData.tasks && stepData.tasks.length > 0) {
                 contentHTML += `<div class="detail"><span class="detail-label">Task:</span><ul>${stepData.tasks.map(t => `<li>${t.text}</li>`).join('')}</ul></div>`;
               }
-              if (step.id === 'incarico' && stepData.dataInvio) {
-                contentHTML += `<div class="detail"><span class="detail-label">Data:</span> ${formatDate(stepData.dataInvio, 'dd/MM/yyyy')}</div>`;
+
+              if (step.id === 'incarico') {
+                if (stepData.dataInvio) {
+                    contentHTML += `<div class="detail"><span class="detail-label">Data Incarico:</span> ${formatDate(stepData.dataInvio, 'dd/MM/yyyy')}</div>`;
+                }
               }
+
+              // MODIFICA: Dettaglio pagamenti per ogni step
               if (step.id === 'acconto30' || step.id === 'saldo40') {
-                 const importoBase = stepData.importoBaseCommittente || 0;
-                 if (importoBase > 0) {
-                    const applicaIVA = stepData.applyIVACommittente !== false;
-                    if (applicaIVA) {
-                        const importoLordo = importoBase * 1.22;
-                        contentHTML += `<div class="detail"><span class="detail-label">Importo:</span> ${formatCurrency(importoBase)} + 22% = ${formatCurrency(importoLordo)}</div>`;
-                    } else {
-                        contentHTML += `<div class="detail"><span class="detail-label">Importo:</span> ${formatCurrency(importoBase)}</div>`;
-                    }
+                 let paymentDetails = '';
+                 if (stepData.importoCommittente > 0) {
+                     paymentDetails += `<div class="detail"><span class="detail-label">Importo Committente:</span> ${formatCurrency(stepData.importoCommittente)}</div>`;
                  }
+                 if (stepData.importoCollaboratore > 0) {
+                     paymentDetails += `<div class="detail"><span class="detail-label">Importo Collaboratore:</span> ${formatCurrency(stepData.importoCollaboratore)}</div>`;
+                 }
+                 if (stepData.importoFirmatario > 0) {
+                    paymentDetails += `<div class="detail"><span class="detail-label">Importo Firmatario:</span> ${formatCurrency(stepData.importoFirmatario)}</div>`;
+                }
+                contentHTML += paymentDetails;
               }
-              return `<div class="step-box"><h3>${step.label}</h3>${contentHTML || '<p style="color: #999; font-size: 13px;">Nessun dato inserito.</p>'}</div>`;
+
+              const emptyStepsWithHeight = ['inizioPratica', 'sopralluogo', 'completamentoPratica', 'presentazionePratica'];
+              if(emptyStepsWithHeight.includes(step.id) && !contentHTML){
+                  extraClasses = ' step-box-empty';
+              }
+
+              return `<div class="step-box${extraClasses}"><h3>${step.label}</h3>${contentHTML}</div>`;
             }).join('')}
           </div>
         </div>
       `;
 
       document.body.appendChild(schedaContainer);
-
       const canvas = await html2canvas(schedaContainer, { scale: 1.5, useCORS: true });
-
       document.body.removeChild(schedaContainer);
-
       const imgData = canvas.toDataURL('image/jpeg', 0.75);
-
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       const imgProps = pdf.getImageProperties(imgData);
@@ -187,7 +190,6 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
       if (finalImgHeight > pdfHeight - 20) { finalImgHeight = pdfHeight - 20; }
       const finalImgWidth = finalImgHeight / imgRatio;
       const imgX = (pdfWidth - finalImgWidth) / 2;
-
       pdf.addImage(imgData, 'JPEG', imgX, 10, finalImgWidth, finalImgHeight, undefined, 'FAST');
 
       if (i < praticheDaEsportare.length - 1) { pdf.addPage(); }
