@@ -72,7 +72,8 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
       schedaContainer.innerHTML = `
         <style>
           .scheda-body { box-sizing: border-box; }
-          .header-agenzia { font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 20px; }
+          .header-agenzia { font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; }
+          .header-indirizzo { font-size: 32px; font-weight: bold; color: #000; margin-bottom: 20px; }
           .header-main-info { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
           .header-main-info .nome { font-size: 32px; font-weight: bold; color: #000; }
           .header-main-info .importo-totale { font-size: 32px; font-weight: bold; color: #000; text-align: right; }
@@ -92,9 +93,12 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
         </style>
 
         <div class="scheda-body">
-          <!-- Qui il contenuto HTML rimane invariato... -->
           <div class="scheda-header">
             <div class="header-agenzia">${pratica.agenzia || 'N/D'}</div>
+
+            <!-- INDIRIZZO RIPRISTINATO -->
+            <div class="header-indirizzo">${pratica.indirizzo || 'N/D'}</div>
+
             <div class="header-main-info">
               <div class="nome">${pratica.cliente || 'N/D'}</div>
               <div class="importo-totale">${formatCurrency(pratica.importoTotale)}</div>
@@ -169,17 +173,10 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
 
       document.body.appendChild(schedaContainer);
 
-      // --- OTTIMIZZAZIONE #1: Riduci la scala di rendering ---
-      // Invece di `scale: 2`, usiamo un valore più basso come 1.5.
-      // Questo riduce drasticamente la dimensione dell'immagine senza perdere troppa qualità.
-      // Puoi sperimentare con valori come 1.2 o 1.8.
       const canvas = await html2canvas(schedaContainer, { scale: 1.5, useCORS: true });
 
       document.body.removeChild(schedaContainer);
 
-      // --- OTTIMIZZAZIONE #2: Usa il formato JPEG invece di PNG ---
-      // JPEG è un formato con perdita (lossy) ma è perfetto per questo scopo e crea file molto più piccoli.
-      // Il secondo parametro (0.75) è la qualità, da 0 a 1. Un valore tra 0.7 e 0.8 è un ottimo compromesso.
       const imgData = canvas.toDataURL('image/jpeg', 0.75);
 
       const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -191,9 +188,6 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
       const finalImgWidth = finalImgHeight / imgRatio;
       const imgX = (pdfWidth - finalImgWidth) / 2;
 
-      // --- OTTIMIZZAZIONE #3: Aggiungi la compressione a jsPDF ---
-      // Indichiamo a jsPDF di usare un algoritmo di compressione veloce per l'immagine JPEG.
-      // Il `undefined` è un placeholder per il parametro 'alias' che non ci serve.
       pdf.addImage(imgData, 'JPEG', imgX, 10, finalImgWidth, finalImgHeight, undefined, 'FAST');
 
       if (i < praticheDaEsportare.length - 1) { pdf.addPage(); }
