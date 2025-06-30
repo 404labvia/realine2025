@@ -2,42 +2,29 @@
 import React, { useState } from 'react';
 import { usePratiche } from '../../contexts/PraticheContext';
 import StatistichePrincipali from './components/StatistichePrincipali';
-import UpcomingDeadlines from './components/UpcomingDeadlines'; // MANTENUTO: Riferito a "Atti/Fine Pratiche Imminenti"
+import UpcomingDeadlines from './components/UpcomingDeadlines'; // ORA CORRETTO: renderizzerà solo una card
 import ChartAgenzie from './components/ChartAgenzie';
 import ChartFatturato from './components/ChartFatturato';
-import TaskNotification from './components/TaskNotification';
-import TaskDetails from './components/TaskDetails';
-import TodoList from './components/TodoList'; // Nuovo componente basato su GCal
+import TodoList from './components/TodoList';
 
-import { useDashboardTasks } from './hooks/useDashboardTasks'; // MANTENUTO: Serve a `UpcomingDeadlines`
+// Rimuovi import non più usati
+// import TaskNotification from './components/TaskNotification';
+// import TaskDetails from './components/TaskDetails';
+// import { useDashboardTasks } from './hooks/useDashboardTasks';
 
-// Hook per il calendario rimosso
-// import { useDashboardCalendar } from './hooks/useDashboardCalendar';
-
-// Componente TaskList rimosso
-// import TaskList from './components/TaskList';
-
-// Componente DashboardCalendar rimosso
-// import DashboardCalendar from './components/DashboardCalendar';
 
 function Dashboard() {
-  const { pratiche, loading, updatePratica } = usePratiche();
+  const { pratiche, loading } = usePratiche(); // updatePratica non è più usato qui
   const [filtroStatoDistribuzione, setFiltroStatoDistribuzione] = useState('In Corso');
   const [filtroStatoFatturato, setFiltroStatoFatturato] = useState('Tutte');
 
-  // Stati per i componenti Task (necessari per UpcomingDeadlines)
-  const [showTaskDetails, setShowTaskDetails] = useState(null);
-  const [showTaskNotification, setShowTaskNotification] = useState(false);
-  const [lastTaskEvent, setLastTaskEvent] = useState(null);
+  // Rimuovi stati non più usati
+  // const [showTaskDetails, setShowTaskDetails] = useState(null);
+  // const [showTaskNotification, setShowTaskNotification] = useState(false);
+  // const [lastTaskEvent, setLastTaskEvent] = useState(null);
 
-  // Hook per task da Firestore (logica per `TaskList` rimossa, mantenuta per `UpcomingDeadlines`)
-  const {
-    upcomingDeadlines,
-    handleToggleTask
-    // Le altre variabili come currentTasks, taskFilter, etc. non sono più necessarie qui
-  } = useDashboardTasks(pratiche, loading, updatePratica);
-
-  // Hook e stati per `DashboardCalendar` sono stati rimossi.
+  // Rimuovi hook non più usato
+  // const { upcomingDeadlines, handleToggleTask } = useDashboardTasks(pratiche, loading, updatePratica);
 
   // Loader principale
   if (loading) {
@@ -51,10 +38,8 @@ function Dashboard() {
 
   return (
     <div className="container mx-auto p-2 sm:p-4">
-      {/* RIGA 1: Statistiche Principali */}
       <StatistichePrincipali pratiche={pratiche} />
 
-      {/* RIGA 2: Grafici */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-6">
         <ChartAgenzie
           pratiche={pratiche}
@@ -68,35 +53,16 @@ function Dashboard() {
         />
       </div>
 
-      {/* RIGA 3: Nuova To-Do List */}
       <div className="my-6">
         <TodoList />
       </div>
 
-      {/* RIGA 4: Atti/Fine Pratiche Imminenti */}
+      {/* CORRETTO: Chiama UpcomingDeadlines senza props */}
       <div className="my-6">
-        <UpcomingDeadlines
-          deadlines={upcomingDeadlines}
-          handleToggleTask={handleToggleTask}
-          onViewTaskDetails={(task) => setShowTaskDetails(task)}
-        />
+        <UpcomingDeadlines />
       </div>
 
-      {/* Modali per i dettagli e notifiche (necessari per UpcomingDeadlines) */}
-      {showTaskDetails && (
-        <TaskDetails
-          task={showTaskDetails}
-          onClose={() => setShowTaskDetails(null)}
-          onComplete={handleToggleTask}
-        />
-      )}
-
-      {showTaskNotification && (
-        <TaskNotification
-          event={lastTaskEvent}
-          onClose={() => setShowTaskNotification(false)}
-        />
-      )}
+      {/* Rimuovi modali non più usati */}
     </div>
   );
 }
