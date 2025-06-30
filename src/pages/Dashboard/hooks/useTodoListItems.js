@@ -4,7 +4,7 @@ import { useGoogleCalendarApi } from '../../CalendarPage/hooks/useGoogleCalendar
 import { usePratiche } from '../../../contexts/PraticheContext';
 import { usePratichePrivato } from '../../../contexts/PratichePrivatoContext';
 import { getCompletedState, setCompletedState } from '../../../services/todoStateService';
-import { startOfDay, addDays, startOfWeek, endOfWeek, parseISO, isValid, format } from 'date-fns'; // AGGIUNTO format
+import { startOfDay, addDays, startOfWeek, endOfWeek, parseISO, isValid, format, isPast, isToday } from 'date-fns';
 
 export const useTodoListItems = () => {
   const { googleApiToken, gapiClientInitialized, calendarEvents, fetchGoogleEvents, isLoadingEvents: isLoadingCalendarEvents } = useGoogleCalendarApi();
@@ -12,11 +12,11 @@ export const useTodoListItems = () => {
   const { pratiche: pratichePrivate, loading: loadingPratichePriv } = usePratichePrivato();
 
   const [allTodoItems, setAllTodoItems] = useState([]);
-  const [isLoadingHook, setIsLoadingHook] = useState(true); // Rinominato per evitare conflitto
+  const [isLoadingHook, setIsLoadingHook] = useState(true);
 
   const [activeFilter, setActiveFilter] = useState('inCorso');
   const [dateFilter, setDateFilter] = useState('all');
-  const [selectedPraticaIdFilter, setSelectedPraticaIdFilter] = useState('');
+  // selectedPraticaIdFilter rimosso
 
   const tutteLePratiche = useMemo(() => {
     if (loadingPraticheStd || loadingPratichePriv) return [];
@@ -91,6 +91,11 @@ export const useTodoListItems = () => {
       items = items.filter(item => !item.isCompleted);
     } else if (activeFilter === 'completate') {
       items = items.filter(item => item.isCompleted);
+    } else if (activeFilter === 'overdue') {
+      items = items.filter(item => {
+        const validDueDate = item.dueDate && isValid(new Date(item.dueDate));
+        return validDueDate && isPast(new Date(item.dueDate)) && !isToday(new Date(item.dueDate)) && !item.isCompleted;
+      });
     }
 
     const today = startOfDay(new Date());
@@ -109,14 +114,12 @@ export const useTodoListItems = () => {
       );
     }
 
-    if (selectedPraticaIdFilter) {
-      items = items.filter(item => item.praticaInfo?.id === selectedPraticaIdFilter);
-    }
+    // Filtro per pratica rimosso
 
     items.sort((a, b) => (isValid(a.dueDate) && isValid(b.dueDate) ? a.dueDate.getTime() - b.dueDate.getTime() : 0));
 
     return items;
-  }, [allTodoItems, activeFilter, dateFilter, selectedPraticaIdFilter]);
+  }, [allTodoItems, activeFilter, dateFilter]);
 
   const refreshCalendarEvents = useCallback(() => {
       if (googleApiToken && gapiClientInitialized) {
@@ -126,16 +129,12 @@ export const useTodoListItems = () => {
 
   return {
     todoItems: filteredAndSortedItems,
-    // Esponi lo stato di caricamento combinato o specifico se necessario
     isLoading: isLoadingHook || isLoadingCalendarEvents || loadingPraticheStd || loadingPratichePriv,
     toggleComplete,
     activeFilter,
     setActiveFilter,
     dateFilter,
     setDateFilter,
-    selectedPraticaIdFilter,
-    setSelectedPraticaIdFilter,
-    praticheDisponibiliPerFiltro: tutteLePratiche.filter(p => p.id && (p.codice || p.indirizzo) ), // Assicura che la pratica abbia un ID e un nome/codice per il filtro
     refreshCalendarEvents,
   };
 };
