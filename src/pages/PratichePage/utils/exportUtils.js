@@ -9,10 +9,13 @@ import jsPDF from 'jspdf';
 /**
  * Formatta un numero come valuta in Euro.
  * @param {number | null | undefined} amount - L'importo da formattare.
- * @returns {string} - L'importo formattato (es. "1.234,56 €").
+ * @param {boolean} hideZero - Se true, nasconde gli importi pari a zero
+ * @returns {string} - L'importo formattato (es. "1.234,56 €") o "€" se zero e hideZero è true.
  */
-const formatCurrency = (amount) => {
-  if (typeof amount !== 'number') return '0,00 €';
+const formatCurrency = (amount, hideZero = false) => {
+  if (typeof amount !== 'number' || amount === 0) {
+    return hideZero ? '€' : '0,00 €';
+  }
   return new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(amount);
 };
 
@@ -31,6 +34,47 @@ const formatDate = (date, formatString = 'dd/MM/yyyy HH:mm') => {
   }
 };
 
+/**
+ * Genera il contenuto HTML per una sezione di pagamento
+ * @param {string} titoloSezione - Il titolo della sezione (es. "ACCONTO", "SALDO")
+ * @param {Array} stepsData - Array di oggetti step con i dati dei pagamenti
+ * @returns {string} - HTML della sezione
+ */
+const generatePaymentSection = (titoloSezione, stepsData) => {
+  let sectionHTML = `<div class="payment-section"><h3>${titoloSezione}</h3>`;
+
+  stepsData.forEach(stepInfo => {
+    const { stepData, stepLabel } = stepInfo;
+    if (!stepData) return;
+
+    // Verifica se ci sono dati di pagamento per questo step
+    const hasCommittente = stepData.importoCommittente > 0;
+    const hasCollaboratore = stepData.importoCollaboratore > 0;
+    const hasFirmatario = stepData.importoFirmatario > 0;
+
+    if (hasCommittente || hasCollaboratore || hasFirmatario) {
+      sectionHTML += `<div class="payment-subsection">`;
+      sectionHTML += `<h4>${stepLabel}</h4>`;
+
+      if (hasCommittente) {
+        sectionHTML += `<div class="payment-item"><span class="payment-label">Committente:</span> ${formatCurrency(stepData.importoCommittente, true)}</div>`;
+      }
+
+      if (hasCollaboratore) {
+        sectionHTML += `<div class="payment-item"><span class="payment-label">Collaboratore:</span> ${formatCurrency(stepData.importoCollaboratore, true)}</div>`;
+      }
+
+      if (hasFirmatario) {
+        sectionHTML += `<div class="payment-item"><span class="payment-label">Collaboratore Firmatario:</span> ${formatCurrency(stepData.importoFirmatario, true)}</div>`;
+      }
+
+      sectionHTML += `</div>`;
+    }
+  });
+
+  sectionHTML += `</div>`;
+  return sectionHTML;
+};
 
 // --- Main Export Function ---
 
@@ -55,10 +99,8 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
         { id: 'inizioPratica', label: 'INIZIO PRATICA' },
         { id: 'sopralluogo', label: 'SOPRALLUOGO' },
         { id: 'incarico', label: 'INCARICO' },
-        { id: 'acconto30', label: 'ACCONTO' },
         { id: 'completamentoPratica', label: 'COMPLETAMENTO PRATICA' },
         { id: 'presentazionePratica', label: 'PRESENTAZIONE PRATICA' },
-        { id: 'saldo40', label: 'SALDO' },
     ];
 
     for (let i = 0; i < praticheDaEsportare.length; i++) {
@@ -72,6 +114,16 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
             totaleLordoFirmatario += step.importoFirmatario;
         }
       });
+
+      // Prepara i dati per le sezioni ACCONTO e SALDO
+      const accontoSteps = [
+        { stepData: workflow['acconto30'], stepLabel: 'Primo Acconto 30%' },
+        { stepData: workflow['secondoAcconto30'], stepLabel: 'Secondo Acconto 30%' }
+      ];
+
+      const saldoSteps = [
+        { stepData: workflow['saldo40'], stepLabel: 'Saldo 40%' }
+      ];
 
       const schedaContainer = document.createElement('div');
       schedaContainer.style.width = '1200px';
@@ -98,8 +150,14 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
           .step-box .detail { margin-bottom: 12px; font-size: 14px; }
           .step-box .detail-label { font-weight: bold; color: #333; }
           .step-box ul { padding-left: 20px; margin: 5px 0; }
-          .step-box li { font-size: 13px; color: #444; }
+          .step-box li { font-size: 13px; color: #444; list-style-type: disc; }
           .step-box-empty { min-height: 300px; }
+          .payment-section { margin-top: 20px; }
+          .payment-section h3 { font-size: 18px; font-weight: bold; color: #003366; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #003366; }
+          .payment-subsection { margin-bottom: 15px; padding: 10px; background-color: #f8f9fa; border-radius: 6px; }
+          .payment-subsection h4 { font-size: 14px; font-weight: bold; color: #495057; margin-bottom: 8px; }
+          .payment-item { font-size: 13px; margin-bottom: 4px; }
+          .payment-label { font-weight: bold; color: #333; }
         </style>
 
         <div class="scheda-body">
@@ -108,24 +166,23 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
             <div class="header-indirizzo">${pratica.indirizzo || ''}</div>
             <div class="header-main-info">
               <div class="nome">${pratica.cliente || ''}</div>
-              <div class="importo-totale">${formatCurrency(pratica.importoTotale)}</div>
+              <div class="importo-totale">${formatCurrency(pratica.importoTotale, true)}</div>
             </div>
             <div class="header-sub-info">
-              <!-- MODIFICA: Visualizzazione solo dei totali nell'intestazione -->
               ${pratica.collaboratore ? `
                 <div class="section-divider">
                   <strong>Collaboratore:</strong> <span>${pratica.collaboratore}</span>
                 </div>
                 <div>
                   <strong>Importo Totale:</strong>
-                  <span>${formatCurrency(pratica.importoCollaboratore)}</span>
+                  <span>${formatCurrency(pratica.importoCollaboratore, true)}</span>
                 </div>` : ''}
 
               ${pratica.firmatario ? `
                 <div><strong>Firmatario:</strong> <span>${pratica.firmatario}</span></div>
                 <div>
                   <strong>Importo Totale:</strong>
-                  <span>${formatCurrency(totaleLordoFirmatario)}</span>
+                  <span>${formatCurrency(totaleLordoFirmatario, true)}</span>
                 </div>` : ''}
 
               ${pratica.documenti ? `<div class="section-divider"><strong>Documenti:</strong> <span>${pratica.documenti}</span></div>` : ''}
@@ -152,21 +209,6 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
                 }
               }
 
-              // MODIFICA: Dettaglio pagamenti per ogni step
-              if (step.id === 'acconto30' || step.id === 'saldo40') {
-                 let paymentDetails = '';
-                 if (stepData.importoCommittente > 0) {
-                     paymentDetails += `<div class="detail"><span class="detail-label">Importo Committente:</span> ${formatCurrency(stepData.importoCommittente)}</div>`;
-                 }
-                 if (stepData.importoCollaboratore > 0) {
-                     paymentDetails += `<div class="detail"><span class="detail-label">Importo Collaboratore:</span> ${formatCurrency(stepData.importoCollaboratore)}</div>`;
-                 }
-                 if (stepData.importoFirmatario > 0) {
-                    paymentDetails += `<div class="detail"><span class="detail-label">Importo Firmatario:</span> ${formatCurrency(stepData.importoFirmatario)}</div>`;
-                }
-                contentHTML += paymentDetails;
-              }
-
               const emptyStepsWithHeight = ['inizioPratica', 'sopralluogo', 'completamentoPratica', 'presentazionePratica'];
               if(emptyStepsWithHeight.includes(step.id) && !contentHTML){
                   extraClasses = ' step-box-empty';
@@ -174,6 +216,9 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
 
               return `<div class="step-box${extraClasses}"><h3>${step.label}</h3>${contentHTML}</div>`;
             }).join('')}
+
+            ${generatePaymentSection('ACCONTO', accontoSteps)}
+            ${generatePaymentSection('SALDO', saldoSteps)}
           </div>
         </div>
       `;
