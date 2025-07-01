@@ -225,7 +225,7 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
       document.body.appendChild(schedaContainer);
       const canvas = await html2canvas(schedaContainer, { scale: 1.5, useCORS: true });
       document.body.removeChild(schedaContainer);
-      const imgData = canvas.toDataURL('image/jpeg', 0.75);
+      const imgData = canvas.toDataURL('image/jpeg', 0.85);
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       const imgProps = pdf.getImageProperties(imgData);
