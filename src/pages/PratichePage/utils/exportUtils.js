@@ -136,9 +136,8 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
         <style>
           .scheda-body { box-sizing: border-box; }
           .header-agenzia { font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; }
-          .header-indirizzo { display: block; visibility: visible; font-size: 32px; font-weight: bold; color: #000; margin-bottom: 20px; }
-          .header-main-info { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
-          .header-main-info .nome { font-size: 32px; font-weight: bold; color: #000; }
+          .header-indirizzo { display: block; visibility: visible; font-size: 32px; text-align: center; font-weight: bold; color: #000; margin-bottom: 0px; }
+          .header-main-info .nome { font-size: 32px; text-align: center; font-weight: bold; color: #000; }
           .header-main-info .importo-totale { font-size: 32px; font-weight: bold; color: #000; text-align: right; }
           .header-sub-info { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 30px; }
           .header-sub-info .section-divider { margin-top: 15px; }
