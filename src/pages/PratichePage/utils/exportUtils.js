@@ -258,7 +258,7 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
           <div class="payment-sections">
             ${generateTotalSection(pratica.importoTotale)}
             ${generatePaymentSection('ACCONTO', accontoSteps, '💳')}
-            ${generatePaymentSection('SALDO', saldoSteps, '💎')}
+            ${generatePaymentSection('SALDO', saldoSteps, '🏦')}
           </div>
         </div>
       `;
