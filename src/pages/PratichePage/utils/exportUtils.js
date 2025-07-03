@@ -114,10 +114,10 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
 
     const workflowLayout = [
         { id: 'inizioPratica', label: 'INIZIO PRATICA' },
-        { id: 'sopralluogo', label: 'SOPRALLUOGO', icon: '🔍' },
-        { id: 'incarico', label: 'INCARICO', icon: '📋' },
-        { id: 'completamentoPratica', label: 'COMPLETAMENTO PRATICA', icon: '✅' },
-        { id: 'presentazionePratica', label: 'PRESENTAZIONE PRATICA', icon: '📤' },
+        { id: 'sopralluogo', label: 'SOPRALLUOGO' },
+        { id: 'incarico', label: 'INCARICO' },
+        { id: 'espletamentoPratica1', label: 'COMPLETAMENTO PRATICA' },
+        { id: 'presentazionePratica', label: 'PRESENTAZIONE PRATICA' },
     ];
 
     for (let i = 0; i < praticheDaEsportare.length; i++) {
@@ -134,12 +134,12 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
 
       // Prepara i dati per le sezioni ACCONTO e SALDO
       const accontoSteps = [
-        { stepData: workflow['acconto30'], stepLabel: 'Primo Acconto 30%' },
-        { stepData: workflow['secondoAcconto30'], stepLabel: 'Secondo Acconto 30%' }
+        { stepData: workflow['acconto1'], stepLabel: 'Primo Acconto 30%' },
+        { stepData: workflow['acconto2'], stepLabel: 'Secondo Acconto 30%' }
       ];
 
       const saldoSteps = [
-        { stepData: workflow['saldo40'], stepLabel: 'Saldo 40%' }
+        { stepData: workflow['saldo'], stepLabel: 'Saldo 40%' }
       ];
 
       const schedaContainer = document.createElement('div');
@@ -167,7 +167,6 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
           .workflow-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 40px; }
           .step-box { border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; background-color: #fdfdfd; }
           .step-box h3 { font-size: 16px; margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 1px solid #eee; color: #003366; }
-          .step-box .step-icon { font-size: 18px; margin-right: 8px; }
           .step-box .detail { margin-bottom: 12px; font-size: 14px; }
           .step-box .detail-label { font-weight: bold; color: #333; }
           .step-box ul { padding-left: 20px; margin: 5px 0; }
@@ -208,10 +207,10 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
                 </div>
               ` : ''}
 
-              ${pratica.firmatario ? `
+              ${pratica.collaboratoreFirmatario ? `
                 <div class="firmatario-section">
                   <h4>✍️ FIRMATARIO</h4>
-                  <div>${pratica.firmatario}</div>
+                  <div>${pratica.collaboratoreFirmatario}</div>
                   <div class="importo">${formatCurrency(totaleLordoFirmatario, true)}</div>
                 </div>
               ` : ''}
@@ -249,7 +248,7 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
               }
 
               return `<div class="step-box${extraClasses}">
-                <h3><span class="step-icon">${step.icon}</span>${step.label}</h3>
+                <h3>${step.label}</h3>
                 ${contentHTML}
               </div>`;
             }).join('')}
