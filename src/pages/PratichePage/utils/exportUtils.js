@@ -38,10 +38,13 @@ const formatDate = (date, formatString = 'dd/MM/yyyy HH:mm') => {
  * Genera il contenuto HTML per una sezione di pagamento
  * @param {string} titoloSezione - Il titolo della sezione (es. "ACCONTO", "SALDO")
  * @param {Array} stepsData - Array di oggetti step con i dati dei pagamenti
+ * @param {string} icon - Icona da mostrare accanto al titolo
  * @returns {string} - HTML della sezione
  */
-const generatePaymentSection = (titoloSezione, stepsData) => {
-  let sectionHTML = `<div class="payment-section"><h3>${titoloSezione}</h3>`;
+const generatePaymentSection = (titoloSezione, stepsData, icon) => {
+  let sectionHTML = `<div class="payment-section">
+    <h3><span class="section-icon">${icon}</span> ${titoloSezione}</h3>
+    <div class="payment-content">`;
 
   stepsData.forEach(stepInfo => {
     const { stepData, stepLabel } = stepInfo;
@@ -72,8 +75,22 @@ const generatePaymentSection = (titoloSezione, stepsData) => {
     }
   });
 
-  sectionHTML += `</div>`;
+  sectionHTML += `</div></div>`;
   return sectionHTML;
+};
+
+/**
+ * Genera la sezione dell'importo totale
+ * @param {number} importoTotale - L'importo totale della pratica
+ * @returns {string} - HTML della sezione
+ */
+const generateTotalSection = (importoTotale) => {
+  return `<div class="payment-section">
+    <h3><span class="section-icon">💰</span> IMPORTO TOTALE</h3>
+    <div class="payment-content">
+      <div class="total-amount">${formatCurrency(importoTotale, true)}</div>
+    </div>
+  </div>`;
 };
 
 // --- Main Export Function ---
@@ -97,10 +114,10 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
 
     const workflowLayout = [
         { id: 'inizioPratica', label: 'INIZIO PRATICA' },
-        { id: 'sopralluogo', label: 'SOPRALLUOGO' },
-        { id: 'incarico', label: 'INCARICO' },
-        { id: 'completamentoPratica', label: 'COMPLETAMENTO PRATICA' },
-        { id: 'presentazionePratica', label: 'PRESENTAZIONE PRATICA' },
+        { id: 'sopralluogo', label: 'SOPRALLUOGO', icon: '🔍' },
+        { id: 'incarico', label: 'INCARICO', icon: '📋' },
+        { id: 'completamentoPratica', label: 'COMPLETAMENTO PRATICA', icon: '✅' },
+        { id: 'presentazionePratica', label: 'PRESENTAZIONE PRATICA', icon: '📤' },
     ];
 
     for (let i = 0; i < praticheDaEsportare.length; i++) {
@@ -135,28 +152,37 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
       schedaContainer.innerHTML = `
         <style>
           .scheda-body { box-sizing: border-box; }
-          .header-agenzia { font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; }
-          .header-indirizzo { display: block; visibility: visible; font-size: 32px; text-align: center; font-weight: bold; color: #000; margin-bottom: 0px; }
-          .header-main-info .nome { font-size: 32px; text-align: center; font-weight: bold; color: #000; }
-          .header-main-info .importo-totale { font-size: 32px; font-weight: bold; color: #000; text-align: right; }
-          .header-sub-info { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 30px; }
-          .header-sub-info .section-divider { margin-top: 15px; }
-          .header-sub-info div { font-size: 14px; padding: 4px 0; }
-          .header-sub-info strong { text-transform: uppercase; font-size: 12px; min-width: 140px; display: inline-block; }
-          .workflow-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-top: 40px;}
+          .header-agenzia { font-size: 16px; font-weight: bold; text-transform: uppercase; margin-bottom: 10px; text-align: center; }
+          .header-indirizzo { display: block; visibility: visible; font-size: 32px; text-align: center; font-weight: bold; color: #000; margin-bottom: 20px; }
+          .header-main-info { text-align: center; margin-bottom: 30px; }
+          .header-main-info .nome { font-size: 32px; font-weight: bold; color: #000; margin-bottom: 10px; }
+          .header-atto { text-align: center; margin-bottom: 30px; }
+          .header-atto .atto-info { font-size: 16px; font-weight: bold; color: #003366; }
+          .header-sub-info { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 40px; }
+          .collaboratore-section, .firmatario-section { padding: 15px; background-color: #f8f9fa; border-radius: 8px; border: 1px solid #e0e0e0; }
+          .collaboratore-section h4, .firmatario-section h4 { font-size: 16px; font-weight: bold; color: #003366; margin: 0 0 10px 0; }
+          .collaboratore-section .importo, .firmatario-section .importo { font-size: 18px; font-weight: bold; color: #28a745; margin-top: 5px; }
+          .documenti-info { grid-column: 1 / -1; text-align: center; padding: 10px; background-color: #f1f3f5; border-radius: 6px; }
+          .documenti-info strong { color: #003366; font-size: 14px; }
+          .workflow-grid { display: grid; grid-template-columns: 1fr; gap: 15px; margin-bottom: 40px; }
           .step-box { border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; background-color: #fdfdfd; }
           .step-box h3 { font-size: 16px; margin: 0 0 15px 0; padding-bottom: 10px; border-bottom: 1px solid #eee; color: #003366; }
+          .step-box .step-icon { font-size: 18px; margin-right: 8px; }
           .step-box .detail { margin-bottom: 12px; font-size: 14px; }
           .step-box .detail-label { font-weight: bold; color: #333; }
           .step-box ul { padding-left: 20px; margin: 5px 0; }
-          .step-box li { font-size: 13px; color: #444; list-style-type: disc; }
-          .step-box-empty { min-height: 300px; }
-          .payment-section { margin-top: 20px; }
-          .payment-section h3 { font-size: 18px; font-weight: bold; color: #003366; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #003366; }
-          .payment-subsection { margin-bottom: 15px; padding: 10px; background-color: #f8f9fa; border-radius: 6px; }
-          .payment-subsection h4 { font-size: 14px; font-weight: bold; color: #495057; margin-bottom: 8px; }
-          .payment-item { font-size: 13px; margin-bottom: 4px; }
+          .step-box li { font-size: 15px; color: #444; list-style-type: disc; }
+          .step-box-empty { min-height: 200px; }
+          .payment-sections { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 20px; }
+          .payment-section { border: 2px solid #003366; border-radius: 12px; padding: 20px; background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+          .payment-section h3 { font-size: 16px; font-weight: bold; color: #003366; margin: 0 0 15px 0; text-align: center; border-bottom: 2px solid #003366; padding-bottom: 10px; }
+          .section-icon { font-size: 20px; margin-right: 8px; }
+          .payment-content { min-height: 120px; }
+          .payment-subsection { margin-bottom: 15px; padding: 10px; background-color: rgba(0, 51, 102, 0.05); border-radius: 6px; }
+          .payment-subsection h4 { font-size: 13px; font-weight: bold; color: #495057; margin-bottom: 8px; }
+          .payment-item { font-size: 12px; margin-bottom: 4px; }
           .payment-label { font-weight: bold; color: #333; }
+          .total-amount { font-size: 28px; font-weight: bold; color: #003366; text-align: center; margin-top: 20px; }
         </style>
 
         <div class="scheda-body">
@@ -165,30 +191,39 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
             <div class="header-indirizzo">${pratica.indirizzo || ''}</div>
             <div class="header-main-info">
               <div class="nome">${pratica.cliente || ''}</div>
-              <div class="importo-totale">${formatCurrency(pratica.importoTotale, true)}</div>
             </div>
+
+            ${pratica.dataFine ? `
+              <div class="header-atto">
+                <div class="atto-info">📄 ATTO: ${formatDate(pratica.dataFine)}</div>
+              </div>
+            ` : ''}
+
             <div class="header-sub-info">
               ${pratica.collaboratore ? `
-                <div class="section-divider">
-                  <strong>Collaboratore:</strong> <span>${pratica.collaboratore}</span>
+                <div class="collaboratore-section">
+                  <h4>👥 COLLABORATORE</h4>
+                  <div>${pratica.collaboratore}</div>
+                  <div class="importo">${formatCurrency(pratica.importoCollaboratore, true)}</div>
                 </div>
-                <div>
-                  <strong>Importo Totale:</strong>
-                  <span>${formatCurrency(pratica.importoCollaboratore, true)}</span>
-                </div>` : ''}
+              ` : ''}
 
               ${pratica.firmatario ? `
-                <div><strong>Firmatario:</strong> <span>${pratica.firmatario}</span></div>
-                <div>
-                  <strong>Importo Totale:</strong>
-                  <span>${formatCurrency(totaleLordoFirmatario, true)}</span>
-                </div>` : ''}
+                <div class="firmatario-section">
+                  <h4>✍️ FIRMATARIO</h4>
+                  <div>${pratica.firmatario}</div>
+                  <div class="importo">${formatCurrency(totaleLordoFirmatario, true)}</div>
+                </div>
+              ` : ''}
 
-              ${pratica.documenti ? `<div class="section-divider"><strong>Documenti:</strong> <span>${pratica.documenti}</span></div>` : ''}
-
-              ${pratica.dataFine ? `<div><strong>Atto:</strong> <span>${formatDate(pratica.dataFine)}</span></div>` : ''}
+              ${pratica.documenti ? `
+                <div class="documenti-info">
+                  <strong>📁 DOCUMENTI:</strong> ${pratica.documenti}
+                </div>
+              ` : ''}
             </div>
           </div>
+
           <div class="workflow-grid">
             ${workflowLayout.map(step => {
               const stepData = workflow[step.id] || {};
@@ -213,11 +248,17 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
                   extraClasses = ' step-box-empty';
               }
 
-              return `<div class="step-box${extraClasses}"><h3>${step.label}</h3>${contentHTML}</div>`;
+              return `<div class="step-box${extraClasses}">
+                <h3><span class="step-icon">${step.icon}</span>${step.label}</h3>
+                ${contentHTML}
+              </div>`;
             }).join('')}
+          </div>
 
-            ${generatePaymentSection('ACCONTO', accontoSteps)}
-            ${generatePaymentSection('SALDO', saldoSteps)}
+          <div class="payment-sections">
+            ${generateTotalSection(pratica.importoTotale)}
+            ${generatePaymentSection('ACCONTO', accontoSteps, '💳')}
+            ${generatePaymentSection('SALDO', saldoSteps, '💎')}
           </div>
         </div>
       `;
