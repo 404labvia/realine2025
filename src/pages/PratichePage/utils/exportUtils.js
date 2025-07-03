@@ -35,6 +35,35 @@ const formatDate = (date, formatString = 'dd/MM/yyyy HH:mm') => {
 };
 
 /**
+ * Calcola il dettaglio del calcolo dell'importo totale
+ * @param {number} importoBase - L'importo base
+ * @param {boolean} applyCassa - Se applicare la cassa del 5%
+ * @param {boolean} applyIVA - Se applicare l'IVA del 22%
+ * @returns {object} - Oggetto con importoBase, importoTotale e dettaglio
+ */
+const calcolaDettaglioImporto = (importoBase, applyCassa = false, applyIVA = true) => {
+  const base = parseFloat(importoBase) || 0;
+  let totale = base;
+  let dettaglio = formatCurrency(base, true);
+
+  if (applyCassa) {
+    totale += totale * 0.05; // +5% cassa
+    dettaglio += ' + 5% cassa';
+  }
+
+  if (applyIVA) {
+    totale += totale * 0.22; // +22% IVA
+    dettaglio += ' + 22% IVA';
+  }
+
+  return {
+    importoBase: base,
+    importoTotale: totale,
+    dettaglio: `(${dettaglio})`
+  };
+};
+
+/**
  * Genera il contenuto HTML per una sezione di pagamento
  * @param {string} titoloSezione - Il titolo della sezione (es. "ACCONTO", "SALDO")
  * @param {Array} stepsData - Array di oggetti step con i dati dei pagamenti
@@ -80,15 +109,24 @@ const generatePaymentSection = (titoloSezione, stepsData, icon) => {
 };
 
 /**
- * Genera la sezione dell'importo totale
- * @param {number} importoTotale - L'importo totale della pratica
+ * Genera la sezione dell'importo totale con dettaglio del calcolo
+ * @param {object} pratica - Oggetto pratica con tutti i dati
  * @returns {string} - HTML della sezione
  */
-const generateTotalSection = (importoTotale) => {
+const generateTotalSection = (pratica) => {
+  const importoTotale = pratica.importoTotale || 0;
+  const importoBase = pratica.importoBaseCommittente || 0;
+  const applyCassa = pratica.applyCassaCommittente || false;
+  const applyIVA = pratica.applyIVACommittente !== undefined ? pratica.applyIVACommittente : true;
+
+  // Calcola il dettaglio del calcolo
+  const dettaglioCalcolo = calcolaDettaglioImporto(importoBase, applyCassa, applyIVA);
+
   return `<div class="payment-section">
     <h3><span class="section-icon">💰</span> IMPORTO TOTALE</h3>
     <div class="payment-content">
       <div class="total-amount">${formatCurrency(importoTotale, true)}</div>
+      <div class="total-calculation">${dettaglioCalcolo.dettaglio}</div>
     </div>
   </div>`;
 };
@@ -182,6 +220,7 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
           .payment-item { font-size: 12px; margin-bottom: 4px; }
           .payment-label { font-weight: bold; color: #333; }
           .total-amount { font-size: 28px; font-weight: bold; color: #003366; text-align: center; margin-top: 20px; }
+          .total-calculation { font-size: 14px; color: #666; text-align: center; margin-top: 8px; font-style: italic; }
         </style>
 
         <div class="scheda-body">
@@ -255,7 +294,7 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
           </div>
 
           <div class="payment-sections">
-            ${generateTotalSection(pratica.importoTotale)}
+            ${generateTotalSection(pratica)}
             ${generatePaymentSection('ACCONTO', accontoSteps, '💳')}
             ${generatePaymentSection('SALDO', saldoSteps, '🏦')}
           </div>
