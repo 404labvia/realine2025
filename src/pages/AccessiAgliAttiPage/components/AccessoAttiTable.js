@@ -1,13 +1,37 @@
 // src/pages/AccessiAgliAttiPage/components/AccessoAttiTable.js
-import React from 'react';
+import React, { useState } from 'react';
 import AccessoAttiTableRow from './AccessoAttiTableRow';
+import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 
 const ITEMS_PER_PAGE = 5;
 
-function AccessoAttiTable({ accessi, onEdit, onDelete, onUpdate }) {
-  const accessiDaVisualizzare = accessi.slice(0, ITEMS_PER_PAGE);
+function AccessoAttiTable({ accessi, onEdit, onDelete, onUpdate, filtroStato }) {
+  const [currentPage, setCurrentPage] = useState(1);
 
-  if (!accessi || accessi.length === 0) {
+  // Filtra accessi in base al filtro stato
+  const accessiFiltrati = accessi.filter(accesso => {
+    if (filtroStato === 'completata') return accesso.completata;
+    if (filtroStato === 'in_corso') return !accesso.completata;
+    return true; // tutti
+  });
+
+  const totalPages = Math.ceil(accessiFiltrati.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const accessiDaVisualizzare = accessiFiltrati.slice(startIndex, endIndex);
+
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  // Reset pagina quando cambia il filtro
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [filtroStato]);
+
+  if (!accessiFiltrati || accessiFiltrati.length === 0) {
     return <p className="text-sm text-gray-500 text-center py-4">Nessun accesso agli atti da visualizzare.</p>;
   }
 
@@ -25,12 +49,14 @@ function AccessoAttiTable({ accessi, onEdit, onDelete, onUpdate }) {
             <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Proprietà
             </th>
-            {/* Colonna Stato Rimossa */}
             <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Progresso
             </th>
             <th scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Azioni
+              Tempo
+            </th>
+            <th scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Completata
             </th>
           </tr>
         </thead>
@@ -46,9 +72,71 @@ function AccessoAttiTable({ accessi, onEdit, onDelete, onUpdate }) {
           ))}
         </tbody>
       </table>
-      {accessi.length > ITEMS_PER_PAGE && (
-        <div className="pt-2 text-center text-xs text-gray-500">
-          Visualizzati {ITEMS_PER_PAGE} di {accessi.length} accessi. (Paginazione/Scroll da implementare)
+
+      {/* Paginazione */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200">
+          <div className="flex-1 flex justify-between sm:hidden">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+            >
+              Precedente
+            </button>
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+            >
+              Successivo
+            </button>
+          </div>
+
+          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700">
+                Visualizzati <span className="font-medium">{startIndex + 1}</span> - <span className="font-medium">{Math.min(endIndex, accessiFiltrati.length)}</span> di{' '}
+                <span className="font-medium">{accessiFiltrati.length}</span> risultati
+              </p>
+            </div>
+            <div>
+              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <FaChevronLeft className="h-3 w-3" />
+                </button>
+
+                {[...Array(totalPages)].map((_, index) => {
+                  const pageNumber = index + 1;
+                  return (
+                    <button
+                      key={pageNumber}
+                      onClick={() => handlePageChange(pageNumber)}
+                      className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                        currentPage === pageNumber
+                          ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
+                          : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
+                      }`}
+                    >
+                      {pageNumber}
+                    </button>
+                  );
+                })}
+
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <FaChevronRight className="h-3 w-3" />
+                </button>
+              </nav>
+            </div>
+          </div>
         </div>
       )}
     </div>

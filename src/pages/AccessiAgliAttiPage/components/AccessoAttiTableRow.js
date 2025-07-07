@@ -1,6 +1,6 @@
 // src/pages/AccessiAgliAttiPage/components/AccessoAttiTableRow.js
-import React from 'react';
-import { FaEdit } from 'react-icons/fa';
+import React, { useState } from 'react';
+import { FaEdit, FaCalendarAlt } from 'react-icons/fa';
 import { format, formatDistanceToNow } from 'date-fns';
 import { it } from 'date-fns/locale';
 
@@ -11,9 +11,27 @@ const FASI_PROGRESSO_CONFIG = [
 ];
 
 function AccessoAttiTableRow({ accesso, onEdit, onUpdate }) {
+  const [editingDate, setEditingDate] = useState(null);
 
   const handleProgressoChange = (faseField, currentValue) => {
     onUpdate(accesso.id, { [faseField]: !currentValue });
+  };
+
+  const handleCompletataChange = (checked) => {
+    onUpdate(accesso.id, { completata: checked });
+  };
+
+  const handleDateChange = (dateField, newDate) => {
+    if (newDate) {
+      onUpdate(accesso.id, { [dateField]: new Date(newDate) });
+    }
+    setEditingDate(null);
+  };
+
+  const formatDateForInput = (date) => {
+    if (!date) return '';
+    const dateObj = date instanceof Date ? date : new Date(date);
+    return format(dateObj, 'yyyy-MM-dd');
   };
 
   const dataUltimaModificaFormattata = accesso.dataUltimaModifica
@@ -22,7 +40,7 @@ function AccessoAttiTableRow({ accesso, onEdit, onUpdate }) {
 
   return (
     <tr className="hover:bg-gray-50">
-      <td className="px-3 py-4 whitespace-nowrap align-top"> {/* Aggiunto align-top */}
+      <td className="px-3 py-4 whitespace-nowrap align-top">
         <div
           className="text-sm text-gray-700 cursor-pointer hover:text-blue-600 hover:underline"
           onClick={() => onEdit(accesso)}
@@ -31,20 +49,21 @@ function AccessoAttiTableRow({ accesso, onEdit, onUpdate }) {
           {accesso.codice}
         </div>
       </td>
-      <td className="px-3 py-4 whitespace-nowrap align-top"> {/* Aggiunto align-top */}
+      <td className="px-3 py-4 whitespace-nowrap align-top">
         <div className="text-sm font-semibold text-gray-900">{accesso.indirizzo}</div>
       </td>
-      <td className="px-3 py-4 whitespace-nowrap align-top"> {/* Aggiunto align-top */}
+      <td className="px-3 py-4 whitespace-nowrap align-top">
         <div className="text-sm text-gray-900">{accesso.proprieta}</div>
       </td>
-      <td className="px-3 py-4 whitespace-nowrap align-top"> {/* Aggiunto align-top */}
-        {/* Contenitore Flex per le checkbox in linea e le date sotto */}
-        <div className="flex space-x-3"> {/* Per allineare orizzontalmente i gruppi checkbox+data */}
+      <td className="px-3 py-4 whitespace-nowrap align-top">
+        <div className="flex space-x-3">
           {FASI_PROGRESSO_CONFIG.map(fase => {
             const isChecked = accesso[fase.field] || false;
             const dataFase = accesso[fase.dateField];
+            const isEditingThisDate = editingDate === fase.dateField;
+
             return (
-              <div key={fase.field} className="flex flex-col items-center"> {/* Ogni checkbox e la sua data in colonna */}
+              <div key={fase.field} className="flex flex-col items-center">
                 <button
                   type="button"
                   onClick={() => handleProgressoChange(fase.field, isChecked)}
@@ -57,28 +76,56 @@ function AccessoAttiTableRow({ accesso, onEdit, onUpdate }) {
                 >
                   {fase.label}
                 </button>
-                {isChecked && dataFase && (
-                  // Testo data con stessa grandezza della proprietà (text-sm)
-                  <span className="text-xs text-gray-500">
-                    {format(new Date(dataFase), 'dd/MM/yyyy', { locale: it })}
-                  </span>
+
+                {isChecked && (
+                  <div className="text-xs text-gray-500">
+                    {isEditingThisDate ? (
+                      <input
+                        type="date"
+                        defaultValue={formatDateForInput(dataFase)}
+                        onBlur={(e) => handleDateChange(fase.dateField, e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            handleDateChange(fase.dateField, e.target.value);
+                          }
+                        }}
+                        className="w-24 px-1 py-0.5 text-xs border border-gray-300 rounded"
+                        autoFocus
+                      />
+                    ) : (
+                      <span
+                        className="cursor-pointer hover:text-blue-600"
+                        onClick={() => setEditingDate(fase.dateField)}
+                        title="Clicca per modificare la data"
+                      >
+                        {dataFase ? format(new Date(dataFase), 'dd/MM/yyyy', { locale: it }) : 'N/D'}
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
             );
           })}
         </div>
       </td>
-      <td className="px-3 py-4 whitespace-nowrap text-center text-sm align-top"> {/* Aggiunto align-top */}
-        <button
-          onClick={() => onEdit(accesso)}
-          className="text-blue-600 hover:text-blue-800"
-          title="Modifica Dettagli Accesso"
-        >
-          <FaEdit />
-        </button>
-         <div className="text-xs text-gray-400 mt-1 italic" title={`Ultima modifica: ${accesso.dataUltimaModifica ? accesso.dataUltimaModifica.toLocaleString('it-IT') : 'N/D'}`}>
+
+      <td className="px-3 py-4 whitespace-nowrap text-center text-sm align-top">
+        <div className="flex flex-col items-center">
+          <FaCalendarAlt className="text-gray-400 mb-1" />
+          <div className="text-xs text-gray-400 italic" title={`Ultima modifica: ${accesso.dataUltimaModifica ? accesso.dataUltimaModifica.toLocaleString('it-IT') : 'N/D'}`}>
             {dataUltimaModificaFormattata}
+          </div>
         </div>
+      </td>
+
+      <td className="px-3 py-4 whitespace-nowrap text-center align-top">
+        <input
+          type="checkbox"
+          checked={accesso.completata || false}
+          onChange={(e) => handleCompletataChange(e.target.checked)}
+          className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+          title="Segna come completata"
+        />
       </td>
     </tr>
   );

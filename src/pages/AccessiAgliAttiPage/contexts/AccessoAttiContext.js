@@ -52,16 +52,19 @@ export function AccessoAttiProvider({ children }) {
     );
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const accessiList = querySnapshot.docs.map(docSnapshot => ({ // Rinominato doc in docSnapshot per chiarezza
-        id: docSnapshot.id,
-        ...docSnapshot.data(),
-        dataCreazione: docSnapshot.data().dataCreazione?.toDate(),
-        dataUltimaModifica: docSnapshot.data().dataUltimaModifica?.toDate(),
-        // Converti anche le date delle fasi di progresso se esistono
-        dataFaseDocumentiDelega: docSnapshot.data().dataFaseDocumentiDelega?.toDate(),
-        dataFaseRichiestaInviata: docSnapshot.data().dataFaseRichiestaInviata?.toDate(),
-        dataFaseDocumentiRicevuti: docSnapshot.data().dataFaseDocumentiRicevuti?.toDate(),
-      }));
+      const accessiList = querySnapshot.docs.map(docSnapshot => {
+        const data = docSnapshot.data();
+        return {
+          id: docSnapshot.id,
+          ...data,
+          dataCreazione: data.dataCreazione?.toDate(),
+          dataUltimaModifica: data.dataUltimaModifica?.toDate(),
+          dataFaseDocumentiDelega: data.dataFaseDocumentiDelega?.toDate(),
+          dataFaseRichiestaInviata: data.dataFaseRichiestaInviata?.toDate(),
+          dataFaseDocumentiRicevuti: data.dataFaseDocumentiRicevuti?.toDate(),
+          completata: data.completata || false, // Nuovo campo
+        };
+      });
       setAccessi(accessiList);
       setLoading(false);
     }, (error) => {
@@ -87,16 +90,14 @@ export function AccessoAttiProvider({ children }) {
         userId: auth.currentUser.uid,
         dataCreazione: serverTimestamp(),
         dataUltimaModifica: serverTimestamp(),
+        completata: false, // Nuovo campo
         faseDocumentiDelegaCompletata: accessoData.faseDocumentiDelegaCompletata || false,
         dataFaseDocumentiDelega: accessoData.faseDocumentiDelegaCompletata ? serverTimestamp() : null,
         faseRichiestaInviataCompletata: accessoData.faseRichiestaInviataCompletata || false,
         dataFaseRichiestaInviata: accessoData.faseRichiestaInviataCompletata ? serverTimestamp() : null,
         faseDocumentiRicevutiCompletata: accessoData.faseDocumentiRicevutiCompletata || false,
         dataFaseDocumentiRicevuti: accessoData.faseDocumentiRicevutiCompletata ? serverTimestamp() : null,
-        // Rimosso 'stato' e 'progresso' testuali se non più usati direttamente
       };
-      // delete dataToSave.stato; // Se non vuoi più salvare il campo stato testuale
-      // delete dataToSave.progresso; // Se non vuoi più salvare il campo progresso testuale
 
       const docRef = await addDoc(collection(db, 'accessi_atti'), dataToSave);
       return docRef.id;
@@ -120,6 +121,17 @@ export function AccessoAttiProvider({ children }) {
       }
       if (updates.hasOwnProperty('faseDocumentiRicevutiCompletata')) {
         dataToUpdate.dataFaseDocumentiRicevuti = updates.faseDocumentiRicevutiCompletata ? serverTimestamp() : null;
+      }
+
+      // Gestione aggiornamento date personalizzate
+      if (updates.dataFaseDocumentiDelega && updates.dataFaseDocumentiDelega instanceof Date) {
+        dataToUpdate.dataFaseDocumentiDelega = updates.dataFaseDocumentiDelega;
+      }
+      if (updates.dataFaseRichiestaInviata && updates.dataFaseRichiestaInviata instanceof Date) {
+        dataToUpdate.dataFaseRichiestaInviata = updates.dataFaseRichiestaInviata;
+      }
+      if (updates.dataFaseDocumentiRicevuti && updates.dataFaseDocumentiRicevuti instanceof Date) {
+        dataToUpdate.dataFaseDocumentiRicevuti = updates.dataFaseDocumentiRicevuti;
       }
 
       await updateDoc(accessoRef, dataToUpdate);
