@@ -302,9 +302,9 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
       `;
 
       document.body.appendChild(schedaContainer);
-      const canvas = await html2canvas(schedaContainer, { scale: 1.5, useCORS: true });
+      const canvas = await html2canvas(schedaContainer, { scale: 1.8, useCORS: true, allowTaint: false, backgroundColor: '#ffffff', logging: false});
       document.body.removeChild(schedaContainer);
-      const imgData = canvas.toDataURL('image/jpeg', 0.85);
+      const imgData = canvas.toDataURL('image/jpeg', 0.95);
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
       const imgProps = pdf.getImageProperties(imgData);
@@ -313,7 +313,7 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
       if (finalImgHeight > pdfHeight - 20) { finalImgHeight = pdfHeight - 20; }
       const finalImgWidth = finalImgHeight / imgRatio;
       const imgX = (pdfWidth - finalImgWidth) / 2;
-      pdf.addImage(imgData, 'JPEG', imgX, 10, finalImgWidth, finalImgHeight, undefined, 'FAST');
+      pdf.addImage(imgData, 'JPEG', imgX, 10, finalImgWidth, finalImgHeight);
 
       if (i < praticheDaEsportare.length - 1) { pdf.addPage(); }
     }
