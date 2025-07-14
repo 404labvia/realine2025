@@ -7,7 +7,7 @@ export const agenzieCollaboratori = [
   { agenzia: "Barner LUCCA", collaboratore: "Geom. Tiziano Martini" },
   { agenzia: "Barner ALTOPASCIO", collaboratore: "Geom. Tiziano Martini" },
   { agenzia: "Barner MASSAROSA", collaboratore: "Geom. Matteo Antonelli" },
-  { agenzia: "Barner QUERCETA", collaboratore: "Geom. Matteo Antonelli" },
+  { agenzia: "Barner QUERCETA", collaboratore: "Geom. Giacomo Ferrari" },
   { agenzia: "Barner PIETRASANTA", collaboratore: "Geom. Giacomo Landi" },
   { agenzia: "Barner PISA", collaboratore: "Per. Ind. Emanuele Donati" },
   { agenzia: "Barner MASSA", collaboratore: "Geom. Andrea Ricci" },
@@ -19,7 +19,7 @@ export const collaboratoriAggiuntivi = [
   "Geom. Alessandro De Antoni", // Virgola aggiunta qui
   "Arch. Luciano Casprini",
   "Arch. Luca Pitanti",
-  "Geom. Dino",
+  "Geom. Dino Inglese",
   "Geom. Simone Parducci"
   // Aggiungi altri se necessario
 ];
