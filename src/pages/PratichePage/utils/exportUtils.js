@@ -208,7 +208,7 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
           .step-box .detail { margin-bottom: 12px; font-size: 14px; }
           .step-box .detail-label { font-weight: bold; color: #333; }
           .step-box ul { padding-left: 20px; margin: 5px 0; }
-          .step-box li { font-size: 18px; color: #000; list-style-type: disc; display: list-item; list-style-position: outside; margin-bottom: 4px; }
+          .step-box li { font-size: 18px; color: #000; list-style-type: disc; display: list-item; list-style-position: outside; line-height: 1.2; padding-top: 2px; }
           .step-box-empty { min-height: 200px; }
           .payment-sections { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 20px; }
           .payment-section { border: 2px solid #003366; border-radius: 12px; padding: 20px; background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
