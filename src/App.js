@@ -12,7 +12,7 @@ import {
   MdAccountCircle,
   MdFolderSpecial,
   MdFolderOpen,
-  MdFlash,
+  MdBolt, // <-- MODIFICATO: Sostituito MdFlash con MdBolt
 } from 'react-icons/md';
 import { FaCalendarAlt, FaRobot } from 'react-icons/fa';
 
@@ -121,7 +121,7 @@ function AppContent() {
             {[
               { to: "/", label: "Dashboard", icon: MdHome },
               { to: "/accessi-atti", label: "Accessi Atti", icon: MdFolderOpen },
-              { to: "/ape", label: "APE", icon: MdFlash },
+              { to: "/ape", label: "APE", icon: MdBolt }, // <-- MODIFICATO: Sostituito MdFlash con MdBolt
               { to: "/pratiche", label: "Pratiche", icon: MdDescription },
               { to: "/pratiche-privato", label: "Pratiche Privato", icon: MdFolderSpecial },
               { to: "/finanze", label: "Finanze", icon: MdAttachMoney },

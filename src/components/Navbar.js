@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { MdHome, MdDescription, MdAttachMoney, MdChevronLeft, MdChevronRight, MdFormatListBulleted, MdLogout, MdAccountCircle, MdFolderOpen, MdFlash } from 'react-icons/md';
+import { MdHome, MdDescription, MdAttachMoney, MdChevronLeft, MdChevronRight, MdFormatListBulleted, MdLogout, MdAccountCircle, MdFolderOpen, MdBolt } from 'react-icons/md'; // <-- MODIFICATO
 import { FaCalendarAlt } from 'react-icons/fa';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -99,7 +99,7 @@ function Navbar() {
             }
           >
             <span className={isExpanded ? 'mr-3' : ''}>
-              <MdFlash className="h-5 w-5" />
+              <MdBolt className="h-5 w-5" /> {/* <-- MODIFICATO */}
             </span>
             {isExpanded && <span>APE</span>}
           </NavLink>
