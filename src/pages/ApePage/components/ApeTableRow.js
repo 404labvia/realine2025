@@ -38,6 +38,10 @@ function ApeTableRow({ apeItem, onEdit, onUpdate }) {
     ? formatDistanceToNow(apeItem.dataUltimaModifica, { addSuffix: true, locale: it })
     : 'N/D';
 
+  const importoStudio = apeItem.importoStudio || 0;
+  const importoBollettino = apeItem.importoBollettino || 0;
+  const importoCollaboratore = (apeItem.importoTotale || 0) - importoStudio - importoBollettino;
+
   return (
     <tr className="hover:bg-gray-50">
       <td className="px-3 py-4 whitespace-nowrap align-top">
@@ -106,6 +110,14 @@ function ApeTableRow({ apeItem, onEdit, onUpdate }) {
               </div>
             );
           })}
+        </div>
+      </td>
+
+      <td className="px-3 py-4 whitespace-nowrap align-top text-sm text-gray-900">
+        <div className="flex flex-col space-y-1">
+          <span>Totale: €{parseFloat(apeItem.importoTotale || 0).toFixed(2)}</span>
+          <span className="text-green-600">Studio: €{importoStudio.toFixed(2)}</span>
+          <span className="text-red-600">Collaboratore: €{importoCollaboratore.toFixed(2)}</span>
         </div>
       </td>
 

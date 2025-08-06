@@ -47,6 +47,10 @@ function EditApeForm({ ape, onClose, onSave, onDelete, agenzieDisponibili }) {
     dataFaseEsecuzione: '',
     fasePagamentoCompletata: false,
     dataFasePagamento: '',
+    // Nuovi campi per gli importi
+    importoTotale: '',
+    importoStudio: 0,
+    importoBollettino: 0,
   });
 
   useEffect(() => {
@@ -68,6 +72,10 @@ function EditApeForm({ ape, onClose, onSave, onDelete, agenzieDisponibili }) {
         dataFaseEsecuzione: formatDateField(ape.dataFaseEsecuzione),
         fasePagamentoCompletata: ape.fasePagamentoCompletata || false,
         dataFasePagamento: formatDateField(ape.dataFasePagamento),
+        // Inizializza i nuovi campi con i valori esistenti
+        importoTotale: ape.importoTotale || '',
+        importoStudio: ape.importoStudio || 0,
+        importoBollettino: ape.importoBollettino || 0,
       });
     } else {
       console.log("EditApeForm useEffect: Prop 'ape' è null o undefined. Resetto formData.");
@@ -76,6 +84,7 @@ function EditApeForm({ ape, onClose, onSave, onDelete, agenzieDisponibili }) {
         faseRichiestaCompletata: false, dataFaseRichiesta: '',
         faseEsecuzioneCompletata: false, dataFaseEsecuzione: '',
         fasePagamentoCompletata: false, dataFasePagamento: '',
+        importoTotale: '', importoStudio: 0, importoBollettino: 0,
       });
     }
   }, [ape]);
@@ -85,6 +94,20 @@ function EditApeForm({ ape, onClose, onSave, onDelete, agenzieDisponibili }) {
     setFormData(prevFormData => ({
       ...prevFormData,
       [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
+
+  // Nuova funzione per gestire il cambio dell'importo totale e calcolare gli altri valori
+  const handleImportoChange = (e) => {
+    const { value } = e.target;
+    const importoTotale = parseFloat(value) || 0;
+    const importoStudio = 40;
+    const importoBollettino = 10;
+    setFormData(prev => ({
+      ...prev,
+      importoTotale: value,
+      importoStudio: importoStudio,
+      importoBollettino: importoBollettino,
     }));
   };
 
@@ -178,6 +201,48 @@ function EditApeForm({ ape, onClose, onSave, onDelete, agenzieDisponibili }) {
                 ))}
                  <option value="ALTRO">ALTRO</option>
             </select>
+          </div>
+
+          {/* Nuovo campo per l'importo totale */}
+          <div>
+            <label htmlFor="edit-importoTotale" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Importo Totale (€)</label>
+            <input
+              type="number"
+              name="importoTotale"
+              id="edit-importoTotale"
+              value={formData.importoTotale}
+              onChange={handleImportoChange}
+              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm dark:bg-gray-700 dark:text-white"
+              min="0"
+              step="0.01"
+            />
+          </div>
+
+          <div className="flex space-x-4">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="edit-studioCheck"
+                checked={!!formData.importoStudio}
+                disabled
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+              />
+              <label htmlFor="edit-studioCheck" className="ml-2 text-sm text-gray-900 dark:text-gray-300">
+                Spetta allo Studio: **€{formData.importoStudio.toFixed(2)}**
+              </label>
+            </div>
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="edit-bollettinoCheck"
+                checked={!!formData.importoBollettino}
+                disabled
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+              />
+              <label htmlFor="edit-bollettinoCheck" className="ml-2 text-sm text-gray-900 dark:text-gray-300">
+                Bollettino: **€{formData.importoBollettino.toFixed(2)}**
+              </label>
+            </div>
           </div>
 
           {/* Sezione Fasi di Progresso */}

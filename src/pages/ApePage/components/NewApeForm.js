@@ -16,10 +16,13 @@ function NewApeForm({ onClose, onSave, agenzieDisponibili }) {
     proprieta: '',
     agenzia: '',
     note: '',
-    // Inizializza i campi booleani per le fasi di progresso
     faseRichiestaCompletata: false,
     faseEsecuzioneCompletata: false,
     fasePagamentoCompletata: false,
+    // Nuovi campi per gli importi
+    importoTotale: '',
+    importoStudio: 0,
+    importoBollettino: 0,
   });
   const [errors, setErrors] = useState({});
 
@@ -32,6 +35,20 @@ function NewApeForm({ onClose, onSave, agenzieDisponibili }) {
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: null }));
     }
+  };
+
+  // Nuova funzione per gestire il cambio dell'importo totale e calcolare gli altri valori
+  const handleImportoChange = (e) => {
+    const { value } = e.target;
+    const importoTotale = parseFloat(value) || 0;
+    const importoStudio = 40;
+    const importoBollettino = 10;
+    setFormData(prev => ({
+      ...prev,
+      importoTotale: value, // Mantieni il valore come stringa per l'input
+      importoStudio: importoStudio,
+      importoBollettino: importoBollettino,
+    }));
   };
 
   const validateForm = () => {
@@ -114,6 +131,48 @@ function NewApeForm({ onClose, onSave, agenzieDisponibili }) {
                 <option key={agenzia} value={agenzia}>{agenzia}</option>
               ))}
             </select>
+          </div>
+
+          {/* Nuovo campo per l'importo totale */}
+          <div>
+            <label htmlFor="importoTotale" className="block text-sm font-medium text-gray-700 mb-1">Importo Totale (€)</label>
+            <input
+              type="number"
+              name="importoTotale"
+              id="importoTotale"
+              value={formData.importoTotale}
+              onChange={handleImportoChange}
+              className="w-full p-2 border border-gray-300 rounded-md text-sm"
+              min="0"
+              step="0.01"
+            />
+          </div>
+
+          <div className="flex space-x-4">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="studioCheck"
+                checked={!!formData.importoStudio}
+                disabled
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+              />
+              <label htmlFor="studioCheck" className="ml-2 text-sm text-gray-900">
+                Spetta allo Studio: **€{formData.importoStudio.toFixed(2)}**
+              </label>
+            </div>
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="bollettinoCheck"
+                checked={!!formData.importoBollettino}
+                disabled
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+              />
+              <label htmlFor="bollettinoCheck" className="ml-2 text-sm text-gray-900">
+                Bollettino: **€{formData.importoBollettino.toFixed(2)}**
+              </label>
+            </div>
           </div>
 
           {/* Checkbox per le fasi di progresso */}
