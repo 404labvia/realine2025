@@ -138,6 +138,7 @@ function ApePage() {
           ape={editingApe}
           onClose={() => setEditingApe(null)}
           onSave={handleSaveEditedApe}
+          onDelete={handleDeleteApe}
           agenzieDisponibili={agenzieDisponibiliPerForm}
         />
       )}

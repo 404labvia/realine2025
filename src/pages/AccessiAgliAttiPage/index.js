@@ -138,6 +138,7 @@ function AccessiAgliAttiPage() {
           accesso={editingAccesso}
           onClose={() => setEditingAccesso(null)}
           onSave={handleSaveEditedAccesso}
+          onDelete={handleDeleteAccesso}
           agenzieDisponibili={agenzieDisponibiliPerForm}
         />
       )}
