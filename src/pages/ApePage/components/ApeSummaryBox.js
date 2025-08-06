@@ -8,17 +8,17 @@ const formatCurrency = (value) => {
 };
 
 const colorMap = {
-  green: 'bg-green-500 text-white',
-  blue: 'bg-blue-500 text-white',
-  yellow: 'bg-yellow-500 text-gray-800',
-  red: 'bg-red-500 text-white',
+  green: 'bg-green-50 text-green-800',
+  blue: 'bg-blue-100 text-blue-800',
+  yellow: 'bg-yellow-50 text-yellow-900',
+  red: 'bg-red-100 text-red-800',
 };
 
 const iconMap = {
   'Incassato': <FaMoneyBillWave size={18} />,
   'Importo Studio': <FaHandshake size={18} />,
-  'Importo Collaboratore': <FaChartLine size={24} />,
-  'Importo da Avere': <FaEuroSign size={24} />,
+  'Importo Collaboratore': <FaChartLine size={18} />,
+  'Importo da Avere': <FaEuroSign size={18} />,
 };
 
 function ApeSummaryBox({ title, value, subValue, color }) {
@@ -26,18 +26,21 @@ function ApeSummaryBox({ title, value, subValue, color }) {
   const icon = iconMap[title] || <FaMoneyBillWave size={24} />;
 
   return (
-    <div className={`p-4 rounded-lg shadow-md flex items-center space-x-4 ${boxColorClass}`}>
-      <div className="flex-shrink-0">
+    // --- MODIFIED CODE START ---
+    <div className={`p-4 rounded-lg shadow-md relative ${boxColorClass}`}>
+      <div className="absolute top-4 right-4 opacity-60">
         {icon}
       </div>
-      <div className="flex-grow">
-        <h3 className="text-sm font-medium uppercase tracking-wide opacity-80">{title}</h3>
+
+      <div>
+        <h3 className="text-sm font-medium uppercase tracking-wide">{title}</h3>
         <p className="text-2xl font-bold">{formatCurrency(value)}</p>
         {subValue && (
-          <p className="text-xs mt-1 opacity-90">{subValue}</p>
+          <p className="text-xs mt-1">{subValue}</p>
         )}
       </div>
     </div>
+    // --- MODIFIED CODE END ---
   );
 }
 
