@@ -15,8 +15,8 @@ const colorMap = {
 };
 
 const iconMap = {
-  'Incassato': <FaMoneyBillWave size={24} />,
-  'Importo Studio': <FaHandshake size={24} />,
+  'Incassato': <FaMoneyBillWave size={18} />,
+  'Importo Studio': <FaHandshake size={18} />,
   'Importo Collaboratore': <FaChartLine size={24} />,
   'Importo da Avere': <FaEuroSign size={24} />,
 };
