@@ -93,9 +93,9 @@ export function ApeProvider({ children }) {
         completata: false,
         faseRichiestaCompletata: apeData.faseRichiestaCompletata || false,
         dataFaseRichiesta: apeData.faseRichiestaCompletata ? serverTimestamp() : null,
-        faseEsecuzioneCompletata: apeData.faseEsecuzioneCompletata ? serverTimestamp() : null,
+        faseEsecuzioneCompletata: apeData.faseEsecuzioneCompletata || false,
         dataFaseEsecuzione: apeData.faseEsecuzioneCompletata ? serverTimestamp() : null,
-        fasePagamentoCompletata: apeData.fasePagamentoCompletata ? serverTimestamp() : null,
+        fasePagamentoCompletata: apeData.fasePagamentoCompletata || false,
         dataFasePagamento: apeData.fasePagamentoCompletata ? serverTimestamp() : null,
       };
 

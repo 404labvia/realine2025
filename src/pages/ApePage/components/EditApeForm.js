@@ -47,7 +47,6 @@ function EditApeForm({ ape, onClose, onSave, onDelete, agenzieDisponibili }) {
     dataFaseEsecuzione: '',
     fasePagamentoCompletata: false,
     dataFasePagamento: '',
-    // Nuovi campi per gli importi
     importoTotale: '',
     importoStudio: 0,
     importoBollettino: 0,
@@ -55,10 +54,6 @@ function EditApeForm({ ape, onClose, onSave, onDelete, agenzieDisponibili }) {
 
   useEffect(() => {
     if (ape) {
-      console.log("EditApeForm useEffect: Dati 'ape' ricevuti:", ape);
-      if (!ape.id) {
-        console.error("EditApeForm useEffect: ATTENZIONE - L'oggetto 'ape' ricevuto non ha un ID!", ape);
-      }
       setFormData({
         id: ape.id || null,
         codice: ape.codice || '',
@@ -72,19 +67,9 @@ function EditApeForm({ ape, onClose, onSave, onDelete, agenzieDisponibili }) {
         dataFaseEsecuzione: formatDateField(ape.dataFaseEsecuzione),
         fasePagamentoCompletata: ape.fasePagamentoCompletata || false,
         dataFasePagamento: formatDateField(ape.dataFasePagamento),
-        // Inizializza i nuovi campi con i valori esistenti
         importoTotale: ape.importoTotale || '',
         importoStudio: ape.importoStudio || 0,
         importoBollettino: ape.importoBollettino || 0,
-      });
-    } else {
-      console.log("EditApeForm useEffect: Prop 'ape' è null o undefined. Resetto formData.");
-      setFormData({
-        id: null, codice: '', indirizzo: '', proprieta: '', agenzia: '', note: '',
-        faseRichiestaCompletata: false, dataFaseRichiesta: '',
-        faseEsecuzioneCompletata: false, dataFaseEsecuzione: '',
-        fasePagamentoCompletata: false, dataFasePagamento: '',
-        importoTotale: '', importoStudio: 0, importoBollettino: 0,
       });
     }
   }, [ape]);
@@ -97,7 +82,6 @@ function EditApeForm({ ape, onClose, onSave, onDelete, agenzieDisponibili }) {
     }));
   };
 
-  // Nuova funzione per gestire il cambio dell'importo totale e calcolare gli altri valori
   const handleImportoChange = (e) => {
     const { value } = e.target;
     const importoTotale = parseFloat(value) || 0;
@@ -113,29 +97,38 @@ function EditApeForm({ ape, onClose, onSave, onDelete, agenzieDisponibili }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log("EditApeForm handleSubmit: Invio di formData:", formData);
     if (!formData.id) {
-      console.error("EditApeForm handleSubmit: ERRORE - formData non ha un ID prima di chiamare onSave!", formData);
       alert("Errore critico: ID dell'APE mancante nel form. Contattare assistenza.");
       return;
     }
-    onSave(formData);
+
+    // Crea un oggetto 'updates' con solo i campi modificabili nel form.
+    // Questo evita di inviare dati non necessari o formattati (come le date in stringa).
+    const updates = {
+      codice: formData.codice,
+      indirizzo: formData.indirizzo,
+      proprieta: formData.proprieta,
+      agenzia: formData.agenzia,
+      note: formData.note,
+      faseRichiestaCompletata: formData.faseRichiestaCompletata,
+      faseEsecuzioneCompletata: formData.faseEsecuzioneCompletata,
+      fasePagamentoCompletata: formData.fasePagamentoCompletata,
+      importoTotale: formData.importoTotale,
+      importoStudio: formData.importoStudio,
+      importoBollettino: formData.importoBollettino,
+    };
+
+    onSave(formData.id, updates);
   };
 
   const handleDeleteClick = () => {
     if (window.confirm(`Sei sicuro di voler eliminare l'APE "${formData?.codice || 'N/D'}"? L'azione è irreversibile.`)) {
-      try {
-        if (!formData.id) {
-            console.error("EditApeForm handleDeleteClick: ERRORE - ID mancante per l'eliminazione!", formData);
-            alert("Errore critico: ID dell'APE mancante per l'eliminazione.");
-            return;
-        }
-        onDelete(formData.id);
-        onClose();
-      } catch (error) {
-        console.error("Errore durante l'eliminazione dell'APE (form):", error);
-        alert(`Errore durante l'eliminazione: ${error.message}`);
+      if (!formData.id) {
+        alert("Errore critico: ID dell'APE mancante per l'eliminazione.");
+        return;
       }
+      onDelete(formData.id);
+      onClose();
     }
   };
 
@@ -144,7 +137,7 @@ function EditApeForm({ ape, onClose, onSave, onDelete, agenzieDisponibili }) {
       <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-semibold mb-6 text-gray-800 dark:text-white">Modifica APE: {formData.codice || 'N/D'}</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Campo Codice */}
+          {/* Campi del form (invariati) */}
           <div>
             <label htmlFor="edit-codice" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Codice APE</label>
             <input
@@ -158,7 +151,6 @@ function EditApeForm({ ape, onClose, onSave, onDelete, agenzieDisponibili }) {
             />
           </div>
 
-          {/* Campo Indirizzo */}
           <div>
             <label htmlFor="edit-indirizzo" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Indirizzo</label>
             <input
@@ -172,7 +164,6 @@ function EditApeForm({ ape, onClose, onSave, onDelete, agenzieDisponibili }) {
             />
           </div>
 
-          {/* Campo Proprietà */}
           <div>
             <label htmlFor="edit-proprieta" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Proprietà</label>
             <input
@@ -185,7 +176,6 @@ function EditApeForm({ ape, onClose, onSave, onDelete, agenzieDisponibili }) {
             />
           </div>
 
-          {/* Campo Agenzia */}
           <div>
             <label htmlFor="edit-agenzia" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Agenzia</label>
             <select
@@ -203,7 +193,6 @@ function EditApeForm({ ape, onClose, onSave, onDelete, agenzieDisponibili }) {
             </select>
           </div>
 
-          {/* Nuovo campo per l'importo totale */}
           <div>
             <label htmlFor="edit-importoTotale" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Importo Totale (€)</label>
             <input
@@ -245,7 +234,6 @@ function EditApeForm({ ape, onClose, onSave, onDelete, agenzieDisponibili }) {
             </div>
           </div>
 
-          {/* Sezione Fasi di Progresso */}
           <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
             <h3 className="text-md font-semibold mb-3 text-gray-800 dark:text-white">Stato Avanzamento</h3>
             {FASI_PROGRESSO_CONFIG.map(fase => (
@@ -270,7 +258,6 @@ function EditApeForm({ ape, onClose, onSave, onDelete, agenzieDisponibili }) {
             ))}
           </div>
 
-          {/* Campo Note */}
           <div className="mt-4">
             <label htmlFor="edit-note" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Note</label>
             <textarea
@@ -283,7 +270,6 @@ function EditApeForm({ ape, onClose, onSave, onDelete, agenzieDisponibili }) {
             ></textarea>
           </div>
 
-          {/* Pulsanti Azione */}
           <div className="flex justify-between items-center pt-6 border-t border-gray-200 dark:border-gray-700 mt-6">
             <button
               type="button"
