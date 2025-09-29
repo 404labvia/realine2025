@@ -12,7 +12,8 @@ import {
   MdAccountCircle,
   MdFolderSpecial,
   MdFolderOpen,
-  MdBolt, // <-- MODIFICATO: Sostituito MdFlash con MdBolt
+  MdBolt,
+  MdTableChart, // NUOVO: Icona per AG Grid
 } from 'react-icons/md';
 import { FaCalendarAlt, FaRobot } from 'react-icons/fa';
 
@@ -31,6 +32,7 @@ import CalendarPage from './pages/CalendarPage';
 import PrezziarioPage from './pages/PrezziarioPage';
 import AutomationConfigPage from './pages/AutomationConfigPage';
 import FinanzePage from './pages/FinanzePage';
+import PraticheGridPage from './pages/PraticheGridPage'; // NUOVO: Import della nuova pagina
 import LoginPage from './components/Login';
 
 import { auth, onAuthStateChanged, logoutUser as firebaseLogoutUser } from './firebase';
@@ -84,6 +86,7 @@ function AppContent() {
       '/accessi-atti': 'Gestione Accessi agli Atti',
       '/ape': 'Gestione APE - Attestati di Prestazione Energetica',
       '/pratiche': 'Gestione Pratiche',
+      '/pratiche-grid': 'Gestione Pratiche - Vista Tabella', // NUOVO
       '/pratiche-privato': 'Gestione Pratiche Privato',
       '/calendario': 'Calendario',
       '/prezziario': 'Prezziario',
@@ -121,8 +124,9 @@ function AppContent() {
             {[
               { to: "/", label: "Dashboard", icon: MdHome },
               { to: "/accessi-atti", label: "Accessi Atti", icon: MdFolderOpen },
-              { to: "/ape", label: "APE", icon: MdBolt }, // <-- MODIFICATO: Sostituito MdFlash con MdBolt
+              { to: "/ape", label: "APE", icon: MdBolt },
               { to: "/pratiche", label: "Pratiche", icon: MdDescription },
+              { to: "/pratiche-grid", label: "Pratiche Grid", icon: MdTableChart }, // NUOVO: Link alla pagina AG Grid
               { to: "/pratiche-privato", label: "Pratiche Privato", icon: MdFolderSpecial },
               { to: "/finanze", label: "Finanze", icon: MdAttachMoney },
               { to: "/calendario", label: "Calendario", icon: FaCalendarAlt },
@@ -203,6 +207,17 @@ function AppContent() {
                 <PraticheProvider>
                   <PratichePrivatoProvider>
                     <PratichePage />
+                  </PratichePrivatoProvider>
+                </PraticheProvider>
+              }
+            />
+            {/* NUOVO: Route per la pagina AG Grid */}
+            <Route
+              path="/pratiche-grid"
+              element={
+                <PraticheProvider>
+                  <PratichePrivatoProvider>
+                    <PraticheGridPage />
                   </PratichePrivatoProvider>
                 </PraticheProvider>
               }
