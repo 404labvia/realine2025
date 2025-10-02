@@ -12,7 +12,8 @@ import {
   MdAccountCircle,
   MdFolderSpecial,
   MdFolderOpen,
-  MdBolt, // <-- MODIFICATO: Sostituito MdFlash con MdBolt
+  MdBolt,
+  MdViewColumn,
 } from 'react-icons/md';
 import { FaCalendarAlt, FaRobot } from 'react-icons/fa';
 
@@ -26,6 +27,7 @@ import Dashboard from './pages/Dashboard';
 import AccessiAgliAttiPage from './pages/AccessiAgliAttiPage';
 import ApePage from './pages/ApePage';
 import PratichePage from './pages/PratichePage';
+import PraticheBoardPage from './pages/PraticheBoardPage';
 import PratichePrivatoPage from './pages/PratichePrivatoPage';
 import CalendarPage from './pages/CalendarPage';
 import PrezziarioPage from './pages/PrezziarioPage';
@@ -84,6 +86,7 @@ function AppContent() {
       '/accessi-atti': 'Gestione Accessi agli Atti',
       '/ape': 'Gestione APE - Attestati di Prestazione Energetica',
       '/pratiche': 'Gestione Pratiche',
+      '/pratiche-board': 'Gestione Pratiche - Vista Board',
       '/pratiche-privato': 'Gestione Pratiche Privato',
       '/calendario': 'Calendario',
       '/prezziario': 'Prezziario',
@@ -121,8 +124,9 @@ function AppContent() {
             {[
               { to: "/", label: "Dashboard", icon: MdHome },
               { to: "/accessi-atti", label: "Accessi Atti", icon: MdFolderOpen },
-              { to: "/ape", label: "APE", icon: MdBolt }, // <-- MODIFICATO: Sostituito MdFlash con MdBolt
+              { to: "/ape", label: "APE", icon: MdBolt },
               { to: "/pratiche", label: "Pratiche", icon: MdDescription },
+              { to: "/pratiche-board", label: "Pratiche Board", icon: MdViewColumn },
               { to: "/pratiche-privato", label: "Pratiche Privato", icon: MdFolderSpecial },
               { to: "/finanze", label: "Finanze", icon: MdAttachMoney },
               { to: "/calendario", label: "Calendario", icon: FaCalendarAlt },
@@ -203,6 +207,16 @@ function AppContent() {
                 <PraticheProvider>
                   <PratichePrivatoProvider>
                     <PratichePage />
+                  </PratichePrivatoProvider>
+                </PraticheProvider>
+              }
+            />
+            <Route
+              path="/pratiche-board"
+              element={
+                <PraticheProvider>
+                  <PratichePrivatoProvider>
+                    <PraticheBoardPage />
                   </PratichePrivatoProvider>
                 </PraticheProvider>
               }
