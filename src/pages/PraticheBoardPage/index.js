@@ -2,14 +2,14 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePratiche } from '../../contexts/PraticheContext';
 import { usePratichePrivato } from '../../contexts/PratichePrivatoContext';
-import { FaFilter, FaFilePdf } from 'react-icons/fa';
+import { FaFilter, FaFilePdf, FaPlus } from 'react-icons/fa';
 
 import { useCalendarState } from '../CalendarPage/hooks/useCalendarState';
 import { useGoogleCalendarApi } from '../CalendarPage/hooks/useGoogleCalendarApi';
 
 import BoardTable from './components/BoardTable';
 import EventModal from '../CalendarPage/components/EventModal';
-import { EditPraticaForm } from '../PratichePage/components/forms';
+import { NewPraticaForm, EditPraticaForm } from '../PratichePage/components/forms';
 
 import { agenzieCollaboratori } from '../PratichePage/utils';
 import { calendarIds, calendarNameMap } from '../CalendarPage/utils/calendarUtils';
@@ -30,6 +30,7 @@ function PraticheBoardPage() {
   const [filtroAgenzia, setFiltroAgenzia] = useState('');
   const [filtroStato, setFiltroStato] = useState('In Corso');
   const [editingPraticaId, setEditingPraticaId] = useState(null);
+  const [showNewPraticaForm, setShowNewPraticaForm] = useState(false);
   const [currentStepIdForCalendar, setCurrentStepIdForCalendar] = useState(null);
 
   useEffect(() => {
@@ -86,6 +87,17 @@ function PraticheBoardPage() {
 
   const handleEditPratica = (praticaId) => {
     setEditingPraticaId(praticaId);
+  };
+
+  const handleAddNewPratica = async (praticaData) => {
+    try {
+      const newId = await addPratica(praticaData);
+      setLocalPratiche(prev => [...prev, { ...praticaData, id: newId }]);
+      setShowNewPraticaForm(false);
+    } catch (error) {
+      console.error('Errore durante l\'aggiunta della pratica:', error);
+      alert('Si è verificato un errore durante il salvataggio. Riprova.');
+    }
   };
 
   const handleSaveEditedPratica = async (praticaId, updates) => {
@@ -296,6 +308,12 @@ function PraticheBoardPage() {
     <div className="container mx-auto">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold text-gray-800">Gestione Pratiche - Vista Board</h1>
+        <button
+          onClick={() => setShowNewPraticaForm(true)}
+          className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center text-sm"
+        >
+          <FaPlus className="mr-1" size={12} /> Nuova Pratica
+        </button>
       </div>
 
       <div className="bg-white p-3 rounded-lg shadow mb-4">
@@ -354,6 +372,13 @@ function PraticheBoardPage() {
         onEditCalendarTask={handleEditCalendarTask}
         deleteGoogleCalendarEvent={deleteGoogleCalendarEvent}
       />
+
+      {showNewPraticaForm && (
+        <NewPraticaForm
+          onClose={() => setShowNewPraticaForm(false)}
+          onSave={handleAddNewPratica}
+        />
+      )}
 
       {editingPraticaId && (
         <EditPraticaForm

@@ -55,9 +55,13 @@ function BoardTable({
           vertical-align: top;
           max-height: 150px;
           overflow: hidden;
+          transition: background-color 0.15s ease-in-out;
         }
         .board-table tbody tr:hover {
-          background-color: #f8f9fa;
+          background-color: #e3f2fd;
+        }
+        .board-table tbody tr:hover .col-pratica {
+          background-color: #bbdefb !important;
         }
         .col-pratica {
           position: sticky;
@@ -67,9 +71,7 @@ function BoardTable({
           min-width: 200px;
           max-width: 200px;
           box-shadow: 2px 0 4px rgba(0,0,0,0.05);
-        }
-        .col-pratica:hover {
-          background-color: #f8f9fa !important;
+          transition: background-color 0.15s ease-in-out;
         }
         .board-table thead th.col-pratica {
           z-index: 30;
@@ -81,6 +83,33 @@ function BoardTable({
         .col-task { min-width: 250px; max-width: 250px; }
         .col-pagamenti { min-width: 150px; max-width: 150px; }
         .col-stato { min-width: 120px; max-width: 120px; }
+
+        .tooltip {
+          position: relative;
+          display: inline-block;
+        }
+        .tooltip .tooltiptext {
+          visibility: hidden;
+          width: 180px;
+          background-color: rgba(97, 97, 97, 0.9);
+          color: #fff;
+          text-align: center;
+          border-radius: 6px;
+          padding: 8px;
+          position: absolute;
+          z-index: 100;
+          bottom: 125%;
+          left: 50%;
+          transform: translateX(-50%);
+          opacity: 0;
+          transition: opacity 0.3s;
+          font-size: 0.7rem;
+          white-space: nowrap;
+        }
+        .tooltip:hover .tooltiptext {
+          visibility: visible;
+          opacity: 1;
+        }
       `}</style>
 
       <div className="board-table-container">

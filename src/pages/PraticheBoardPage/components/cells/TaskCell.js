@@ -19,7 +19,6 @@ const TaskCell = ({
 }) => {
   const [showAll, setShowAll] = useState(false);
 
-  // Aggrega tutte le task da tutti gli step
   const getAllTasks = () => {
     const allTasks = [];
     const workflow = pratica.workflow || {};
@@ -36,7 +35,6 @@ const TaskCell = ({
       }
     });
 
-    // Ordina: prima non completate con scadenza, poi senza, poi completate
     return allTasks.sort((a, b) => {
       if (a.completed !== b.completed) return a.completed ? 1 : -1;
       if (!a.completed && !b.completed) {
@@ -50,7 +48,7 @@ const TaskCell = ({
   };
 
   const allTasks = getAllTasks();
-  const displayedTasks = showAll ? allTasks : allTasks.slice(0, 3);
+  const displayedTasks = showAll ? allTasks : allTasks.slice(0, 1);
 
   const handleToggleTask = async (task) => {
     const updatedWorkflow = { ...pratica.workflow };
@@ -123,7 +121,6 @@ const TaskCell = ({
 
   return (
     <div className="space-y-2">
-      {/* Lista task */}
       <div className="space-y-2">
         {displayedTasks.map((task) => {
           const taskKey = `${task.stepId}-${task.taskIndex}`;
@@ -165,8 +162,7 @@ const TaskCell = ({
         })}
       </div>
 
-      {/* Bottone mostra tutto */}
-      {allTasks.length > 3 && (
+      {allTasks.length > 1 && (
         <button
           onClick={() => setShowAll(!showAll)}
           className="w-full text-xs text-blue-600 hover:text-blue-800 flex items-center justify-center"
@@ -183,7 +179,6 @@ const TaskCell = ({
         </button>
       )}
 
-      {/* Bottone aggiungi task */}
       <button
         onClick={() => {
           if (!isGoogleAuthenticated) {

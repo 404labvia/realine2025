@@ -10,7 +10,6 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
   const [newNoteText, setNewNoteText] = useState('');
   const [editingNote, setEditingNote] = useState(null);
 
-  // Aggrega tutte le note da tutti gli step
   const getAllNotes = () => {
     const allNotes = [];
     const workflow = pratica.workflow || {};
@@ -25,30 +24,19 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
           });
         });
       }
-
-      // Includi anche la nota dell'incarico se presente
-      if (stepId === 'incarico' && stepData.notaIncarico) {
-        allNotes.push({
-          text: stepData.notaIncarico,
-          date: stepData.dataInvioCommittente || new Date().toISOString(),
-          stepId,
-          isIncaricoNote: true
-        });
-      }
     });
 
-    // Ordina per data (più recenti prima)
     return allNotes.sort((a, b) => new Date(b.date) - new Date(a.date));
   };
 
   const allNotes = getAllNotes();
-  const displayedNotes = showAll ? allNotes : allNotes.slice(0, 3);
+  const displayedNotes = showAll ? allNotes : allNotes.slice(0, 1);
 
   const handleAddNote = async () => {
     if (!newNoteText.trim()) return;
 
     const updatedWorkflow = { ...pratica.workflow };
-    const targetStep = 'inizioPratica'; // Default step per nuove note
+    const targetStep = 'inizioPratica';
 
     if (!updatedWorkflow[targetStep]) {
       updatedWorkflow[targetStep] = { notes: [], tasks: [] };
@@ -91,17 +79,11 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
     setEditingNote(null);
   };
 
-  const handleDeleteNote = async (stepId, noteIndex, isIncaricoNote) => {
+  const handleDeleteNote = async (stepId, noteIndex) => {
     const updatedWorkflow = { ...pratica.workflow };
 
-    if (isIncaricoNote) {
-      if (updatedWorkflow[stepId]) {
-        delete updatedWorkflow[stepId].notaIncarico;
-      }
-    } else {
-      if (updatedWorkflow[stepId] && updatedWorkflow[stepId].notes) {
-        updatedWorkflow[stepId].notes.splice(noteIndex, 1);
-      }
+    if (updatedWorkflow[stepId] && updatedWorkflow[stepId].notes) {
+      updatedWorkflow[stepId].notes.splice(noteIndex, 1);
     }
 
     setLocalPratiche(prev => prev.map(p =>
@@ -113,10 +95,9 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
 
   return (
     <div className="space-y-2">
-      {/* Lista note */}
       <div className="space-y-2">
         {displayedNotes.map((note, idx) => {
-          const noteKey = note.isIncaricoNote ? `${note.stepId}-incarico` : `${note.stepId}-${note.noteIndex}`;
+          const noteKey = `${note.stepId}-${note.noteIndex}`;
           const isEditing = editingNote === noteKey;
 
           return (
@@ -147,21 +128,28 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
                 </div>
               ) : (
                 <div>
-                  <div
-                    className="text-xs text-gray-800 cursor-pointer"
-                    onDoubleClick={() => !note.isIncaricoNote && setEditingNote(noteKey)}
-                  >
-                    {note.text}
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    {format(new Date(note.date), 'dd/MM/yyyy HH:mm', { locale: it })}
+                  <div className="flex items-start">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mt-0.5 mr-1 text-gray-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <div className="flex-1">
+                      <div
+                        className="text-xs text-gray-800 cursor-pointer"
+                        onDoubleClick={() => setEditingNote(noteKey)}
+                      >
+                        {note.text}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {format(new Date(note.date), 'dd/MM/yyyy HH:mm', { locale: it })}
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
 
               {!isEditing && (
                 <button
-                  onClick={() => handleDeleteNote(note.stepId, note.noteIndex, note.isIncaricoNote)}
+                  onClick={() => handleDeleteNote(note.stepId, note.noteIndex)}
                   className="absolute top-1 right-1 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100"
                 >
                   <FaTimes size={10} />
@@ -172,8 +160,7 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
         })}
       </div>
 
-      {/* Bottone mostra tutto */}
-      {allNotes.length > 3 && (
+      {allNotes.length > 1 && (
         <button
           onClick={() => setShowAll(!showAll)}
           className="w-full text-xs text-blue-600 hover:text-blue-800 flex items-center justify-center"
@@ -190,7 +177,6 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
         </button>
       )}
 
-      {/* Form aggiunta nota */}
       {showAddForm ? (
         <div className="mt-2 p-2 border border-gray-300 rounded">
           <textarea
