@@ -77,6 +77,7 @@ const IncaricoCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche 
   return (
     <div
       className="text-center space-y-2"
+      style={{ minHeight: '80px' }}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >

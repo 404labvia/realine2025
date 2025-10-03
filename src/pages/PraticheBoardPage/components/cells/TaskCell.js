@@ -133,6 +133,7 @@ const TaskCell = ({
   return (
     <div
       className="space-y-2 relative"
+      style={{ minHeight: '80px' }}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
