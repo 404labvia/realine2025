@@ -18,6 +18,17 @@ const TaskCell = ({
   deleteGoogleCalendarEvent
 }) => {
   const [showAll, setShowAll] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
+
+  // Funzione per pulire il testo della task rimuovendo "(Pratica: ...)"
+  const cleanTaskText = (text) => {
+    if (!text) return '';
+    // Rimuove tutto dopo "(Pratica:" se presente
+    if (text.includes('(Pratica:')) {
+      return text.substring(0, text.indexOf('(Pratica:')).trim();
+    }
+    return text;
+  };
 
   const getAllTasks = () => {
     const allTasks = [];
@@ -120,7 +131,11 @@ const TaskCell = ({
   };
 
   return (
-    <div className="space-y-2">
+    <div
+      className="space-y-2 relative"
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+    >
       <div className="space-y-2">
         {displayedTasks.map((task) => {
           const taskKey = `${task.stepId}-${task.taskIndex}`;
@@ -141,7 +156,7 @@ const TaskCell = ({
                 >
                   <div className={`text-xs text-gray-800 flex items-center ${task.completed ? 'line-through' : ''}`}>
                     <FaCalendarAlt className="text-blue-600 mr-1" size={10} />
-                    {task.text}
+                    {cleanTaskText(task.text)}
                   </div>
                   {renderDueDate(task)}
                   {task.completed && task.completedDate && (
@@ -179,35 +194,37 @@ const TaskCell = ({
         </button>
       )}
 
-      <button
-        onClick={() => {
-          if (!isGoogleAuthenticated) {
-            if (loginToGoogleCalendar && !googleAuthLoading) {
-              loginToGoogleCalendar();
-            } else {
-              alert("Connetti Google Calendar per aggiungere task");
+      {isHovering && (
+        <button
+          onClick={() => {
+            if (!isGoogleAuthenticated) {
+              if (loginToGoogleCalendar && !googleAuthLoading) {
+                loginToGoogleCalendar();
+              } else {
+                alert("Connetti Google Calendar per aggiungere task");
+              }
+              return;
             }
-            return;
-          }
-          onOpenCalendarModal(pratica.id, 'inizioPratica');
-        }}
-        disabled={googleAuthLoading}
-        className={`w-full text-xs flex items-center justify-center py-1 border border-dashed rounded ${
-          isGoogleAuthenticated
-            ? 'text-gray-600 hover:text-blue-600 border-gray-300 hover:border-blue-400'
-            : 'text-gray-400 hover:text-orange-600 border-gray-200 hover:border-orange-400'
-        } ${googleAuthLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-      >
-        {isGoogleAuthenticated ? (
-          <>
-            <FaPlus size={10} className="mr-1" /> Aggiungi task
-          </>
-        ) : (
-          <>
-            {googleAuthLoading ? 'Caricamento...' : <><FaGoogle className="mr-1" size={10} /> Connetti Google</>}
-          </>
-        )}
-      </button>
+            onOpenCalendarModal(pratica.id, 'inizioPratica');
+          }}
+          disabled={googleAuthLoading}
+          className={`w-full text-xs flex items-center justify-center py-1 border border-dashed rounded ${
+            isGoogleAuthenticated
+              ? 'text-gray-600 hover:text-blue-600 border-gray-300 hover:border-blue-400'
+              : 'text-gray-400 hover:text-orange-600 border-gray-200 hover:border-orange-400'
+          } ${googleAuthLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+        >
+          {isGoogleAuthenticated ? (
+            <>
+              <FaPlus size={10} className="mr-1" /> Aggiungi task
+            </>
+          ) : (
+            <>
+              {googleAuthLoading ? 'Caricamento...' : <><FaGoogle className="mr-1" size={10} /> Connetti Google</>}
+            </>
+          )}
+        </button>
+      )}
     </div>
   );
 };

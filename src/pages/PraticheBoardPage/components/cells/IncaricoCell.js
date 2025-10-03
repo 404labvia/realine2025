@@ -8,6 +8,7 @@ const IncaricoCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche 
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [editingDate, setEditingDate] = useState(null);
+  const [isHovering, setIsHovering] = useState(false);
 
   const stepData = pratica.workflow?.incarico || {};
   const dataCommittente = stepData.dataInvioCommittente || stepData.dataInvio;
@@ -74,7 +75,11 @@ const IncaricoCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche 
   };
 
   return (
-    <div className="text-center space-y-2">
+    <div
+      className="text-center space-y-2"
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+    >
       <div className="group relative">
         {editingDate === 'committente' ? (
           <input
@@ -104,12 +109,14 @@ const IncaricoCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche 
             </button>
           </div>
         ) : (
-          <button
-            onClick={() => setEditingDate('committente')}
-            className="text-xs text-gray-400 hover:text-blue-600"
-          >
-            + Data Committente
-          </button>
+          isHovering && (
+            <button
+              onClick={() => setEditingDate('committente')}
+              className="text-xs text-gray-400 hover:text-blue-600"
+            >
+              + Data Committente
+            </button>
+          )
         )}
       </div>
 
@@ -142,12 +149,14 @@ const IncaricoCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche 
             </button>
           </div>
         ) : (
-          <button
-            onClick={() => setEditingDate('collaboratore')}
-            className="text-xs text-gray-400 hover:text-blue-600"
-          >
-            + Data Collaboratore
-          </button>
+          isHovering && (
+            <button
+              onClick={() => setEditingDate('collaboratore')}
+              className="text-xs text-gray-400 hover:text-blue-600"
+            >
+              + Data Collaboratore
+            </button>
+          )
         )}
       </div>
 
@@ -196,12 +205,14 @@ const IncaricoCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche 
           </button>
         </div>
       ) : (
-        <button
-          onClick={() => setShowNoteForm(true)}
-          className="text-xs text-gray-400 hover:text-blue-600 flex items-center justify-center w-full mt-2"
-        >
-          <FaPlus size={8} className="mr-1" /> Nota
-        </button>
+        isHovering && (
+          <button
+            onClick={() => setShowNoteForm(true)}
+            className="text-xs text-gray-400 hover:text-blue-600 flex items-center justify-center w-full mt-2"
+          >
+            <FaPlus size={8} className="mr-1" /> Nota
+          </button>
+        )
       )}
     </div>
   );

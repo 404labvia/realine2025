@@ -9,6 +9,7 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
   const [showAddForm, setShowAddForm] = useState(false);
   const [newNoteText, setNewNoteText] = useState('');
   const [editingNote, setEditingNote] = useState(null);
+  const [isHovering, setIsHovering] = useState(false);
 
   const getAllNotes = () => {
     const allNotes = [];
@@ -94,7 +95,11 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
   };
 
   return (
-    <div className="space-y-2">
+    <div
+      className="space-y-2 relative"
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+    >
       <div className="space-y-2">
         {displayedNotes.map((note, idx) => {
           const noteKey = `${note.stepId}-${note.noteIndex}`;
@@ -212,12 +217,14 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
           </div>
         </div>
       ) : (
-        <button
-          onClick={() => setShowAddForm(true)}
-          className="w-full text-xs text-gray-600 hover:text-blue-600 flex items-center justify-center py-1 border border-dashed border-gray-300 rounded hover:border-blue-400"
-        >
-          <FaPlus size={10} className="mr-1" /> Aggiungi nota
-        </button>
+        isHovering && !editingNote && (
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="w-full text-xs text-gray-600 hover:text-blue-600 flex items-center justify-center py-1 border border-dashed border-gray-300 rounded hover:border-blue-400"
+          >
+            <FaPlus size={10} className="mr-1" /> Aggiungi nota
+          </button>
+        )
       )}
     </div>
   );

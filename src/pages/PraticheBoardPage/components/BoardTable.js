@@ -84,27 +84,39 @@ function BoardTable({
         .col-pagamenti { min-width: 150px; max-width: 150px; }
         .col-stato { min-width: 120px; max-width: 120px; }
 
+        /* Tooltip styles - come vecchia pagina pratiche */
         .tooltip {
           position: relative;
           display: inline-block;
         }
         .tooltip .tooltiptext {
           visibility: hidden;
-          width: 180px;
-          background-color: rgba(97, 97, 97, 0.9);
+          width: 200px;
+          background-color: rgba(97, 97, 97, 0.95);
           color: #fff;
           text-align: center;
-          border-radius: 6px;
-          padding: 8px;
+          border-radius: 8px;
+          padding: 10px 12px;
           position: absolute;
           z-index: 100;
-          bottom: 125%;
+          top: 125%;
           left: 50%;
           transform: translateX(-50%);
           opacity: 0;
-          transition: opacity 0.3s;
-          font-size: 0.7rem;
+          transition: opacity 0.3s ease-in-out;
+          font-size: 0.75rem;
           white-space: nowrap;
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+        }
+        .tooltip .tooltiptext::after {
+          content: "";
+          position: absolute;
+          bottom: 100%;
+          left: 50%;
+          margin-left: -5px;
+          border-width: 5px;
+          border-style: solid;
+          border-color: transparent transparent rgba(97, 97, 97, 0.95) transparent;
         }
         .tooltip:hover .tooltiptext {
           visibility: visible;
