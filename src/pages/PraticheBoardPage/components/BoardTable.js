@@ -1,4 +1,3 @@
-// src/pages/PraticheBoardPage/components/BoardTable.js
 import React from 'react';
 import {
   PraticaCell,
@@ -26,7 +25,7 @@ function BoardTable({
   deleteGoogleCalendarEvent
 }) {
   return (
-    <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+    <div className="bg-card border border-border shadow-sm rounded-lg overflow-hidden">
       <style>{`
         .board-table-container {
           overflow-x: auto;
@@ -41,16 +40,16 @@ function BoardTable({
           position: sticky;
           top: 0;
           z-index: 20;
-          background-color: #f8f9fa;
-          border-bottom: 2px solid #dee2e6;
+          background-color: hsl(var(--muted));
+          border-bottom: 2px solid hsl(var(--border));
           padding: 12px 8px;
           font-weight: 600;
           font-size: 14px;
-          color: #495057;
+          color: hsl(var(--foreground));
           text-align: center;
         }
         .board-table tbody td {
-          border-bottom: 1px solid #e9ecef;
+          border-bottom: 1px solid hsl(var(--border));
           padding: 12px 8px;
           vertical-align: top;
           max-height: 150px;
@@ -58,16 +57,16 @@ function BoardTable({
           transition: background-color 0.15s ease-in-out;
         }
         .board-table tbody tr:hover {
-          background-color: #e3f2fd;
+          background-color: hsl(var(--accent));
         }
         .board-table tbody tr:hover .col-pratica {
-          background-color: #bbdefb !important;
+          background-color: hsl(var(--accent)) !important;
         }
         .col-pratica {
           position: sticky;
           left: 0;
           z-index: 10;
-          background-color: white;
+          background-color: hsl(var(--background));
           min-width: 200px;
           max-width: 200px;
           box-shadow: 2px 0 4px rgba(0,0,0,0.05);
@@ -84,39 +83,27 @@ function BoardTable({
         .col-pagamenti { min-width: 150px; max-width: 150px; }
         .col-stato { min-width: 120px; max-width: 120px; }
 
-        /* Tooltip styles - come vecchia pagina pratiche */
         .tooltip {
           position: relative;
           display: inline-block;
         }
         .tooltip .tooltiptext {
           visibility: hidden;
-          width: 200px;
-          background-color: rgba(97, 97, 97, 0.95);
-          color: #fff;
+          width: 180px;
+          background-color: rgba(15, 23, 42, 0.95);
+          color: hsl(var(--primary-foreground));
           text-align: center;
-          border-radius: 8px;
-          padding: 10px 12px;
+          border-radius: 6px;
+          padding: 8px;
           position: absolute;
           z-index: 100;
-          top: 125%;
+          bottom: 125%;
           left: 50%;
           transform: translateX(-50%);
           opacity: 0;
-          transition: opacity 0.3s ease-in-out;
-          font-size: 0.75rem;
+          transition: opacity 0.3s;
+          font-size: 0.7rem;
           white-space: nowrap;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
-        }
-        .tooltip .tooltiptext::after {
-          content: "";
-          position: absolute;
-          bottom: 100%;
-          left: 50%;
-          margin-left: -5px;
-          border-width: 5px;
-          border-style: solid;
-          border-color: transparent transparent rgba(97, 97, 97, 0.95) transparent;
         }
         .tooltip:hover .tooltiptext {
           visibility: visible;

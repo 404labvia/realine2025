@@ -1,4 +1,3 @@
-// src/pages/PraticheBoardPage/components/cells/StatoCell.js
 import React from 'react';
 
 const StatoCell = ({ pratica, onChangeStato }) => {
@@ -7,8 +6,10 @@ const StatoCell = ({ pratica, onChangeStato }) => {
       <select
         value={pratica.stato || 'In Corso'}
         onChange={(e) => onChangeStato(pratica.id, e.target.value)}
-        className={`w-full p-1 text-xs rounded border-0 text-center focus:ring-2 focus:ring-blue-500 ${
-          pratica.stato === 'Completata' ? 'bg-green-500 text-white' : 'bg-yellow-100 text-gray-800'
+        className={`w-full px-2 py-1.5 text-xs rounded-md border-0 text-center focus:ring-2 focus:ring-ring transition-colors ${
+          pratica.stato === 'Completata'
+            ? 'bg-green-600 text-white hover:bg-green-700'
+            : 'bg-amber-100 text-amber-900 hover:bg-amber-200'
         }`}
       >
         <option value="In Corso">In Corso</option>
