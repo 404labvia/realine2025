@@ -1,4 +1,3 @@
-// src/pages/PraticheBoardPage/components/cells/IncaricoCell.js
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
@@ -7,33 +6,33 @@ import { FaTimes, FaPlus } from 'react-icons/fa';
 const IncaricoCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) => {
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [noteText, setNoteText] = useState('');
-  const [editingDate, setEditingDate] = useState(null);
-  const [isHovering, setIsHovering] = useState(false);
 
   const stepData = pratica.workflow?.incarico || {};
-  const dataCommittente = stepData.dataInvioCommittente || stepData.dataInvio;
-  const dataCollaboratore = stepData.dataInvioCollaboratore;
+  const committenteInviato = stepData.committenteInviato || false;
+  const committenteFirmato = stepData.committenteFirmato || false;
+  const collaboratoreInviato = stepData.collaboratoreInviato || false;
+  const collaboratoreFirmato = stepData.collaboratoreFirmato || false;
+  const dataCommittenteInviato = stepData.dataCommittenteInviato;
+  const dataCommittenteFirmato = stepData.dataCommittenteFirmato;
+  const dataCollaboratoreInviato = stepData.dataCollaboratoreInviato;
+  const dataCollaboratoreFirmato = stepData.dataCollaboratoreFirmato;
   const nota = stepData.notaIncarico;
 
-  const handleDateChange = async (field, value) => {
+  const handleCheckboxChange = async (field, checked) => {
     const updatedWorkflow = { ...pratica.workflow };
     if (!updatedWorkflow.incarico) {
-      updatedWorkflow.incarico = { notes: [] };
+      updatedWorkflow.incarico = {};
     }
-    updatedWorkflow.incarico[field] = value;
 
-    setLocalPratiche(prev => prev.map(p =>
-      p.id === pratica.id ? { ...p, workflow: updatedWorkflow } : p
-    ));
+    updatedWorkflow.incarico[field] = checked;
 
-    await updatePratica(pratica.id, { workflow: updatedWorkflow });
-    setEditingDate(null);
-  };
+    const dateField = field.replace('committente', 'dataCommittente').replace('collaboratore', 'dataCollaboratore');
+    const capitalizedField = dateField.charAt(0).toUpperCase() + dateField.slice(1);
 
-  const handleDeleteDate = async (field) => {
-    const updatedWorkflow = { ...pratica.workflow };
-    if (updatedWorkflow.incarico) {
-      delete updatedWorkflow.incarico[field];
+    if (checked) {
+      updatedWorkflow.incarico[capitalizedField] = new Date().toISOString().split('T')[0];
+    } else {
+      delete updatedWorkflow.incarico[capitalizedField];
     }
 
     setLocalPratiche(prev => prev.map(p =>
@@ -48,7 +47,7 @@ const IncaricoCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche 
 
     const updatedWorkflow = { ...pratica.workflow };
     if (!updatedWorkflow.incarico) {
-      updatedWorkflow.incarico = { notes: [] };
+      updatedWorkflow.incarico = {};
     }
     updatedWorkflow.incarico.notaIncarico = noteText;
 
@@ -75,90 +74,81 @@ const IncaricoCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche 
   };
 
   return (
-    <div
-      className="text-center space-y-2"
-      style={{ minHeight: '80px' }}
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
-    >
-      <div className="group relative">
-        {editingDate === 'committente' ? (
-          <input
-            type="date"
-            value={dataCommittente || ''}
-            onChange={(e) => handleDateChange('dataInvioCommittente', e.target.value)}
-            onBlur={() => setEditingDate(null)}
-            autoFocus
-            className="w-full p-1 text-xs border border-gray-300 rounded"
-          />
-        ) : dataCommittente ? (
-          <div className="flex items-center justify-center">
-            <span
-              className="text-xs text-gray-700 cursor-pointer hover:text-blue-600"
-              onClick={() => setEditingDate('committente')}
-            >
-              Comm: {format(new Date(dataCommittente), 'dd/MM/yyyy', { locale: it })}
-            </span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteDate('dataInvioCommittente');
-              }}
-              className="ml-1 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100"
-            >
-              <FaTimes size={8} />
-            </button>
+    <div className="space-y-3">
+      <div>
+        <div className="text-xs font-semibold text-gray-700 mb-1">Committente</div>
+        <div className="space-y-1">
+          <div>
+            <label className="flex items-center text-xs text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={committenteInviato}
+                onChange={(e) => handleCheckboxChange('committenteInviato', e.target.checked)}
+                className="mr-2"
+              />
+              Inviato
+            </label>
+            {committenteInviato && dataCommittenteInviato && (
+              <div className="text-xs text-gray-500 ml-6">
+                {format(new Date(dataCommittenteInviato), 'dd/MM/yyyy', { locale: it })}
+              </div>
+            )}
           </div>
-        ) : (
-          isHovering && (
-            <button
-              onClick={() => setEditingDate('committente')}
-              className="text-xs text-gray-400 hover:text-blue-600"
-            >
-              + Data Committente
-            </button>
-          )
-        )}
+          <div>
+            <label className="flex items-center text-xs text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={committenteFirmato}
+                onChange={(e) => handleCheckboxChange('committenteFirmato', e.target.checked)}
+                className="mr-2"
+              />
+              Firmato
+            </label>
+            {committenteFirmato && dataCommittenteFirmato && (
+              <div className="text-xs text-gray-500 ml-6">
+                {format(new Date(dataCommittenteFirmato), 'dd/MM/yyyy', { locale: it })}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className="group relative">
-        {editingDate === 'collaboratore' ? (
-          <input
-            type="date"
-            value={dataCollaboratore || ''}
-            onChange={(e) => handleDateChange('dataInvioCollaboratore', e.target.value)}
-            onBlur={() => setEditingDate(null)}
-            autoFocus
-            className="w-full p-1 text-xs border border-gray-300 rounded"
-          />
-        ) : dataCollaboratore ? (
-          <div className="flex items-center justify-center">
-            <span
-              className="text-xs text-gray-600 cursor-pointer hover:text-blue-600"
-              onClick={() => setEditingDate('collaboratore')}
-            >
-              Coll: {format(new Date(dataCollaboratore), 'dd/MM/yyyy', { locale: it })}
-            </span>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDeleteDate('dataInvioCollaboratore');
-              }}
-              className="ml-1 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100"
-            >
-              <FaTimes size={8} />
-            </button>
+      <div>
+        <div className="text-xs font-semibold text-gray-700 mb-1">Collaboratore</div>
+        <div className="space-y-1">
+          <div>
+            <label className="flex items-center text-xs text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={collaboratoreInviato}
+                onChange={(e) => handleCheckboxChange('collaboratoreInviato', e.target.checked)}
+                className="mr-2"
+              />
+              Inviato
+            </label>
+            {collaboratoreInviato && dataCollaboratoreInviato && (
+              <div className="text-xs text-gray-500 ml-6">
+                {format(new Date(dataCollaboratoreInviato), 'dd/MM/yyyy', { locale: it })}
+              </div>
+            )}
           </div>
-        ) : (
-          isHovering && (
-            <button
-              onClick={() => setEditingDate('collaboratore')}
-              className="text-xs text-gray-400 hover:text-blue-600"
-            >
-              + Data Collaboratore
-            </button>
-          )
-        )}
+          <div>
+            <label className="flex items-center text-xs text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={collaboratoreFirmato}
+                onChange={(e) => handleCheckboxChange('collaboratoreFirmato', e.target.checked)}
+                className="mr-2"
+              />
+              Firmato
+            </label>
+            {collaboratoreFirmato && dataCollaboratoreFirmato && (
+              <div className="text-xs text-gray-500 ml-6">
+                {format(new Date(dataCollaboratoreFirmato), 'dd/MM/yyyy', { locale: it })}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {showNoteForm ? (
@@ -206,14 +196,12 @@ const IncaricoCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche 
           </button>
         </div>
       ) : (
-        isHovering && (
-          <button
-            onClick={() => setShowNoteForm(true)}
-            className="text-xs text-gray-400 hover:text-blue-600 flex items-center justify-center w-full mt-2"
-          >
-            <FaPlus size={8} className="mr-1" /> Nota
-          </button>
-        )
+        <button
+          onClick={() => setShowNoteForm(true)}
+          className="text-xs text-gray-400 hover:text-blue-600 flex items-center justify-center w-full mt-2"
+        >
+          <FaPlus size={8} className="mr-1" /> Nota
+        </button>
       )}
     </div>
   );

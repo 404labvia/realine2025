@@ -1,8 +1,7 @@
-// src/pages/PraticheBoardPage/components/BoardTable.js
 import React from 'react';
 import {
   PraticaCell,
-  DettagliCell,
+  ScadenzeCell,
   IncaricoCell,
   ImportoCell,
   NoteCell,
@@ -68,55 +67,43 @@ function BoardTable({
           left: 0;
           z-index: 10;
           background-color: white;
-          min-width: 200px;
-          max-width: 200px;
+          min-width: 220px;
+          max-width: 220px;
           box-shadow: 2px 0 4px rgba(0,0,0,0.05);
           transition: background-color 0.15s ease-in-out;
         }
         .board-table thead th.col-pratica {
           z-index: 30;
         }
-        .col-dettagli { min-width: 150px; max-width: 150px; }
-        .col-incarico { min-width: 180px; max-width: 180px; }
+        .col-scadenze { min-width: 150px; max-width: 150px; }
+        .col-incarico { min-width: 200px; max-width: 200px; }
         .col-importo { min-width: 120px; max-width: 120px; }
-        .col-note { min-width: 250px; max-width: 250px; }
-        .col-task { min-width: 250px; max-width: 250px; }
+        .col-note { min-width: 100px; max-width: 100px; }
+        .col-task { min-width: 100px; max-width: 100px; }
         .col-pagamenti { min-width: 150px; max-width: 150px; }
         .col-stato { min-width: 120px; max-width: 120px; }
 
-        /* Tooltip styles - come vecchia pagina pratiche */
         .tooltip {
           position: relative;
           display: inline-block;
         }
         .tooltip .tooltiptext {
           visibility: hidden;
-          width: 200px;
-          background-color: rgba(97, 97, 97, 0.95);
+          width: 180px;
+          background-color: rgba(97, 97, 97, 0.9);
           color: #fff;
           text-align: center;
-          border-radius: 8px;
-          padding: 10px 12px;
+          border-radius: 6px;
+          padding: 8px;
           position: absolute;
           z-index: 100;
-          top: 125%;
+          bottom: 125%;
           left: 50%;
           transform: translateX(-50%);
           opacity: 0;
-          transition: opacity 0.3s ease-in-out;
-          font-size: 0.75rem;
+          transition: opacity 0.3s;
+          font-size: 0.7rem;
           white-space: nowrap;
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
-        }
-        .tooltip .tooltiptext::after {
-          content: "";
-          position: absolute;
-          bottom: 100%;
-          left: 50%;
-          margin-left: -5px;
-          border-width: 5px;
-          border-style: solid;
-          border-color: transparent transparent rgba(97, 97, 97, 0.95) transparent;
         }
         .tooltip:hover .tooltiptext {
           visibility: visible;
@@ -129,7 +116,7 @@ function BoardTable({
           <thead>
             <tr>
               <th className="col-pratica">Pratica</th>
-              <th className="col-dettagli">Dettagli</th>
+              <th className="col-scadenze">Scadenze</th>
               <th className="col-incarico">Incarico</th>
               <th className="col-importo">Importo</th>
               <th className="col-note">Note</th>
@@ -144,8 +131,13 @@ function BoardTable({
                 <td className="col-pratica">
                   <PraticaCell pratica={pratica} onEditPratica={onEditPratica} />
                 </td>
-                <td className="col-dettagli">
-                  <DettagliCell pratica={pratica} />
+                <td className="col-scadenze">
+                  <ScadenzeCell
+                    pratica={pratica}
+                    updatePratica={updatePratica}
+                    localPratiche={localPratiche}
+                    setLocalPratiche={setLocalPratiche}
+                  />
                 </td>
                 <td className="col-incarico">
                   <IncaricoCell

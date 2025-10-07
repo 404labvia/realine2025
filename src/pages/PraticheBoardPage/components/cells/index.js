@@ -1,6 +1,5 @@
-// src/pages/PraticheBoardPage/components/cells/index.js
 import PraticaCell from './PraticaCell';
-import DettagliCell from './DettagliCell';
+import ScadenzeCell from './ScadenzeCell';
 import IncaricoCell from './IncaricoCell';
 import ImportoCell from './ImportoCell';
 import NoteCell from './NoteCell';
@@ -10,7 +9,7 @@ import StatoCell from './StatoCell';
 
 export {
   PraticaCell,
-  DettagliCell,
+  ScadenzeCell,
   IncaricoCell,
   ImportoCell,
   NoteCell,

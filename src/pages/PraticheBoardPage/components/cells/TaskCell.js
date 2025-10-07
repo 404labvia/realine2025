@@ -1,9 +1,7 @@
-// src/pages/PraticheBoardPage/components/cells/TaskCell.js
 import React, { useState } from 'react';
-import { format, isBefore, addDays } from 'date-fns';
+import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { FaPlus, FaTimes, FaChevronDown, FaChevronUp, FaClock, FaExclamationTriangle, FaCalendarAlt, FaGoogle } from 'react-icons/fa';
-import { MdPriorityHigh } from 'react-icons/md';
+import { FaPlus, FaTimes, FaCalendarAlt, FaGoogle } from 'react-icons/fa';
 
 const TaskCell = ({
   pratica,
@@ -18,17 +16,6 @@ const TaskCell = ({
   deleteGoogleCalendarEvent
 }) => {
   const [showAll, setShowAll] = useState(false);
-  const [isHovering, setIsHovering] = useState(false);
-
-  // Funzione per pulire il testo della task rimuovendo "(Pratica: ...)"
-  const cleanTaskText = (text) => {
-    if (!text) return '';
-    // Rimuove tutto dopo "(Pratica:" se presente
-    if (text.includes('(Pratica:')) {
-      return text.substring(0, text.indexOf('(Pratica:')).trim();
-    }
-    return text;
-  };
 
   const getAllTasks = () => {
     const allTasks = [];
@@ -59,6 +46,8 @@ const TaskCell = ({
   };
 
   const allTasks = getAllTasks();
+  const completedCount = allTasks.filter(t => t.completed).length;
+  const totalCount = allTasks.length;
   const displayedTasks = showAll ? allTasks : allTasks.slice(0, 1);
 
   const handleToggleTask = async (task) => {
@@ -99,103 +88,9 @@ const TaskCell = ({
     await updatePratica(pratica.id, { workflow: updatedWorkflow });
   };
 
-  const renderDueDate = (task) => {
-    if (!task.dueDate) return null;
-
-    const dueDateObj = new Date(task.dueDate);
-    const today = new Date();
-    const isOverdue = isBefore(dueDateObj, today) && !(dueDateObj.toDateString() === today.toDateString());
-    const isVeryOverdue = isBefore(dueDateObj, addDays(today, -1));
-
-    let bgColor = "bg-gray-100";
-    if (isVeryOverdue) bgColor = "bg-red-100";
-    else if (isOverdue) bgColor = "bg-yellow-100";
-    else {
-      switch(task.priority) {
-        case 'high': bgColor = "bg-orange-100"; break;
-        case 'normal': bgColor = "bg-blue-100"; break;
-        case 'low': bgColor = "bg-green-100"; break;
-        default: bgColor = "bg-gray-100";
-      }
-    }
-
+  if (!showAll && allTasks.length === 0) {
     return (
-      <div className={`rounded px-1 py-0.5 inline-flex items-center text-xs ${bgColor} mt-1`}>
-        {isVeryOverdue && <FaExclamationTriangle className="mr-1 text-red-500" size={8} />}
-        {isOverdue && !isVeryOverdue && <FaExclamationTriangle className="mr-1 text-yellow-500" size={8} />}
-        {task.priority === 'high' && !isOverdue && <MdPriorityHigh className="mr-1 text-orange-500" size={8} />}
-        <FaClock className="mr-1 text-gray-500" size={8} />
-        <span>{format(dueDateObj, 'dd/MM/yy HH:mm', { locale: it })}</span>
-      </div>
-    );
-  };
-
-  return (
-    <div
-      className="space-y-2 relative"
-      style={{ minHeight: '80px' }}
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
-    >
-      <div className="space-y-2">
-        {displayedTasks.map((task) => {
-          const taskKey = `${task.stepId}-${task.taskIndex}`;
-
-          return (
-            <div key={taskKey} className="group relative p-2 bg-gray-50 rounded hover:bg-gray-100">
-              <div className="flex items-start">
-                <input
-                  type="checkbox"
-                  checked={task.completed || false}
-                  onChange={() => handleToggleTask(task)}
-                  className="mt-0.5 mr-2 cursor-pointer"
-                  style={{ minWidth: '14px', minHeight: '14px' }}
-                />
-                <div
-                  className="flex-1 cursor-pointer"
-                  onClick={() => onEditCalendarTask(task, pratica.id, task.stepId)}
-                >
-                  <div className={`text-xs text-gray-800 flex items-center ${task.completed ? 'line-through' : ''}`}>
-                    <FaCalendarAlt className="text-blue-600 mr-1" size={10} />
-                    {cleanTaskText(task.text)}
-                  </div>
-                  {renderDueDate(task)}
-                  {task.completed && task.completedDate && (
-                    <div className="text-xs text-gray-500 mt-1">
-                      Completata: {format(new Date(task.completedDate), 'dd/MM/yy', { locale: it })}
-                    </div>
-                  )}
-                </div>
-                <button
-                  onClick={() => handleDeleteTask(task)}
-                  className="ml-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100"
-                >
-                  <FaTimes size={10} />
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {allTasks.length > 1 && (
-        <button
-          onClick={() => setShowAll(!showAll)}
-          className="w-full text-xs text-blue-600 hover:text-blue-800 flex items-center justify-center"
-        >
-          {showAll ? (
-            <>
-              <FaChevronUp size={10} className="mr-1" /> Mostra meno
-            </>
-          ) : (
-            <>
-              <FaChevronDown size={10} className="mr-1" /> Mostra tutte ({allTasks.length})
-            </>
-          )}
-        </button>
-      )}
-
-      {isHovering && (
+      <div className="flex justify-center">
         <button
           onClick={() => {
             if (!isGoogleAuthenticated) {
@@ -209,22 +104,120 @@ const TaskCell = ({
             onOpenCalendarModal(pratica.id, 'inizioPratica');
           }}
           disabled={googleAuthLoading}
-          className={`w-full text-xs flex items-center justify-center py-1 border border-dashed rounded ${
+          className={`text-xs flex items-center gap-1 ${
             isGoogleAuthenticated
-              ? 'text-gray-600 hover:text-blue-600 border-gray-300 hover:border-blue-400'
-              : 'text-gray-400 hover:text-orange-600 border-gray-200 hover:border-orange-400'
+              ? 'text-gray-600 hover:text-blue-600'
+              : 'text-gray-400 hover:text-orange-600'
           } ${googleAuthLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           {isGoogleAuthenticated ? (
             <>
-              <FaPlus size={10} className="mr-1" /> Aggiungi task
+              <FaPlus size={8} /> Aggiungi task
             </>
           ) : (
             <>
-              {googleAuthLoading ? 'Caricamento...' : <><FaGoogle className="mr-1" size={10} /> Connetti Google</>}
+              {googleAuthLoading ? 'Caricamento...' : <><FaGoogle size={8} /> Connetti Google</>}
             </>
           )}
         </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {!showAll && allTasks.length > 0 ? (
+        <div className="flex justify-center">
+          <button
+            onClick={() => setShowAll(true)}
+            className="inline-flex items-center gap-1 px-2 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-800"
+          >
+            <FaCalendarAlt size={10} />
+            <span>{completedCount}/{totalCount}</span>
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-2">
+            {displayedTasks.map((task) => {
+              const taskKey = `${task.stepId}-${task.taskIndex}`;
+
+              return (
+                <div key={taskKey} className="group relative p-2 bg-gray-50 rounded hover:bg-gray-100">
+                  <div className="flex items-start">
+                    <input
+                      type="checkbox"
+                      checked={task.completed || false}
+                      onChange={() => handleToggleTask(task)}
+                      className="mt-0.5 mr-2 cursor-pointer"
+                      style={{ minWidth: '14px', minHeight: '14px' }}
+                    />
+                    <div
+                      className="flex-1 cursor-pointer"
+                      onClick={() => onEditCalendarTask(task, pratica.id, task.stepId)}
+                    >
+                      <div className={`text-xs text-gray-800 ${task.completed ? 'line-through' : ''}`}>
+                        {task.text}
+                      </div>
+                      {task.dueDate && (
+                        <div className="text-xs text-gray-500 mt-0.5">
+                          Scadenza: {format(new Date(task.dueDate), 'dd/MM/yy', { locale: it })}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleDeleteTask(task)}
+                      className="ml-2 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100"
+                    >
+                      <FaTimes size={10} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {allTasks.length > 0 && (
+            <button
+              onClick={() => setShowAll(false)}
+              className="w-full text-xs text-blue-600 hover:text-blue-800"
+            >
+              Chiudi
+            </button>
+          )}
+
+          {showAll && (
+            <button
+              onClick={() => {
+                if (!isGoogleAuthenticated) {
+                  if (loginToGoogleCalendar && !googleAuthLoading) {
+                    loginToGoogleCalendar();
+                  } else {
+                    alert("Connetti Google Calendar per aggiungere task");
+                  }
+                  return;
+                }
+                onOpenCalendarModal(pratica.id, 'inizioPratica');
+              }}
+              disabled={googleAuthLoading}
+              className={`w-full text-xs flex items-center justify-center py-1 border border-dashed rounded ${
+                isGoogleAuthenticated
+                  ? 'text-gray-600 hover:text-blue-600 border-gray-300 hover:border-blue-400'
+                  : 'text-gray-400 hover:text-orange-600 border-gray-200 hover:border-orange-400'
+              } ${googleAuthLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              {isGoogleAuthenticated ? (
+                <>
+                  <FaPlus size={10} className="mr-1" /> Aggiungi task
+                </>
+              ) : (
+                <>
+                  {googleAuthLoading ? 'Caricamento...' : <><FaGoogle className="mr-1" size={10} /> Connetti Google</>}
+                </>
+              )}
+            </button>
+          )}
+        </>
       )}
     </div>
   );
