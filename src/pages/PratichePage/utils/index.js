@@ -1,7 +1,7 @@
 // src/pages/PratichePage/utils/index.js
-import { 
-  agenzieCollaboratori, 
-  collaboratoriAggiuntivi, 
+import {
+  agenzieCollaboratori,
+  collaboratoriAggiuntivi,
   workflowSteps,
   customStyles,
   getPraticaLabel
@@ -22,18 +22,16 @@ import {
 } from './migrationUtils';
 
 import {
-  generatePDF
+  generatePDF,
+  generateListPDF
 } from './exportUtils';
 
 export {
-  // Da praticheUtils
   agenzieCollaboratori,
   collaboratoriAggiuntivi,
   workflowSteps,
   customStyles,
   getPraticaLabel,
-  
-  // Da calculationUtils
   calcolaTotale,
   calcolaTotaleCommittente,
   calcolaTotaleCollaboratore,
@@ -41,10 +39,7 @@ export {
   calcolaBaseCollaboratore,
   calcolaLordoCommittente,
   calcolaLordoCollaboratore,
-  
-  // Da migrationUtils
   migratePraticaData,
-  
-  // Da exportUtils
-  generatePDF
+  generatePDF,
+  generateListPDF
 };

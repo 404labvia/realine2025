@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePratiche } from '../../contexts/PraticheContext';
 import { usePratichePrivato } from '../../contexts/PratichePrivatoContext';
-import { FaPlus, FaFilter, FaFilePdf, FaClock } from 'react-icons/fa';
+import { FaPlus, FaFilter, FaFilePdf, FaClock, FaList } from 'react-icons/fa';
 
 // Importa hooks personalizzati
 import { useActiveCells, useLocalPratiche } from './hooks';
@@ -16,14 +16,14 @@ import EventModal from '../CalendarPage/components/EventModal';
 
 // Importa servizi
 import automationService from '../../services/AutomationService';
-import { auth } from '../../firebase'; // <-- IMPORT CORRETTO
+import { auth } from '../../firebase';
 
 // Importa utilità
 import {
   customStyles,
   agenzieCollaboratori,
   generatePDF,
-  // workflowSteps as workflowStepsDefinition // Rinominiamo per evitare conflitti
+  generateListPDF,
 } from './utils';
 import { calendarIds, calendarNameMap } from '../CalendarPage/utils/calendarUtils';
 
@@ -126,8 +126,6 @@ function PratichePage() {
     setCurrentStepIdForCalendar(stepId);
     const eventToEdit = calendarEvents.find(e => e.id === task.googleCalendarEventId);
 
-    // Definiamo praticaIdCollegata qui, usando praticaIdOfTask che viene passato
-    // Questo assicura che praticaIdCollegata sia definito nello scope corretto
     const praticaIdCollegata = task.relatedPraticaId || praticaIdOfTask;
 
     if (eventToEdit) {
@@ -145,15 +143,13 @@ function PratichePage() {
 
       handleSelectCalendarEventForModal({
           id: task.googleCalendarEventId,
-          title: initialTitle, // Usiamo il titolo pulito per il form
+          title: initialTitle,
           start: new Date(task.dueDate),
           end: task.endDate ? new Date(task.endDate) : new Date(new Date(task.dueDate).getTime() + (60 * 60 * 1000)),
           description: task.description || '',
           relatedPraticaId: praticaIdCollegata,
           isPrivate: isPrivate,
           sourceCalendarId: task.sourceCalendarId || 'primary',
-          // Qui potresti voler passare anche priority e reminder se li salvi nella task
-          // e se useCalendarState li gestisce nel suo formState iniziale quando popola da un evento.
       });
     }
   }, [calendarEvents, handleSelectCalendarEventForModal, tutteLePratichePerModal, pratichePrivateData]);
@@ -431,6 +427,10 @@ function PratichePage() {
     setShowExportOptions(false);
   };
 
+  const handleGenerateListPDF = async () => {
+    await generateListPDF(localPratiche, '');
+  };
+
   const TaskNotification = ({ event, onClose }) => {
     if (!event) return null;
     let message = '';
@@ -499,7 +499,7 @@ function PratichePage() {
                       </button>
                   )}
               </div>
-              <div className="flex items-center">
+              <div className="flex items-center gap-2">
                   <div className="mr-4">
                       <label className="text-sm font-medium text-gray-700 mr-2">Stato:</label>
                       <select
@@ -512,6 +512,16 @@ function PratichePage() {
                           <option value="Completata">Completata</option>
                       </select>
                   </div>
+
+                  {/* Pulsante Esporta Lista Pratiche */}
+                  <button
+                      onClick={handleGenerateListPDF}
+                      className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center text-sm"
+                  >
+                      <FaList className="mr-1" size={14} /> Esporta Lista Pratiche
+                  </button>
+
+                  {/* Pulsante Esporta PDF (schede) */}
                   <div className="relative">
                       <button
                           onClick={() => setShowExportOptions(!showExportOptions)}
