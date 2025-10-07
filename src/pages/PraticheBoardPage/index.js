@@ -1,8 +1,8 @@
-// src/pages/PraticheBoardPage/index.js
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePratiche } from '../../contexts/PraticheContext';
 import { usePratichePrivato } from '../../contexts/PratichePrivatoContext';
-import { FaFilter, FaFilePdf, FaPlus } from 'react-icons/fa';
+import { FaFilter, FaPlus, FaSearch } from 'react-icons/fa';
+import Fuse from 'fuse.js';
 
 import { useCalendarState } from '../CalendarPage/hooks/useCalendarState';
 import { useGoogleCalendarApi } from '../CalendarPage/hooks/useGoogleCalendarApi';
@@ -29,6 +29,7 @@ function PraticheBoardPage() {
   const [localPratiche, setLocalPratiche] = useState([]);
   const [filtroAgenzia, setFiltroAgenzia] = useState('');
   const [filtroStato, setFiltroStato] = useState('In Corso');
+  const [searchQuery, setSearchQuery] = useState('');
   const [editingPraticaId, setEditingPraticaId] = useState(null);
   const [showNewPraticaForm, setShowNewPraticaForm] = useState(false);
   const [currentStepIdForCalendar, setCurrentStepIdForCalendar] = useState(null);
@@ -77,13 +78,33 @@ function PraticheBoardPage() {
     prepareEventForApi: prepareCalendarEventForApi,
   } = useCalendarState(tutteLePratichePerModal, pratichePrivateData);
 
-  const praticheFiltered = useMemo(() => {
-    return localPratiche.filter(pratica => {
-      const matchAgenzia = !filtroAgenzia || pratica.agenzia === filtroAgenzia;
-      const matchStato = !filtroStato || pratica.stato === filtroStato;
-      return matchAgenzia && matchStato;
+  const fuse = useMemo(() => {
+    return new Fuse(localPratiche, {
+      keys: ['indirizzo', 'cliente', 'codice'],
+      threshold: 0.3,
+      includeScore: true,
     });
-  }, [localPratiche, filtroAgenzia, filtroStato]);
+  }, [localPratiche]);
+
+  const praticheFiltered = useMemo(() => {
+    let filtered = localPratiche;
+
+    if (filtroAgenzia) {
+      filtered = filtered.filter(pratica => pratica.agenzia === filtroAgenzia);
+    }
+
+    if (filtroStato) {
+      filtered = filtered.filter(pratica => pratica.stato === filtroStato);
+    }
+
+    if (searchQuery.trim()) {
+      const fuseResults = fuse.search(searchQuery);
+      const searchResultIds = fuseResults.map(result => result.item.id);
+      filtered = filtered.filter(pratica => searchResultIds.includes(pratica.id));
+    }
+
+    return filtered;
+  }, [localPratiche, filtroAgenzia, filtroStato, searchQuery, fuse]);
 
   const handleEditPratica = (praticaId) => {
     setEditingPraticaId(praticaId);
@@ -306,25 +327,15 @@ function PraticheBoardPage() {
 
   return (
     <div className="container mx-auto">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-gray-800">Gestione Pratiche - Vista Board</h1>
-        <button
-          onClick={() => setShowNewPraticaForm(true)}
-          className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center text-sm"
-        >
-          <FaPlus className="mr-1" size={12} /> Nuova Pratica
-        </button>
-      </div>
-
       <div className="bg-white p-3 rounded-lg shadow mb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center mr-4">
-            <FaFilter className="text-gray-500 mr-2" size={14} />
-            <label className="text-sm font-medium text-gray-700 mr-2">Filtra per agenzia:</label>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <FaFilter className="text-gray-500" size={14} />
+            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Filtra per agenzia:</label>
             <select
               value={filtroAgenzia}
               onChange={(e) => setFiltroAgenzia(e.target.value)}
-              className="p-1 text-sm border border-gray-300 rounded-md w-64"
+              className="px-3 py-2 text-sm border border-gray-300 rounded-md w-48"
             >
               <option value="">Tutte le agenzie</option>
               {agenzieCollaboratori.map(ac => (
@@ -335,43 +346,76 @@ function PraticheBoardPage() {
             {filtroAgenzia && (
               <button
                 onClick={() => setFiltroAgenzia('')}
-                className="ml-2 text-xs text-blue-600 hover:text-blue-800"
+                className="text-xs text-blue-600 hover:text-blue-800"
               >
                 Rimuovi filtro
               </button>
             )}
           </div>
-          <div className="flex items-center">
-            <div className="mr-4">
-              <label className="text-sm font-medium text-gray-700 mr-2">Stato:</label>
-              <select
-                value={filtroStato}
-                onChange={(e) => setFiltroStato(e.target.value)}
-                className="p-1 text-sm border border-gray-300 rounded-md w-64"
-              >
-                <option value="">Tutti gli stati</option>
-                <option value="In Corso">In Corso</option>
-                <option value="Completata">Completata</option>
-              </select>
-            </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Stato:</label>
+            <select
+              value={filtroStato}
+              onChange={(e) => setFiltroStato(e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-300 rounded-md w-40"
+            >
+              <option value="">Tutti gli stati</option>
+              <option value="In Corso">In Corso</option>
+              <option value="Completata">Completata</option>
+            </select>
           </div>
+
+          <div className="flex-1 relative">
+            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} />
+            <input
+              type="text"
+              placeholder="Cerca pratiche..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <button
+            onClick={() => setShowNewPraticaForm(true)}
+            className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 flex items-center gap-2 text-sm whitespace-nowrap"
+          >
+            <FaPlus size={12} /> Nuova Pratica
+          </button>
         </div>
+
+        {searchQuery && (
+          <p className="text-xs text-gray-500 mt-2">
+            {praticheFiltered.length} {praticheFiltered.length === 1 ? 'risultato trovato' : 'risultati trovati'}
+          </p>
+        )}
       </div>
 
-      <BoardTable
-        pratiche={praticheFiltered}
-        onEditPratica={handleEditPratica}
-        onChangeStato={handleChangeStato}
-        updatePratica={updatePratica}
-        localPratiche={localPratiche}
-        setLocalPratiche={setLocalPratiche}
-        isGoogleAuthenticated={isGoogleAuthenticated}
-        googleAuthLoading={isLoadingGapi || isLoadingEvents}
-        loginToGoogleCalendar={loginToGoogle}
-        onOpenCalendarModal={handleOpenCalendarModalForTask}
-        onEditCalendarTask={handleEditCalendarTask}
-        deleteGoogleCalendarEvent={deleteGoogleCalendarEvent}
-      />
+      {praticheFiltered.length === 0 && searchQuery ? (
+        <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+          <FaSearch size={48} className="mx-auto mb-4 text-gray-300" />
+          <h3 className="text-xl font-semibold text-gray-800 mb-2">Nessuna pratica trovata</h3>
+          <p className="text-gray-600">
+            Prova a modificare i termini di ricerca o rimuovi i filtri.
+          </p>
+        </div>
+      ) : (
+        <BoardTable
+          pratiche={praticheFiltered}
+          onEditPratica={handleEditPratica}
+          onChangeStato={handleChangeStato}
+          updatePratica={updatePratica}
+          localPratiche={localPratiche}
+          setLocalPratiche={setLocalPratiche}
+          isGoogleAuthenticated={isGoogleAuthenticated}
+          googleAuthLoading={isLoadingGapi || isLoadingEvents}
+          loginToGoogleCalendar={loginToGoogle}
+          onOpenCalendarModal={handleOpenCalendarModalForTask}
+          onEditCalendarTask={handleEditCalendarTask}
+          deleteGoogleCalendarEvent={deleteGoogleCalendarEvent}
+        />
+      )}
 
       {showNewPraticaForm && (
         <NewPraticaForm
