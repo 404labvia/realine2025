@@ -76,12 +76,12 @@ function BoardTable({
           z-index: 30;
         }
         .col-scadenze { min-width: 150px; max-width: 150px; }
-        .col-incarico { min-width: 200px; max-width: 200px; }
+        .col-incarico { min-width: 120px; max-width: 120px; }
         .col-importo { min-width: 120px; max-width: 120px; }
-        .col-note { min-width: 100px; max-width: 100px; }
-        .col-task { min-width: 100px; max-width: 100px; }
+        .col-note { min-width: 200px; max-width: 200px; }
+        .col-task { min-width: 200px; max-width: 200px; }
         .col-pagamenti { min-width: 150px; max-width: 150px; }
-        .col-stato { min-width: 120px; max-width: 120px; }
+        .col-stato { min-width: 100px; max-width: 100px; }
 
         .tooltip {
           position: relative;

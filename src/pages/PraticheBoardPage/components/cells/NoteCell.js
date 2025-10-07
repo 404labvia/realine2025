@@ -29,7 +29,8 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
   };
 
   const allNotes = getAllNotes();
-  const displayedNotes = showAll ? allNotes : allNotes.slice(0, 1);
+  const latestNote = allNotes[0];
+  const displayedNotes = showAll ? allNotes : (latestNote ? [latestNote] : []);
 
   const handleAddNote = async () => {
     if (!newNoteText.trim()) return;
@@ -92,7 +93,7 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
     await updatePratica(pratica.id, { workflow: updatedWorkflow });
   };
 
-  if (!showAll && allNotes.length === 0 && !showAddForm) {
+  if (allNotes.length === 0 && !showAddForm) {
     return (
       <div className="flex justify-center">
         <button
@@ -107,8 +108,8 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
 
   return (
     <div className="space-y-2">
-      {!showAll && allNotes.length > 0 ? (
-        <div className="flex justify-center">
+      {allNotes.length > 1 && !showAll && (
+        <div className="flex justify-center mb-2">
           <button
             onClick={() => setShowAll(true)}
             className="inline-flex items-center gap-1 px-2 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-800"
@@ -117,86 +118,84 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
             <span>{allNotes.length}</span>
           </button>
         </div>
-      ) : (
-        <>
-          <div className="space-y-2">
-            {displayedNotes.map((note, idx) => {
-              const noteKey = `${note.stepId}-${note.noteIndex}`;
-              const isEditing = editingNote === noteKey;
+      )}
 
-              return (
-                <div key={noteKey} className="group relative p-2 bg-gray-50 rounded hover:bg-gray-100">
-                  {isEditing ? (
-                    <div>
-                      <textarea
-                        defaultValue={note.text}
-                        className="w-full p-1 text-xs border border-gray-300 rounded"
-                        rows="2"
-                        autoFocus
-                        onBlur={(e) => {
-                          if (e.target.value.trim()) {
-                            handleUpdateNote(note.stepId, note.noteIndex, e.target.value);
-                          } else {
-                            setEditingNote(null);
-                          }
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            handleUpdateNote(note.stepId, note.noteIndex, e.target.value);
-                          } else if (e.key === 'Escape') {
-                            setEditingNote(null);
-                          }
-                        }}
-                      />
-                    </div>
-                  ) : (
-                    <div>
-                      <div className="flex items-start">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mt-0.5 mr-1 text-gray-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <div className="flex-1">
-                          <div
-                            className="text-xs text-gray-800 cursor-pointer"
-                            onDoubleClick={() => setEditingNote(noteKey)}
-                          >
-                            {note.text}
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            {format(new Date(note.date), 'dd/MM/yyyy HH:mm', { locale: it })}
-                          </div>
-                        </div>
+      <div className="space-y-2">
+        {displayedNotes.map((note, idx) => {
+          const noteKey = `${note.stepId}-${note.noteIndex}`;
+          const isEditing = editingNote === noteKey;
+
+          return (
+            <div key={noteKey} className="group relative p-2 bg-gray-50 rounded hover:bg-gray-100">
+              {isEditing ? (
+                <div>
+                  <textarea
+                    defaultValue={note.text}
+                    className="w-full p-1 text-xs border border-gray-300 rounded"
+                    rows="2"
+                    autoFocus
+                    onBlur={(e) => {
+                      if (e.target.value.trim()) {
+                        handleUpdateNote(note.stepId, note.noteIndex, e.target.value);
+                      } else {
+                        setEditingNote(null);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleUpdateNote(note.stepId, note.noteIndex, e.target.value);
+                      } else if (e.key === 'Escape') {
+                        setEditingNote(null);
+                      }
+                    }}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <div className="flex items-start">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mt-0.5 mr-1 text-gray-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <div className="flex-1">
+                      <div
+                        className="text-xs text-gray-800 cursor-pointer"
+                        onDoubleClick={() => setEditingNote(noteKey)}
+                      >
+                        {note.text}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {format(new Date(note.date), 'dd/MM/yyyy HH:mm', { locale: it })}
                       </div>
                     </div>
-                  )}
-
-                  {!isEditing && (
-                    <button
-                      onClick={() => handleDeleteNote(note.stepId, note.noteIndex)}
-                      className="absolute top-1 right-1 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100"
-                    >
-                      <FaTimes size={10} />
-                    </button>
-                  )}
+                  </div>
                 </div>
-              );
-            })}
-          </div>
+              )}
 
-          {allNotes.length > 0 && (
-            <button
-              onClick={() => setShowAll(false)}
-              className="w-full text-xs text-blue-600 hover:text-blue-800"
-            >
-              Chiudi
-            </button>
-          )}
-        </>
+              {!isEditing && (
+                <button
+                  onClick={() => handleDeleteNote(note.stepId, note.noteIndex)}
+                  className="absolute top-1 right-1 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100"
+                >
+                  <FaTimes size={10} />
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {showAll && (
+        <button
+          onClick={() => setShowAll(false)}
+          className="w-full text-xs text-blue-600 hover:text-blue-800"
+        >
+          Chiudi
+        </button>
       )}
 
       {showAddForm ? (
-        <div className="mt-2 p-2 border border-gray-300 rounded">
+        <div className="p-2 border border-gray-300 rounded">
           <textarea
             value={newNoteText}
             onChange={(e) => setNewNoteText(e.target.value)}
@@ -229,7 +228,7 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
             </button>
           </div>
         </div>
-      ) : showAll && (
+      ) : (showAll || allNotes.length === 0) && (
         <button
           onClick={() => setShowAddForm(true)}
           className="w-full text-xs text-gray-600 hover:text-blue-600 flex items-center justify-center py-1 border border-dashed border-gray-300 rounded hover:border-blue-400"

@@ -74,85 +74,77 @@ const IncaricoCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche 
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <div>
         <div className="text-xs font-semibold text-gray-700 mb-1">Committente</div>
-        <div className="space-y-1">
-          <div>
-            <label className="flex items-center text-xs text-gray-700 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={committenteInviato}
-                onChange={(e) => handleCheckboxChange('committenteInviato', e.target.checked)}
-                className="mr-2"
-              />
-              Inviato
-            </label>
-            {committenteInviato && dataCommittenteInviato && (
-              <div className="text-xs text-gray-500 ml-6">
-                {format(new Date(dataCommittenteInviato), 'dd/MM/yyyy', { locale: it })}
-              </div>
-            )}
-          </div>
-          <div>
-            <label className="flex items-center text-xs text-gray-700 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={committenteFirmato}
-                onChange={(e) => handleCheckboxChange('committenteFirmato', e.target.checked)}
-                className="mr-2"
-              />
-              Firmato
-            </label>
-            {committenteFirmato && dataCommittenteFirmato && (
-              <div className="text-xs text-gray-500 ml-6">
-                {format(new Date(dataCommittenteFirmato), 'dd/MM/yyyy', { locale: it })}
-              </div>
-            )}
-          </div>
+        <div className="flex gap-2 mb-1">
+          <label className="flex items-center text-xs text-gray-700 cursor-pointer whitespace-nowrap">
+            <input
+              type="checkbox"
+              checked={committenteInviato}
+              onChange={(e) => handleCheckboxChange('committenteInviato', e.target.checked)}
+              className="mr-1"
+            />
+            Inviato
+          </label>
+          <label className="flex items-center text-xs text-gray-700 cursor-pointer whitespace-nowrap">
+            <input
+              type="checkbox"
+              checked={committenteFirmato}
+              onChange={(e) => handleCheckboxChange('committenteFirmato', e.target.checked)}
+              className="mr-1"
+            />
+            Firmato
+          </label>
         </div>
+        {committenteInviato && dataCommittenteInviato && (
+          <div className="text-xs text-gray-500">
+            Inv: {format(new Date(dataCommittenteInviato), 'dd/MM/yy', { locale: it })}
+          </div>
+        )}
+        {committenteFirmato && dataCommittenteFirmato && (
+          <div className="text-xs text-gray-500">
+            Firm: {format(new Date(dataCommittenteFirmato), 'dd/MM/yy', { locale: it })}
+          </div>
+        )}
       </div>
 
       <div>
         <div className="text-xs font-semibold text-gray-700 mb-1">Collaboratore</div>
-        <div className="space-y-1">
-          <div>
-            <label className="flex items-center text-xs text-gray-700 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={collaboratoreInviato}
-                onChange={(e) => handleCheckboxChange('collaboratoreInviato', e.target.checked)}
-                className="mr-2"
-              />
-              Inviato
-            </label>
-            {collaboratoreInviato && dataCollaboratoreInviato && (
-              <div className="text-xs text-gray-500 ml-6">
-                {format(new Date(dataCollaboratoreInviato), 'dd/MM/yyyy', { locale: it })}
-              </div>
-            )}
-          </div>
-          <div>
-            <label className="flex items-center text-xs text-gray-700 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={collaboratoreFirmato}
-                onChange={(e) => handleCheckboxChange('collaboratoreFirmato', e.target.checked)}
-                className="mr-2"
-              />
-              Firmato
-            </label>
-            {collaboratoreFirmato && dataCollaboratoreFirmato && (
-              <div className="text-xs text-gray-500 ml-6">
-                {format(new Date(dataCollaboratoreFirmato), 'dd/MM/yyyy', { locale: it })}
-              </div>
-            )}
-          </div>
+        <div className="flex gap-2 mb-1">
+          <label className="flex items-center text-xs text-gray-700 cursor-pointer whitespace-nowrap">
+            <input
+              type="checkbox"
+              checked={collaboratoreInviato}
+              onChange={(e) => handleCheckboxChange('collaboratoreInviato', e.target.checked)}
+              className="mr-1"
+            />
+            Inviato
+          </label>
+          <label className="flex items-center text-xs text-gray-700 cursor-pointer whitespace-nowrap">
+            <input
+              type="checkbox"
+              checked={collaboratoreFirmato}
+              onChange={(e) => handleCheckboxChange('collaboratoreFirmato', e.target.checked)}
+              className="mr-1"
+            />
+            Firmato
+          </label>
         </div>
+        {collaboratoreInviato && dataCollaboratoreInviato && (
+          <div className="text-xs text-gray-500">
+            Inv: {format(new Date(dataCollaboratoreInviato), 'dd/MM/yy', { locale: it })}
+          </div>
+        )}
+        {collaboratoreFirmato && dataCollaboratoreFirmato && (
+          <div className="text-xs text-gray-500">
+            Firm: {format(new Date(dataCollaboratoreFirmato), 'dd/MM/yy', { locale: it })}
+          </div>
+        )}
       </div>
 
       {showNoteForm ? (
-        <div className="mt-2">
+        <div>
           <textarea
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}
@@ -186,7 +178,7 @@ const IncaricoCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche 
           </div>
         </div>
       ) : nota ? (
-        <div className="group relative mt-2 p-1 bg-gray-50 rounded">
+        <div className="group relative p-1 bg-gray-50 rounded">
           <div className="text-xs text-gray-700">{nota}</div>
           <button
             onClick={handleDeleteNote}
@@ -198,7 +190,7 @@ const IncaricoCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche 
       ) : (
         <button
           onClick={() => setShowNoteForm(true)}
-          className="text-xs text-gray-400 hover:text-blue-600 flex items-center justify-center w-full mt-2"
+          className="text-xs text-gray-400 hover:text-blue-600 flex items-center w-full"
         >
           <FaPlus size={8} className="mr-1" /> Nota
         </button>
