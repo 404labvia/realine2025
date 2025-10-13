@@ -1,7 +1,8 @@
+// src/pages/PraticheBoardPage/components/cells/TaskCell.js
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { FaPlus, FaTimes, FaCalendarAlt, FaGoogle } from 'react-icons/fa';
+import { FaPlus, FaTimes, FaGoogle } from 'react-icons/fa';
 
 const TaskCell = ({
   pratica,
@@ -90,9 +91,16 @@ const TaskCell = ({
     await updatePratica(pratica.id, { workflow: updatedWorkflow });
   };
 
+  // Rimuove i dettagli della pratica dal testo della task per la vista board
+  const cleanTaskText = (text) => {
+    if (!text) return '';
+    const parenIndex = text.indexOf('(Pratica:');
+    return parenIndex > -1 ? text.substring(0, parenIndex).trim() : text;
+  };
+
   if (allTasks.length === 0) {
     return (
-      <div className="flex justify-center">
+      <div className="flex flex-col items-center justify-center h-full">
         <button
           onClick={() => {
             if (!isGoogleAuthenticated) {
@@ -106,19 +114,30 @@ const TaskCell = ({
             onOpenCalendarModal(pratica.id, 'inizioPratica');
           }}
           disabled={googleAuthLoading}
-          className={`text-xs flex items-center gap-1 ${
+          className={`text-xs flex flex-col items-center gap-1 ${
             isGoogleAuthenticated
-              ? 'text-gray-600 hover:text-blue-600'
+              ? 'text-gray-400 hover:text-blue-600'
               : 'text-gray-400 hover:text-orange-600'
           } ${googleAuthLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           {isGoogleAuthenticated ? (
             <>
-              <FaPlus size={8} /> Aggiungi task
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" strokeWidth="2"/>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4"/>
+              </svg>
+              <span>Aggiungi task</span>
             </>
           ) : (
             <>
-              {googleAuthLoading ? 'Caricamento...' : <><FaGoogle size={8} /> Connetti Google</>}
+              {googleAuthLoading ? (
+                <span>Caricamento...</span>
+              ) : (
+                <>
+                  <FaGoogle size={20} />
+                  <span>Connetti Google</span>
+                </>
+              )}
             </>
           )}
         </button>
@@ -127,14 +146,17 @@ const TaskCell = ({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 relative pb-12">
       {allTasks.length > 1 && !showAll && (
         <div className="flex justify-center mb-2">
           <button
             onClick={() => setShowAll(true)}
             className="inline-flex items-center gap-1 px-2 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-800"
           >
-            <FaCalendarAlt size={10} />
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" strokeWidth="2"/>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4"/>
+            </svg>
             <span>{completedCount}/{totalCount}</span>
           </button>
         </div>
@@ -159,7 +181,7 @@ const TaskCell = ({
                   onClick={() => onEditCalendarTask(task, pratica.id, task.stepId)}
                 >
                   <div className={`text-xs text-gray-800 ${task.completed ? 'line-through' : ''}`}>
-                    {task.text}
+                    {cleanTaskText(task.text)}
                   </div>
                   {task.dueDate && (
                     <div className="text-xs text-gray-500 mt-0.5">
@@ -188,7 +210,7 @@ const TaskCell = ({
         </button>
       )}
 
-      {(showAll || allTasks.length === 0) && (
+      <div className="absolute bottom-2 left-0 right-0 flex justify-center">
         <button
           onClick={() => {
             if (!isGoogleAuthenticated) {
@@ -202,23 +224,30 @@ const TaskCell = ({
             onOpenCalendarModal(pratica.id, 'inizioPratica');
           }}
           disabled={googleAuthLoading}
-          className={`w-full text-xs flex items-center justify-center py-1 border border-dashed rounded ${
+          className={`text-xs flex flex-col items-center gap-1 ${
             isGoogleAuthenticated
-              ? 'text-gray-600 hover:text-blue-600 border-gray-300 hover:border-blue-400'
-              : 'text-gray-400 hover:text-orange-600 border-gray-200 hover:border-orange-400'
+              ? 'text-gray-400 hover:text-blue-600'
+              : 'text-gray-400 hover:text-orange-600'
           } ${googleAuthLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           {isGoogleAuthenticated ? (
             <>
-              <FaPlus size={10} className="mr-1" /> Aggiungi task
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10" strokeWidth="2"/>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4"/>
+              </svg>
             </>
           ) : (
             <>
-              {googleAuthLoading ? 'Caricamento...' : <><FaGoogle className="mr-1" size={10} /> Connetti Google</>}
+              {googleAuthLoading ? (
+                <span className="text-xs">...</span>
+              ) : (
+                <FaGoogle size={16} />
+              )}
             </>
           )}
         </button>
-      )}
+      </div>
     </div>
   );
 };

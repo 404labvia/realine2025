@@ -1,3 +1,4 @@
+// src/pages/PraticheBoardPage/components/BoardTable.js
 import React from 'react';
 import {
   PraticaCell,
@@ -22,7 +23,8 @@ function BoardTable({
   loginToGoogleCalendar,
   onOpenCalendarModal,
   onEditCalendarTask,
-  deleteGoogleCalendarEvent
+  deleteGoogleCalendarEvent,
+  onCreateAutomationTask
 }) {
   return (
     <div className="bg-white shadow-sm rounded-lg overflow-hidden">
@@ -75,13 +77,13 @@ function BoardTable({
         .board-table thead th.col-pratica {
           z-index: 30;
         }
-        .col-scadenze { min-width: 150px; max-width: 150px; }
-        .col-incarico { min-width: 120px; max-width: 120px; }
+        .col-scadenze { min-width: 180px; max-width: 180px; }
+        .col-incarico { min-width: 150px; max-width: 150px; }
         .col-importo { min-width: 120px; max-width: 120px; }
         .col-note { min-width: 200px; max-width: 200px; }
         .col-task { min-width: 200px; max-width: 200px; }
         .col-pagamenti { min-width: 150px; max-width: 150px; }
-        .col-stato { min-width: 100px; max-width: 100px; }
+        .col-stato { min-width: 150px; max-width: 150px; }
 
         .tooltip {
           position: relative;
@@ -145,10 +147,11 @@ function BoardTable({
                     updatePratica={updatePratica}
                     localPratiche={localPratiche}
                     setLocalPratiche={setLocalPratiche}
+                    onCreateAutomationTask={onCreateAutomationTask}
                   />
                 </td>
                 <td className="col-importo">
-                  <ImportoCell pratica={pratica} />
+                  <ImportoCell pratica={pratica} onEditPratica={onEditPratica} />
                 </td>
                 <td className="col-note">
                   <NoteCell

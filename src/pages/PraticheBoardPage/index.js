@@ -1,8 +1,10 @@
+// src/pages/PraticheBoardPage/index.js
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePratiche } from '../../contexts/PraticheContext';
 import { usePratichePrivato } from '../../contexts/PratichePrivatoContext';
-import { FaFilter, FaPlus, FaSearch } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaFilter, FaSort } from 'react-icons/fa';
 import Fuse from 'fuse.js';
+import { addDays } from 'date-fns';
 
 import { useCalendarState } from '../CalendarPage/hooks/useCalendarState';
 import { useGoogleCalendarApi } from '../CalendarPage/hooks/useGoogleCalendarApi';
@@ -30,6 +32,7 @@ function PraticheBoardPage() {
   const [filtroAgenzia, setFiltroAgenzia] = useState('');
   const [filtroStato, setFiltroStato] = useState('In Corso');
   const [searchQuery, setSearchQuery] = useState('');
+  const [ordinaPerScadenza, setOrdinaPerScadenza] = useState(true);
   const [editingPraticaId, setEditingPraticaId] = useState(null);
   const [showNewPraticaForm, setShowNewPraticaForm] = useState(false);
   const [currentStepIdForCalendar, setCurrentStepIdForCalendar] = useState(null);
@@ -86,6 +89,20 @@ function PraticheBoardPage() {
     });
   }, [localPratiche]);
 
+  // Funzione per ordinare per scadenza
+  const sortByScadenza = (pratiche) => {
+    return [...pratiche].sort((a, b) => {
+      const scadenzaA = a.workflow?.scadenze?.dataAttoConfermato || a.workflow?.scadenze?.dataCompromesso;
+      const scadenzaB = b.workflow?.scadenze?.dataAttoConfermato || b.workflow?.scadenze?.dataCompromesso;
+
+      if (!scadenzaA && !scadenzaB) return 0;
+      if (!scadenzaA) return 1;
+      if (!scadenzaB) return -1;
+
+      return new Date(scadenzaA) - new Date(scadenzaB);
+    });
+  };
+
   const praticheFiltered = useMemo(() => {
     let filtered = localPratiche;
 
@@ -103,8 +120,12 @@ function PraticheBoardPage() {
       filtered = filtered.filter(pratica => searchResultIds.includes(pratica.id));
     }
 
+    if (ordinaPerScadenza) {
+      filtered = sortByScadenza(filtered);
+    }
+
     return filtered;
-  }, [localPratiche, filtroAgenzia, filtroStato, searchQuery, fuse]);
+  }, [localPratiche, filtroAgenzia, filtroStato, searchQuery, fuse, ordinaPerScadenza]);
 
   const handleEditPratica = (praticaId) => {
     setEditingPraticaId(praticaId);
@@ -187,6 +208,80 @@ function PraticheBoardPage() {
       });
     }
   }, [calendarEvents, handleSelectCalendarEventForModal, tutteLePratichePerModal, pratichePrivateData]);
+
+  // Funzione per creare task automatiche da checkbox incarico
+  const handleCreateAutomationTask = async (praticaId, stepId, taskData) => {
+    if (!gapiClientInitialized || !googleApiToken) {
+      console.warn('Google Calendar non autenticato, impossibile creare task automatica');
+      return;
+    }
+
+    try {
+      const pratica = localPratiche.find(p => p.id === praticaId);
+      if (!pratica) return;
+
+      // Prepara evento per Google Calendar
+      const eventResource = {
+        summary: taskData.title,
+        description: `Task automatica creata da controllo incarico per ${pratica.indirizzo}`,
+        start: {
+          dateTime: taskData.dueDate.toISOString(),
+          timeZone: 'Europe/Rome'
+        },
+        end: {
+          dateTime: addDays(taskData.dueDate, 0).toISOString(),
+          timeZone: 'Europe/Rome'
+        },
+        reminders: {
+          useDefault: false,
+          overrides: [
+            { method: 'popup', minutes: 60 }
+          ]
+        }
+      };
+
+      const savedGoogleEvent = await createGoogleEvent(eventResource, 'primary');
+
+      if (savedGoogleEvent) {
+        const updatedWorkflow = JSON.parse(JSON.stringify(pratica.workflow || {}));
+
+        if (!updatedWorkflow[stepId]) {
+          updatedWorkflow[stepId] = { tasks: [], notes: [] };
+        }
+        if (!updatedWorkflow[stepId].tasks) {
+          updatedWorkflow[stepId].tasks = [];
+        }
+
+        const taskInfo = {
+          text: taskData.title,
+          dueDate: taskData.dueDate.toISOString(),
+          endDate: addDays(taskData.dueDate, 0).toISOString(),
+          googleCalendarEventId: savedGoogleEvent.id,
+          sourceCalendarId: 'primary',
+          priority: taskData.priority || 'normal',
+          reminder: 60,
+          completed: false,
+          relatedPraticaId: praticaId,
+          description: `Task automatica creata da controllo incarico`,
+          createdDate: new Date().toISOString(),
+          stepId: stepId
+        };
+
+        updatedWorkflow[stepId].tasks.push(taskInfo);
+
+        setLocalPratiche(prevPratiche =>
+          prevPratiche.map(p =>
+            p.id === praticaId
+              ? { ...p, workflow: updatedWorkflow }
+              : p
+          )
+        );
+        await updatePratica(praticaId, { workflow: updatedWorkflow });
+      }
+    } catch (error) {
+      console.error("Errore durante la creazione della task automatica:", error);
+    }
+  };
 
   const handleSaveCalendarEvent = async () => {
     if (new Date(calendarFormState.end) <= new Date(calendarFormState.start)) {
@@ -366,6 +461,19 @@ function PraticheBoardPage() {
             </select>
           </div>
 
+          <div className="flex items-center gap-2">
+            <FaSort className="text-gray-500" size={14} />
+            <label className="inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={ordinaPerScadenza}
+                onChange={(e) => setOrdinaPerScadenza(e.target.checked)}
+                className="mr-2"
+              />
+              <span className="text-sm font-medium text-gray-700">Ordina per scadenza</span>
+            </label>
+          </div>
+
           <div className="flex-1 relative">
             <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} />
             <input
@@ -414,6 +522,7 @@ function PraticheBoardPage() {
           onOpenCalendarModal={handleOpenCalendarModalForTask}
           onEditCalendarTask={handleEditCalendarTask}
           deleteGoogleCalendarEvent={deleteGoogleCalendarEvent}
+          onCreateAutomationTask={handleCreateAutomationTask}
         />
       )}
 

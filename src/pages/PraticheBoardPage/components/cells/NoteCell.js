@@ -1,7 +1,8 @@
+// src/pages/PraticheBoardPage/components/cells/NoteCell.js
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { FaPlus, FaTimes, FaStickyNote } from 'react-icons/fa';
+import { FaPlus, FaTimes } from 'react-icons/fa';
 
 const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) => {
   const [showAll, setShowAll] = useState(false);
@@ -95,26 +96,31 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
 
   if (allNotes.length === 0 && !showAddForm) {
     return (
-      <div className="flex justify-center">
+      <div className="flex flex-col items-center justify-center h-full">
         <button
           onClick={() => setShowAddForm(true)}
-          className="text-xs text-gray-400 hover:text-blue-600 flex items-center"
+          className="text-xs text-gray-400 hover:text-blue-600 flex flex-col items-center gap-1"
         >
-          <FaPlus size={8} className="mr-1" /> Aggiungi nota
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span>Aggiungi nota</span>
         </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2 relative pb-12">
       {allNotes.length > 1 && !showAll && (
         <div className="flex justify-center mb-2">
           <button
             onClick={() => setShowAll(true)}
             className="inline-flex items-center gap-1 px-2 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-800"
           >
-            <FaStickyNote size={10} />
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
             <span>{allNotes.length}</span>
           </button>
         </div>
@@ -154,9 +160,6 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
               ) : (
                 <div>
                   <div className="flex items-start">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mt-0.5 mr-1 text-gray-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
                     <div className="flex-1">
                       <div
                         className="text-xs text-gray-800 cursor-pointer"
@@ -165,7 +168,7 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
                         {note.text}
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        {format(new Date(note.date), 'dd/MM/yyyy HH:mm', { locale: it })}
+                        {format(new Date(note.date), 'dd/MM/yyyy', { locale: it })}
                       </div>
                     </div>
                   </div>
@@ -228,13 +231,17 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
             </button>
           </div>
         </div>
-      ) : (showAll || allNotes.length === 0) && (
-        <button
-          onClick={() => setShowAddForm(true)}
-          className="w-full text-xs text-gray-600 hover:text-blue-600 flex items-center justify-center py-1 border border-dashed border-gray-300 rounded hover:border-blue-400"
-        >
-          <FaPlus size={10} className="mr-1" /> Aggiungi nota
-        </button>
+      ) : (
+        <div className="absolute bottom-2 left-0 right-0 flex justify-center">
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="flex flex-col items-center gap-1 text-xs text-gray-400 hover:text-blue-600"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </button>
+        </div>
       )}
     </div>
   );

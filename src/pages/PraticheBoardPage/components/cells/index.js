@@ -1,3 +1,4 @@
+// src/pages/PraticheBoardPage/components/cells/index.js
 import PraticaCell from './PraticaCell';
 import ScadenzeCell from './ScadenzeCell';
 import IncaricoCell from './IncaricoCell';
