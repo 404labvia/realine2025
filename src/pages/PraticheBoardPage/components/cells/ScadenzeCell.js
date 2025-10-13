@@ -110,7 +110,7 @@ const ScadenzeCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche 
           </div>
         ) : dateValue ? (
           <div className="flex items-center justify-between">
-            <div className="cursor-pointer hover:text-blue-600 flex-1" onClick={() => setEditingField(dateField)}>
+            <div className="cursor-pointer hover:text-blue-600 flex-1 text-left" onClick={() => setEditingField(dateField)}>
               <div className="text-xs text-gray-600">{label}</div>
               <div className="text-xs text-gray-800 font-medium">
                 {timeField && timeValue
@@ -141,11 +141,11 @@ const ScadenzeCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche 
   };
 
   return (
-    <div className="text-center space-y-1">
+    <div className="text-left space-y-1">
       {renderDateTimeField('dataAttoConfermato', 'oraAttoConfermato', 'Atto confermato', dataAttoConfermato, oraAttoConfermato)}
       {renderDateTimeField('dataCompromesso', null, 'Compromesso', dataCompromesso, null)}
 
-      <div className="mt-3 pt-2 border-t border-gray-200">
+      <div className="mt-3 pt-2 border-t border-gray-200 text-left">
         {showNoteForm ? (
           <div>
             <textarea
@@ -168,14 +168,14 @@ const ScadenzeCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche 
             </div>
           </div>
         ) : nota ? (
-          <div className="group relative p-1 bg-gray-50 rounded">
+          <div className="group relative p-1 bg-gray-50 rounded text-left">
             <div className="text-xs text-gray-700">{nota}</div>
             <button onClick={handleDeleteNote} className="absolute top-0 right-0 text-red-500 hover:text-red-700 opacity-0 group-hover:opacity-100">
               <FaTimes size={8} />
             </button>
           </div>
         ) : (
-          <button onClick={() => setShowNoteForm(true)} className="text-xs text-gray-400 hover:text-blue-600 flex items-center w-full justify-center">
+          <button onClick={() => setShowNoteForm(true)} className="text-xs text-gray-400 hover:text-blue-600 flex items-center w-full justify-start">
             <FaPlus size={8} className="mr-1" /> Nota
           </button>
         )}
