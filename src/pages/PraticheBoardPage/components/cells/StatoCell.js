@@ -1,6 +1,6 @@
 // src/pages/PraticheBoardPage/components/cells/StatoCell.js
 import React from 'react';
-import { differenceInDays, differenceInCalendarDays } from 'date-fns';
+import { differenceInDays, differenceInCalendarDays, differenceInMonths } from 'date-fns';
 import { FaPlay, FaClock } from 'react-icons/fa';
 
 const StatoCell = ({ pratica, onChangeStato }) => {
@@ -15,8 +15,42 @@ const StatoCell = ({ pratica, onChangeStato }) => {
   const oggi = new Date();
   oggi.setHours(0, 0, 0, 0);
 
-  // Calcola giorni in corso
-  const giorniInCorso = dataInizio ? differenceInCalendarDays(oggi, dataInizio) : 0;
+  // Funzione per calcolare mesi e giorni reali
+  const calcolaMesiEGiorni = (dataInizio, dataFine) => {
+    if (!dataInizio) return { mesi: 0, giorni: 0, testoFormattato: '0 giorni' };
+
+    const start = new Date(dataInizio);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(dataFine);
+    end.setHours(0, 0, 0, 0);
+
+    // Calcola i mesi pieni
+    const mesiCompleti = differenceInMonths(end, start);
+
+    // Calcola la data dopo aver aggiunto i mesi pieni
+    const dataDopoMesi = new Date(start);
+    dataDopoMesi.setMonth(dataDopoMesi.getMonth() + mesiCompleti);
+
+    // Calcola i giorni rimanenti
+    const giorniRimanenti = differenceInCalendarDays(end, dataDopoMesi);
+
+    // Formatta il testo
+    let testoFormattato = '';
+    if (mesiCompleti > 0) {
+      testoFormattato = `${mesiCompleti} ${mesiCompleti === 1 ? 'mese' : 'mesi'}`;
+      if (giorniRimanenti > 0) {
+        testoFormattato += ` e ${giorniRimanenti} ${giorniRimanenti === 1 ? 'giorno' : 'giorni'}`;
+      }
+    } else {
+      testoFormattato = `${giorniRimanenti} ${giorniRimanenti === 1 ? 'giorno' : 'giorni'}`;
+    }
+
+    return { mesi: mesiCompleti, giorni: giorniRimanenti, testoFormattato };
+  };
+
+  // Calcola tempo in corso
+  const tempoInCorso = dataInizio ? calcolaMesiEGiorni(dataInizio, oggi) : { testoFormattato: '0 giorni' };
 
   // Usa atto come priorità, altrimenti compromesso
   const scadenza = dataAtto || dataCompromesso;
@@ -40,11 +74,11 @@ const StatoCell = ({ pratica, onChangeStato }) => {
   return (
     <div className="text-center space-y-2 p-2">
       <div className="flex items-center justify-center gap-1">
-        <FaPlay className="text-gray-600" size={12} />
+        <FaPlay className="text-gray-600 dark:text-dark-text-secondary" size={12} />
         <select
           value={pratica.stato || 'In Corso'}
           onChange={(e) => onChangeStato(pratica.id, e.target.value)}
-          className="text-xs border-0 bg-transparent focus:ring-0 focus:outline-none text-gray-700 font-medium"
+          className="text-xs border-0 bg-transparent dark:bg-transparent focus:ring-0 focus:outline-none text-gray-700 dark:text-dark-text-primary font-medium"
         >
           <option value="In Corso">In Corso</option>
           <option value="Completata">Completata</option>
@@ -54,9 +88,9 @@ const StatoCell = ({ pratica, onChangeStato }) => {
       {pratica.stato !== 'Completata' && (
         <>
           <div className="flex items-center justify-center gap-1 text-xs">
-            <FaClock className="text-gray-500" size={10} />
-            <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-              {giorniInCorso} {giorniInCorso === 1 ? 'giorno' : 'giorni'}
+            <FaClock className="text-gray-500 dark:text-dark-text-secondary" size={10} />
+            <span className="inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded-full text-xs font-medium">
+              {tempoInCorso.testoFormattato}
             </span>
           </div>
 

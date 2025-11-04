@@ -27,7 +27,7 @@ function BoardTable({
   onCreateAutomationTask
 }) {
   return (
-    <div className="bg-white shadow-sm rounded-lg overflow-hidden">
+    <div className="bg-white dark:bg-dark-surface shadow-sm rounded-lg overflow-hidden transition-colors duration-200">
       <style>{`
         .board-table-container {
           overflow-x: auto;
@@ -50,6 +50,11 @@ function BoardTable({
           color: #495057;
           text-align: center;
         }
+        .dark .board-table thead th {
+          background-color: #1e293b;
+          border-bottom-color: #334155;
+          color: #f1f5f9;
+        }
         .board-table tbody td {
           border-bottom: 1px solid #e9ecef;
           padding: 12px 8px;
@@ -58,11 +63,20 @@ function BoardTable({
           overflow: hidden;
           transition: background-color 0.15s ease-in-out;
         }
+        .dark .board-table tbody td {
+          border-bottom-color: #334155;
+        }
         .board-table tbody tr:hover {
           background-color: #e3f2fd;
         }
+        .dark .board-table tbody tr:hover {
+          background-color: #475569;
+        }
         .board-table tbody tr:hover .col-pratica {
           background-color: #bbdefb !important;
+        }
+        .dark .board-table tbody tr:hover .col-pratica {
+          background-color: #475569 !important;
         }
         .col-pratica {
           position: sticky;
@@ -73,6 +87,9 @@ function BoardTable({
           max-width: 220px;
           box-shadow: 2px 0 4px rgba(0,0,0,0.05);
           transition: background-color 0.15s ease-in-out;
+        }
+        .dark .col-pratica {
+          background-color: #1e293b;
         }
         .board-table thead th.col-pratica {
           z-index: 30;
