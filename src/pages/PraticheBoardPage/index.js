@@ -422,15 +422,15 @@ function PraticheBoardPage() {
 
   return (
     <div className="container mx-auto">
-      <div className="bg-white p-3 rounded-lg shadow mb-4">
+      <div className="bg-white dark:bg-dark-surface p-3 rounded-lg shadow mb-4 transition-colors duration-200">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <FaFilter className="text-gray-500" size={14} />
-            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Filtra per agenzia:</label>
+            <FaFilter className="text-gray-500 dark:text-dark-text-secondary" size={14} />
+            <label className="text-sm font-medium text-gray-700 dark:text-dark-text-primary whitespace-nowrap">Filtra per agenzia:</label>
             <select
               value={filtroAgenzia}
               onChange={(e) => setFiltroAgenzia(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-md w-48"
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded-md w-48"
             >
               <option value="">Tutte le agenzie</option>
               {agenzieCollaboratori.map(ac => (
@@ -441,7 +441,7 @@ function PraticheBoardPage() {
             {filtroAgenzia && (
               <button
                 onClick={() => setFiltroAgenzia('')}
-                className="text-xs text-blue-600 hover:text-blue-800"
+                className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
               >
                 Rimuovi filtro
               </button>
@@ -449,11 +449,11 @@ function PraticheBoardPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Stato:</label>
+            <label className="text-sm font-medium text-gray-700 dark:text-dark-text-primary whitespace-nowrap">Stato:</label>
             <select
               value={filtroStato}
               onChange={(e) => setFiltroStato(e.target.value)}
-              className="px-3 py-2 text-sm border border-gray-300 rounded-md w-40"
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded-md w-40"
             >
               <option value="">Tutti gli stati</option>
               <option value="In Corso">In Corso</option>
@@ -462,7 +462,7 @@ function PraticheBoardPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <FaSort className="text-gray-500" size={14} />
+            <FaSort className="text-gray-500 dark:text-dark-text-secondary" size={14} />
             <label className="inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
@@ -470,41 +470,41 @@ function PraticheBoardPage() {
                 onChange={(e) => setOrdinaPerScadenza(e.target.checked)}
                 className="mr-2"
               />
-              <span className="text-sm font-medium text-gray-700">Ordina per scadenza</span>
+              <span className="text-sm font-medium text-gray-700 dark:text-dark-text-primary">Ordina per scadenza</span>
             </label>
           </div>
 
           <div className="flex-1 relative">
-            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={14} />
+            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-dark-text-muted" size={14} />
             <input
               type="text"
               placeholder="Cerca pratiche..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 placeholder-gray-400 dark:placeholder-dark-text-muted"
             />
           </div>
 
           <button
             onClick={() => setShowNewPraticaForm(true)}
-            className="px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-800 flex items-center gap-2 text-sm whitespace-nowrap"
+            className="px-4 py-2 bg-gray-700 dark:bg-gray-800 text-white rounded-md hover:bg-gray-800 dark:hover:bg-gray-900 flex items-center gap-2 text-sm whitespace-nowrap transition-colors"
           >
             <FaPlus size={12} /> Nuova Pratica
           </button>
         </div>
 
         {searchQuery && (
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-xs text-gray-500 dark:text-dark-text-muted mt-2">
             {praticheFiltered.length} {praticheFiltered.length === 1 ? 'risultato trovato' : 'risultati trovati'}
           </p>
         )}
       </div>
 
       {praticheFiltered.length === 0 && searchQuery ? (
-        <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-          <FaSearch size={48} className="mx-auto mb-4 text-gray-300" />
-          <h3 className="text-xl font-semibold text-gray-800 mb-2">Nessuna pratica trovata</h3>
-          <p className="text-gray-600">
+        <div className="bg-white dark:bg-dark-surface rounded-lg shadow-sm p-12 text-center transition-colors duration-200">
+          <FaSearch size={48} className="mx-auto mb-4 text-gray-300 dark:text-dark-text-muted" />
+          <h3 className="text-xl font-semibold text-gray-800 dark:text-dark-text-primary mb-2">Nessuna pratica trovata</h3>
+          <p className="text-gray-600 dark:text-dark-text-secondary">
             Prova a modificare i termini di ricerca o rimuovi i filtri.
           </p>
         </div>

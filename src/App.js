@@ -18,10 +18,12 @@ import {
 import { FaCalendarAlt, FaRobot } from 'react-icons/fa';
 
 import { AuthProvider } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { PraticheProvider } from './contexts/PraticheContext';
 import { PratichePrivatoProvider } from './contexts/PratichePrivatoContext';
 import { AccessoAttiProvider } from './pages/AccessiAgliAttiPage/contexts/AccessoAttiContext';
 import { ApeProvider } from './pages/ApePage/contexts/ApeContext';
+import ThemeToggle from './components/ThemeToggle';
 
 import Dashboard from './pages/Dashboard';
 import AccessiAgliAttiPage from './pages/AccessiAgliAttiPage';
@@ -97,22 +99,22 @@ function AppContent() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
-      <aside className={`${sidebarOpen ? 'w-52' : 'w-16'} bg-white text-gray-800 transition-all duration-300 ease-in-out overflow-y-auto shadow-lg flex flex-col justify-between`}>
+    <div className="flex h-screen bg-gray-100 dark:bg-dark-bg transition-colors duration-200">
+      <aside className={`${sidebarOpen ? 'w-52' : 'w-16'} bg-white dark:bg-dark-surface text-gray-800 dark:text-dark-text-primary transition-all duration-300 ease-in-out overflow-y-auto shadow-lg flex flex-col justify-between`}>
         <div>
           <div className="p-4 flex flex-col">
             <div className={`flex ${sidebarOpen ? 'justify-between' : 'justify-center'} w-full items-center`}>
               {sidebarOpen ? (
                 <div className="flex flex-col items-center w-full">
                   <img src="/logo.png" alt="Realine Studio Logo" className="h-20 mb-3"/>
-                  <h1 className="text-xl font-bold text-gray-800">Realine Studio</h1>
-                  <p className="text-xs text-gray-500">Gestione Pratiche</p>
+                  <h1 className="text-xl font-bold text-gray-800 dark:text-dark-text-primary">Realine Studio</h1>
+                  <p className="text-xs text-gray-500 dark:text-dark-text-muted">Gestione Pratiche</p>
                 </div>
               ) : (
                 <img src="/favicon.ico" alt="R" className="h-8 w-8 mx-auto" />
               )}
               <button
-                className={`p-1 rounded-full hover:bg-gray-100 text-gray-600 ${!sidebarOpen && 'mt-4 fixed left-14 top-3 z-50 bg-white shadow-md'}`}
+                className={`p-1 rounded-full hover:bg-gray-100 dark:hover:bg-dark-hover text-gray-600 dark:text-dark-text-secondary ${!sidebarOpen && 'mt-4 fixed left-14 top-3 z-50 bg-white dark:bg-dark-surface shadow-md'}`}
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 aria-label={sidebarOpen ? "Collassa sidebar" : "Espandi sidebar"}
               >
@@ -136,7 +138,7 @@ function AppContent() {
               <NavLink
                 key={item.to}
                 to={item.to}
-                className={({isActive}) => `flex items-center py-3 transition-colors duration-150 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : 'text-gray-600 hover:bg-gray-100' }`}
+                className={({isActive}) => `flex items-center py-3 transition-colors duration-150 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-r-2 border-blue-600 dark:border-blue-400' : 'text-gray-600 dark:text-dark-text-secondary hover:bg-gray-100 dark:hover:bg-dark-hover' }`}
                 title={!sidebarOpen ? item.label : ""}
               >
                 <span className={sidebarOpen ? 'mr-3' : ''}><item.icon className="h-5 w-5" /></span>
@@ -148,19 +150,19 @@ function AppContent() {
         {user && (
           <div className={`mb-6 ${sidebarOpen ? 'px-4' : 'px-0 text-center'}`}>
             {sidebarOpen ? (
-              <div className="p-3 bg-gray-100 rounded-md">
+              <div className="p-3 bg-gray-100 dark:bg-dark-hover rounded-md">
                 <div className="flex items-center mb-2">
-                  <MdAccountCircle className="h-6 w-6 text-gray-600 mr-2" />
-                  <span className="text-sm text-gray-700 truncate">{user.email}</span>
+                  <MdAccountCircle className="h-6 w-6 text-gray-600 dark:text-dark-text-secondary mr-2" />
+                  <span className="text-sm text-gray-700 dark:text-dark-text-secondary truncate">{user.email}</span>
                 </div>
-                <button onClick={handleSignOut} className="flex items-center justify-center w-full py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-sm">
+                <button onClick={handleSignOut} className="flex items-center justify-center w-full py-1.5 bg-blue-600 dark:bg-blue-700 text-white rounded hover:bg-blue-700 dark:hover:bg-blue-800 transition-colors text-sm">
                   <MdLogout className="h-4 w-4 mr-1.5" />
                   Logout
                 </button>
               </div>
             ) : (
               <div className="flex flex-col items-center">
-                <button onClick={handleSignOut} className="p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors" title={`Logout (${user.email})`}>
+                <button onClick={handleSignOut} className="p-2 rounded-full bg-blue-600 dark:bg-blue-700 text-white hover:bg-blue-700 dark:hover:bg-blue-800 transition-colors" title={`Logout (${user.email})`}>
                   <MdLogout className="h-5 w-5" />
                 </button>
               </div>
@@ -170,10 +172,11 @@ function AppContent() {
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white border-b p-4 flex items-center justify-between shadow-sm">
-          <h1 className="text-xl font-semibold text-gray-800">{getPageTitle()}</h1>
+        <header className="bg-white dark:bg-dark-surface border-b dark:border-dark-border p-4 flex items-center justify-between shadow-sm transition-colors duration-200">
+          <h1 className="text-xl font-semibold text-gray-800 dark:text-dark-text-primary">{getPageTitle()}</h1>
+          <ThemeToggle />
         </header>
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 p-4">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-100 dark:bg-dark-bg p-4 transition-colors duration-200">
           <Routes>
             <Route
               path="/"
@@ -257,9 +260,11 @@ function AppContent() {
 
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

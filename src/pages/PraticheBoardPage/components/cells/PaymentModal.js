@@ -34,6 +34,27 @@ const PaymentModal = ({ pratica, onClose, updatePratica, localPratiche, setLocal
     return parseFloat(amount || 0).toFixed(2);
   };
 
+  // Calcola i valori netto
+  const acconto50NettoCommittente = calcolaBaseCommittente(
+    acconto50Committente, acconto50CassaCommittente, acconto50IVACommittente
+  );
+  const acconto50NettoCollaboratore = calcolaBaseCollaboratore(
+    acconto50Collaboratore, acconto50CassaCollaboratore
+  );
+  const acconto50NettoFirmatario = calcolaBaseCollaboratore(
+    acconto50Firmatario, acconto50CassaFirmatario
+  );
+
+  const saldoNettoCommittente = calcolaBaseCommittente(
+    saldoCommittente, saldoCassaCommittente, saldoIVACommittente
+  );
+  const saldoNettoCollaboratore = calcolaBaseCollaboratore(
+    saldoCollaboratore, saldoCassaCollaboratore
+  );
+  const saldoNettoFirmatario = calcolaBaseCollaboratore(
+    saldoFirmatario, saldoCassaFirmatario
+  );
+
   const handleSave = async () => {
     const updatedWorkflow = { ...workflow };
 
@@ -105,193 +126,223 @@ const PaymentModal = ({ pratica, onClose, updatePratica, localPratiche, setLocal
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-xl font-semibold mb-4">Gestione Pagamenti - {pratica.indirizzo}</h2>
+      <div className="bg-white dark:bg-dark-surface p-6 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-xl font-semibold mb-4 text-gray-800 dark:text-dark-text-primary">Gestione Pagamenti - {pratica.indirizzo}</h2>
 
-        <div className="mb-6 p-4 border border-gray-200 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3 text-blue-600">Acconto 50%</h3>
+        <div className="mb-6 p-4 border border-gray-200 dark:border-dark-border rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 text-blue-600 dark:text-blue-400">Acconto 50%</h3>
 
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Committente</label>
-            <div className="flex items-center space-x-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <span className="absolute left-3 top-2 text-gray-500 text-sm">€</span>
-                  <input
-                    type="number"
-                    value={formatCurrency(acconto50Committente)}
-                    onChange={(e) => setAcconto50Committente(parseFloat(e.target.value) || 0)}
-                    className="pl-7 w-full p-2 text-sm border border-gray-300 rounded"
-                    step="0.01"
-                  />
+            <label className="block text-sm font-medium text-gray-700 dark:text-dark-text-primary mb-2">Committente</label>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <span className="absolute left-3 top-2 text-gray-500 dark:text-dark-text-muted text-sm">€</span>
+                    <input
+                      type="number"
+                      value={formatCurrency(acconto50Committente)}
+                      onChange={(e) => setAcconto50Committente(parseFloat(e.target.value) || 0)}
+                      className="pl-7 w-full p-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded"
+                      step="0.01"
+                    />
+                  </div>
                 </div>
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={acconto50CassaCommittente}
+                    onChange={(e) => setAcconto50CassaCommittente(e.target.checked)}
+                    className="mr-1"
+                  />
+                  <span className="text-sm dark:text-dark-text-secondary">+5% Cassa</span>
+                </label>
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={acconto50IVACommittente}
+                    onChange={(e) => setAcconto50IVACommittente(e.target.checked)}
+                    className="mr-1"
+                  />
+                  <span className="text-sm dark:text-dark-text-secondary">+22% IVA</span>
+                </label>
               </div>
-              <label className="inline-flex items-center">
-                <input
-                  type="checkbox"
-                  checked={acconto50CassaCommittente}
-                  onChange={(e) => setAcconto50CassaCommittente(e.target.checked)}
-                  className="mr-1"
-                />
-                <span className="text-sm">+5% Cassa</span>
-              </label>
-              <label className="inline-flex items-center">
-                <input
-                  type="checkbox"
-                  checked={acconto50IVACommittente}
-                  onChange={(e) => setAcconto50IVACommittente(e.target.checked)}
-                  className="mr-1"
-                />
-                <span className="text-sm">+22% IVA</span>
-              </label>
+              <div className="text-sm text-gray-600 dark:text-dark-text-secondary font-medium">
+                Netto: €{acconto50NettoCommittente.toFixed(2)}
+              </div>
             </div>
           </div>
 
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Collaboratore</label>
-            <div className="flex items-center space-x-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <span className="absolute left-3 top-2 text-gray-500 text-sm">€</span>
-                  <input
-                    type="number"
-                    value={formatCurrency(acconto50Collaboratore)}
-                    onChange={(e) => setAcconto50Collaboratore(parseFloat(e.target.value) || 0)}
-                    className="pl-7 w-full p-2 text-sm border border-gray-300 rounded"
-                    step="0.01"
-                  />
+            <label className="block text-sm font-medium text-gray-700 dark:text-dark-text-primary mb-2">Collaboratore</label>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <span className="absolute left-3 top-2 text-gray-500 dark:text-dark-text-muted text-sm">€</span>
+                    <input
+                      type="number"
+                      value={formatCurrency(acconto50Collaboratore)}
+                      onChange={(e) => setAcconto50Collaboratore(parseFloat(e.target.value) || 0)}
+                      className="pl-7 w-full p-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded"
+                      step="0.01"
+                    />
+                  </div>
                 </div>
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={acconto50CassaCollaboratore}
+                    onChange={(e) => setAcconto50CassaCollaboratore(e.target.checked)}
+                    className="mr-1"
+                  />
+                  <span className="text-sm dark:text-dark-text-secondary">+5% Cassa</span>
+                </label>
               </div>
-              <label className="inline-flex items-center">
-                <input
-                  type="checkbox"
-                  checked={acconto50CassaCollaboratore}
-                  onChange={(e) => setAcconto50CassaCollaboratore(e.target.checked)}
-                  className="mr-1"
-                />
-                <span className="text-sm">+5% Cassa</span>
-              </label>
+              <div className="text-sm text-gray-600 dark:text-dark-text-secondary font-medium">
+                Netto: €{acconto50NettoCollaboratore.toFixed(2)}
+              </div>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Collaboratore Firmatario</label>
-            <div className="flex items-center space-x-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <span className="absolute left-3 top-2 text-gray-500 text-sm">€</span>
-                  <input
-                    type="number"
-                    value={formatCurrency(acconto50Firmatario)}
-                    onChange={(e) => setAcconto50Firmatario(parseFloat(e.target.value) || 0)}
-                    className="pl-7 w-full p-2 text-sm border border-gray-300 rounded"
-                    step="0.01"
-                  />
+            <label className="block text-sm font-medium text-gray-700 dark:text-dark-text-primary mb-2">Collaboratore Firmatario</label>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <span className="absolute left-3 top-2 text-gray-500 dark:text-dark-text-muted text-sm">€</span>
+                    <input
+                      type="number"
+                      value={formatCurrency(acconto50Firmatario)}
+                      onChange={(e) => setAcconto50Firmatario(parseFloat(e.target.value) || 0)}
+                      className="pl-7 w-full p-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded"
+                      step="0.01"
+                    />
+                  </div>
                 </div>
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={acconto50CassaFirmatario}
+                    onChange={(e) => setAcconto50CassaFirmatario(e.target.checked)}
+                    className="mr-1"
+                  />
+                  <span className="text-sm dark:text-dark-text-secondary">+5% Cassa</span>
+                </label>
               </div>
-              <label className="inline-flex items-center">
-                <input
-                  type="checkbox"
-                  checked={acconto50CassaFirmatario}
-                  onChange={(e) => setAcconto50CassaFirmatario(e.target.checked)}
-                  className="mr-1"
-                />
-                <span className="text-sm">+5% Cassa</span>
-              </label>
+              <div className="text-sm text-gray-600 dark:text-dark-text-secondary font-medium">
+                Netto: €{acconto50NettoFirmatario.toFixed(2)}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="mb-6 p-4 border border-gray-200 rounded-lg">
-          <h3 className="text-lg font-semibold mb-3 text-green-600">Saldo</h3>
+        <div className="mb-6 p-4 border border-gray-200 dark:border-dark-border rounded-lg">
+          <h3 className="text-lg font-semibold mb-3 text-green-600 dark:text-green-400">Saldo</h3>
 
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Committente</label>
-            <div className="flex items-center space-x-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <span className="absolute left-3 top-2 text-gray-500 text-sm">€</span>
-                  <input
-                    type="number"
-                    value={formatCurrency(saldoCommittente)}
-                    onChange={(e) => setSaldoCommittente(parseFloat(e.target.value) || 0)}
-                    className="pl-7 w-full p-2 text-sm border border-gray-300 rounded"
-                    step="0.01"
-                  />
+            <label className="block text-sm font-medium text-gray-700 dark:text-dark-text-primary mb-2">Committente</label>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <span className="absolute left-3 top-2 text-gray-500 dark:text-dark-text-muted text-sm">€</span>
+                    <input
+                      type="number"
+                      value={formatCurrency(saldoCommittente)}
+                      onChange={(e) => setSaldoCommittente(parseFloat(e.target.value) || 0)}
+                      className="pl-7 w-full p-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded"
+                      step="0.01"
+                    />
+                  </div>
                 </div>
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={saldoCassaCommittente}
+                    onChange={(e) => setSaldoCassaCommittente(e.target.checked)}
+                    className="mr-1"
+                  />
+                  <span className="text-sm dark:text-dark-text-secondary">+5% Cassa</span>
+                </label>
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={saldoIVACommittente}
+                    onChange={(e) => setSaldoIVACommittente(e.target.checked)}
+                    className="mr-1"
+                  />
+                  <span className="text-sm dark:text-dark-text-secondary">+22% IVA</span>
+                </label>
               </div>
-              <label className="inline-flex items-center">
-                <input
-                  type="checkbox"
-                  checked={saldoCassaCommittente}
-                  onChange={(e) => setSaldoCassaCommittente(e.target.checked)}
-                  className="mr-1"
-                />
-                <span className="text-sm">+5% Cassa</span>
-              </label>
-              <label className="inline-flex items-center">
-                <input
-                  type="checkbox"
-                  checked={saldoIVACommittente}
-                  onChange={(e) => setSaldoIVACommittente(e.target.checked)}
-                  className="mr-1"
-                />
-                <span className="text-sm">+22% IVA</span>
-              </label>
+              <div className="text-sm text-gray-600 dark:text-dark-text-secondary font-medium">
+                Netto: €{saldoNettoCommittente.toFixed(2)}
+              </div>
             </div>
           </div>
 
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Collaboratore</label>
-            <div className="flex items-center space-x-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <span className="absolute left-3 top-2 text-gray-500 text-sm">€</span>
-                  <input
-                    type="number"
-                    value={formatCurrency(saldoCollaboratore)}
-                    onChange={(e) => setSaldoCollaboratore(parseFloat(e.target.value) || 0)}
-                    className="pl-7 w-full p-2 text-sm border border-gray-300 rounded"
-                    step="0.01"
-                  />
+            <label className="block text-sm font-medium text-gray-700 dark:text-dark-text-primary mb-2">Collaboratore</label>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <span className="absolute left-3 top-2 text-gray-500 dark:text-dark-text-muted text-sm">€</span>
+                    <input
+                      type="number"
+                      value={formatCurrency(saldoCollaboratore)}
+                      onChange={(e) => setSaldoCollaboratore(parseFloat(e.target.value) || 0)}
+                      className="pl-7 w-full p-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded"
+                      step="0.01"
+                    />
+                  </div>
                 </div>
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={saldoCassaCollaboratore}
+                    onChange={(e) => setSaldoCassaCollaboratore(e.target.checked)}
+                    className="mr-1"
+                  />
+                  <span className="text-sm dark:text-dark-text-secondary">+5% Cassa</span>
+                </label>
               </div>
-              <label className="inline-flex items-center">
-                <input
-                  type="checkbox"
-                  checked={saldoCassaCollaboratore}
-                  onChange={(e) => setSaldoCassaCollaboratore(e.target.checked)}
-                  className="mr-1"
-                />
-                <span className="text-sm">+5% Cassa</span>
-              </label>
+              <div className="text-sm text-gray-600 dark:text-dark-text-secondary font-medium">
+                Netto: €{saldoNettoCollaboratore.toFixed(2)}
+              </div>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Collaboratore Firmatario</label>
-            <div className="flex items-center space-x-4">
-              <div className="flex-1">
-                <div className="relative">
-                  <span className="absolute left-3 top-2 text-gray-500 text-sm">€</span>
-                  <input
-                    type="number"
-                    value={formatCurrency(saldoFirmatario)}
-                    onChange={(e) => setSaldoFirmatario(parseFloat(e.target.value) || 0)}
-                    className="pl-7 w-full p-2 text-sm border border-gray-300 rounded"
-                    step="0.01"
-                  />
+            <label className="block text-sm font-medium text-gray-700 dark:text-dark-text-primary mb-2">Collaboratore Firmatario</label>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-4">
+                <div className="flex-1">
+                  <div className="relative">
+                    <span className="absolute left-3 top-2 text-gray-500 dark:text-dark-text-muted text-sm">€</span>
+                    <input
+                      type="number"
+                      value={formatCurrency(saldoFirmatario)}
+                      onChange={(e) => setSaldoFirmatario(parseFloat(e.target.value) || 0)}
+                      className="pl-7 w-full p-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded"
+                      step="0.01"
+                    />
+                  </div>
                 </div>
+                <label className="inline-flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={saldoCassaFirmatario}
+                    onChange={(e) => setSaldoCassaFirmatario(e.target.checked)}
+                    className="mr-1"
+                  />
+                  <span className="text-sm dark:text-dark-text-secondary">+5% Cassa</span>
+                </label>
               </div>
-              <label className="inline-flex items-center">
-                <input
-                  type="checkbox"
-                  checked={saldoCassaFirmatario}
-                  onChange={(e) => setSaldoCassaFirmatario(e.target.checked)}
-                  className="mr-1"
-                />
-                <span className="text-sm">+5% Cassa</span>
-              </label>
+              <div className="text-sm text-gray-600 dark:text-dark-text-secondary font-medium">
+                Netto: €{saldoNettoFirmatario.toFixed(2)}
+              </div>
             </div>
           </div>
         </div>
@@ -299,13 +350,13 @@ const PaymentModal = ({ pratica, onClose, updatePratica, localPratiche, setLocal
         <div className="flex justify-end space-x-3">
           <button
             onClick={onClose}
-            className="px-4 py-2 border border-gray-300 text-gray-700 rounded hover:bg-gray-100"
+            className="px-4 py-2 border border-gray-300 dark:border-dark-border text-gray-700 dark:text-dark-text-primary rounded hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors"
           >
             Annulla
           </button>
           <button
             onClick={handleSave}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-4 py-2 bg-blue-600 dark:bg-blue-700 text-white rounded hover:bg-blue-700 dark:hover:bg-blue-800 transition-colors"
           >
             Salva
           </button>

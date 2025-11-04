@@ -35,10 +35,13 @@ const IncaricoCell = ({
     if (checked) {
       updatedWorkflow.incarico[capitalizedField] = new Date().toISOString().split('T')[0];
 
-      // Crea task automatica se è "Inviato" e non era già flaggato
-      if (!wasChecked && field.includes('Inviato') && onCreateAutomationTask) {
+      // Automazioni solo per committente
+      if (!wasChecked && field === 'committenteInviato' && onCreateAutomationTask) {
+        // Automazione: "Inviato" committente → evento dopo 7 giorni
         const taskDate = addDays(new Date(), 7);
-        const taskTitle = `Controllo incarico - ${pratica.indirizzo}`;
+        const committente = pratica.cliente || 'Committente';
+        const indirizzo = pratica.indirizzo || 'Indirizzo non specificato';
+        const taskTitle = `Controllare firma incarico - ${indirizzo} - ${committente}`;
 
         await onCreateAutomationTask(pratica.id, 'incarico', {
           title: taskTitle,
@@ -46,6 +49,22 @@ const IncaricoCell = ({
           priority: 'normal'
         });
       }
+
+      if (!wasChecked && field === 'committenteFirmato' && onCreateAutomationTask) {
+        // Automazione: "Firmato" committente → evento dopo 10 giorni
+        const taskDate = addDays(new Date(), 10);
+        const committente = pratica.cliente || 'Committente';
+        const indirizzo = pratica.indirizzo || 'Indirizzo non specificato';
+        const taskTitle = `Controllare pagamento - ${indirizzo} - ${committente}`;
+
+        await onCreateAutomationTask(pratica.id, 'incarico', {
+          title: taskTitle,
+          dueDate: taskDate,
+          priority: 'normal'
+        });
+      }
+
+      // Nessuna automazione per collaboratore (come richiesto)
     } else {
       delete updatedWorkflow.incarico[capitalizedField];
     }
@@ -60,9 +79,9 @@ const IncaricoCell = ({
   return (
     <div className="space-y-2">
       <div>
-        <div className="text-xs font-semibold text-gray-700 mb-1">Committente</div>
+        <div className="text-xs font-semibold text-gray-700 dark:text-dark-text-primary mb-1">Committente</div>
         <div className="flex gap-2 mb-1">
-          <label className="flex items-center text-xs text-gray-700 cursor-pointer whitespace-nowrap">
+          <label className="flex items-center text-xs text-gray-700 dark:text-dark-text-secondary cursor-pointer whitespace-nowrap">
             <input
               type="checkbox"
               checked={committenteInviato}
@@ -71,7 +90,7 @@ const IncaricoCell = ({
             />
             Inviato
           </label>
-          <label className="flex items-center text-xs text-gray-700 cursor-pointer whitespace-nowrap">
+          <label className="flex items-center text-xs text-gray-700 dark:text-dark-text-secondary cursor-pointer whitespace-nowrap">
             <input
               type="checkbox"
               checked={committenteFirmato}
@@ -82,21 +101,21 @@ const IncaricoCell = ({
           </label>
         </div>
         {committenteInviato && dataCommittenteInviato && (
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-gray-500 dark:text-dark-text-muted">
             Inv: {format(new Date(dataCommittenteInviato), 'dd/MM/yy', { locale: it })}
           </div>
         )}
         {committenteFirmato && dataCommittenteFirmato && (
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-gray-500 dark:text-dark-text-muted">
             Firm: {format(new Date(dataCommittenteFirmato), 'dd/MM/yy', { locale: it })}
           </div>
         )}
       </div>
 
       <div>
-        <div className="text-xs font-semibold text-gray-700 mb-1">Collaboratore</div>
+        <div className="text-xs font-semibold text-gray-700 dark:text-dark-text-primary mb-1">Collaboratore</div>
         <div className="flex gap-2 mb-1">
-          <label className="flex items-center text-xs text-gray-700 cursor-pointer whitespace-nowrap">
+          <label className="flex items-center text-xs text-gray-700 dark:text-dark-text-secondary cursor-pointer whitespace-nowrap">
             <input
               type="checkbox"
               checked={collaboratoreInviato}
@@ -105,7 +124,7 @@ const IncaricoCell = ({
             />
             Inviato
           </label>
-          <label className="flex items-center text-xs text-gray-700 cursor-pointer whitespace-nowrap">
+          <label className="flex items-center text-xs text-gray-700 dark:text-dark-text-secondary cursor-pointer whitespace-nowrap">
             <input
               type="checkbox"
               checked={collaboratoreFirmato}
@@ -116,12 +135,12 @@ const IncaricoCell = ({
           </label>
         </div>
         {collaboratoreInviato && dataCollaboratoreInviato && (
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-gray-500 dark:text-dark-text-muted">
             Inv: {format(new Date(dataCollaboratoreInviato), 'dd/MM/yy', { locale: it })}
           </div>
         )}
         {collaboratoreFirmato && dataCollaboratoreFirmato && (
-          <div className="text-xs text-gray-500">
+          <div className="text-xs text-gray-500 dark:text-dark-text-muted">
             Firm: {format(new Date(dataCollaboratoreFirmato), 'dd/MM/yy', { locale: it })}
           </div>
         )}
