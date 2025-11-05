@@ -148,22 +148,8 @@ const TaskCell = ({
   }
 
   return (
-    <div className="space-y-2 relative pb-12">
-      {/* Open Side Peek Button - Always visible with hover */}
-      {allTasks.length > 0 && (
-        <div className="flex justify-center mb-2">
-          <button
-            onClick={() => setIsTaskSidePeekOpen(true)}
-            className="inline-flex items-center gap-1 px-2 py-1 bg-gray-700 dark:bg-dark-surface text-white dark:text-dark-text-primary border border-gray-600 dark:border-dark-border rounded text-xs hover:bg-gray-800 dark:hover:bg-dark-hover transition-colors"
-          >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" strokeWidth="2"/>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4"/>
-            </svg>
-            <span>Open ({completedCount}/{totalCount})</span>
-          </button>
-        </div>
-      )}
+    <div className="group/cell space-y-2 relative pb-12">
+      {/* Tasks display */}
 
       <div className="space-y-2">
         {displayedTasks.map((task) => {
@@ -203,6 +189,25 @@ const TaskCell = ({
           );
         })}
       </div>
+
+      {/* Icon with task count and hover-only "Espandi" button */}
+      {allTasks.length > 0 && (
+        <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center gap-1 text-gray-500 dark:text-dark-text-muted">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" strokeWidth="2"/>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4"/>
+            </svg>
+            <span className="text-xs">({completedCount}/{totalCount})</span>
+          </div>
+          <button
+            onClick={() => setIsTaskSidePeekOpen(true)}
+            className="opacity-0 group-hover/cell:opacity-100 transition-opacity px-2 py-0.5 bg-gray-600 dark:bg-dark-surface text-white dark:text-dark-text-primary text-xs rounded hover:bg-gray-700 dark:hover:bg-dark-hover"
+          >
+            Espandi
+          </button>
+        </div>
+      )}
 
       <div className="absolute bottom-2 left-0 right-0 flex justify-center">
         <button

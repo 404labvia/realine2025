@@ -72,13 +72,14 @@ const StatoCell = ({ pratica, onChangeStato }) => {
   }
 
   return (
-    <div className="text-center space-y-2 p-2">
-      <div className="flex items-center justify-center gap-1">
-        <FaPlay className="text-gray-600 dark:text-dark-text-secondary" size={12} />
+    <div className="space-y-3 p-2">
+      {/* Stato */}
+      <div className="flex items-center gap-2">
+        <FaPlay className="text-gray-500 dark:text-dark-text-secondary flex-shrink-0" size={12} />
         <select
           value={pratica.stato || 'In Corso'}
           onChange={(e) => onChangeStato(pratica.id, e.target.value)}
-          className="text-xs border-0 bg-transparent dark:bg-transparent focus:ring-0 focus:outline-none text-gray-700 dark:text-dark-text-primary font-medium"
+          className="text-xs border-0 bg-transparent dark:bg-transparent focus:ring-0 focus:outline-none text-gray-700 dark:text-dark-text-primary font-medium flex-1"
         >
           <option value="In Corso">In Corso</option>
           <option value="Completata">Completata</option>
@@ -87,22 +88,27 @@ const StatoCell = ({ pratica, onChangeStato }) => {
 
       {pratica.stato !== 'Completata' && (
         <>
-          <div className="flex items-center justify-center gap-1 text-xs">
-            <FaClock className="text-gray-500 dark:text-dark-text-secondary" size={10} />
-            <span className="inline-block px-2 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded-full text-xs font-medium">
+          {/* Durata - solo testo grigio chiaro */}
+          <div className="flex items-center gap-2">
+            <FaClock className="text-gray-400 dark:text-dark-text-muted flex-shrink-0" size={12} />
+            <span className="text-xs text-gray-400 dark:text-dark-text-muted">
               {tempoInCorso.testoFormattato}
             </span>
           </div>
 
+          {/* Scadenza - sfondo colorato solo sui giorni */}
           {scadenza && giorniMancanti !== null && (
-            <div className="text-xs">
-              <span className={`inline-block px-2 py-1 ${badgeColor} text-white rounded-full font-medium`}>
+            <div className="flex items-start gap-2">
+              <span className="text-xs text-gray-400 dark:text-dark-text-muted whitespace-nowrap">
+                {giorniMancanti >= 0 ? 'Scadenza:' : 'Scaduto:'}
+              </span>
+              <span className={`inline-block px-2 py-0.5 ${badgeColor} text-white rounded text-xs font-medium`}>
                 {giorniMancanti > 0 ? (
-                  <>Scadenza: {giorniMancanti} {giorniMancanti === 1 ? 'giorno' : 'giorni'}</>
+                  <>{giorniMancanti} {giorniMancanti === 1 ? 'giorno' : 'giorni'}</>
                 ) : giorniMancanti === 0 ? (
-                  <>Scadenza: OGGI</>
+                  <>OGGI</>
                 ) : (
-                  <>SCADUTO: {Math.abs(giorniMancanti)} {Math.abs(giorniMancanti) === 1 ? 'giorno' : 'giorni'}</>
+                  <>{Math.abs(giorniMancanti)} {Math.abs(giorniMancanti) === 1 ? 'giorno' : 'giorni'}</>
                 )}
               </span>
             </div>

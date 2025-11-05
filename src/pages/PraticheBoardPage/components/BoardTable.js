@@ -67,16 +67,16 @@ function BoardTable({
           border-bottom-color: #334155;
         }
         .board-table tbody tr:hover {
-          background-color: #e3f2fd;
+          background-color: #f5f5f5;
         }
         .dark .board-table tbody tr:hover {
-          background-color: #475569;
+          background-color: #334155;
         }
         .board-table tbody tr:hover .col-pratica {
-          background-color: #bbdefb !important;
+          background-color: #f5f5f5 !important;
         }
         .dark .board-table tbody tr:hover .col-pratica {
-          background-color: #475569 !important;
+          background-color: #334155 !important;
         }
         .col-pratica {
           position: sticky;
@@ -127,6 +127,14 @@ function BoardTable({
         .tooltip:hover .tooltiptext {
           visibility: visible;
           opacity: 1;
+        }
+
+        /* Black checkboxes instead of blue */
+        input[type="checkbox"] {
+          accent-color: #000000;
+        }
+        .dark input[type="checkbox"] {
+          accent-color: #ffffff;
         }
       `}</style>
 
