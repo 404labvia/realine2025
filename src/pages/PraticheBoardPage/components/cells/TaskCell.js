@@ -55,6 +55,18 @@ const TaskCell = ({
   const totalCount = allTasks.length;
   const displayedTasks = closestTask ? [closestTask] : [];
 
+  // Check if there's any overdue incomplete task
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const hasOverdueTask = incompleteTasks.some(task => {
+    if (task.dueDate) {
+      const dueDate = new Date(task.dueDate);
+      dueDate.setHours(0, 0, 0, 0);
+      return dueDate < today;
+    }
+    return false;
+  });
+
   const handleToggleTask = async (task) => {
     const updatedWorkflow = { ...pratica.workflow };
     const taskToUpdate = updatedWorkflow[task.stepId].tasks[task.taskIndex];
@@ -193,7 +205,7 @@ const TaskCell = ({
       {/* Icon with task count and hover-only buttons */}
       {allTasks.length > 0 ? (
         <div className="flex items-center justify-between pt-2">
-          <div className="flex items-center gap-1 text-gray-500 dark:text-dark-text-muted">
+          <div className={`flex items-center gap-1 ${hasOverdueTask ? 'text-red-500 dark:text-red-400' : 'text-gray-500 dark:text-dark-text-muted'}`}>
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="10" strokeWidth="2"/>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4"/>

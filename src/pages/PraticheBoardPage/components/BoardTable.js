@@ -56,15 +56,15 @@ function BoardTable({
           color: #f1f5f9;
         }
         .board-table tbody td {
-          border-bottom: 1px solid #e9ecef;
-          padding: 12px 8px;
+          border-bottom: 1.5px solid #d1d5db;
+          padding: 16px 8px;
           vertical-align: top;
           max-height: 150px;
           overflow: hidden;
           transition: background-color 0.15s ease-in-out;
         }
         .dark .board-table tbody td {
-          border-bottom-color: #334155;
+          border-bottom-color: #475569;
         }
         .board-table tbody tr:hover {
           background-color: #f5f5f5;
@@ -137,7 +137,7 @@ function BoardTable({
           accent-color: #ffffff;
         }
 
-        /* Transparent checkboxes with black checkmark for Incarico column */
+        /* Transparent checkboxes with light gray checkmark for Incarico column */
         .incarico-checkbox {
           appearance: none;
           width: 16px;
@@ -151,7 +151,7 @@ function BoardTable({
         }
         .incarico-checkbox:checked {
           background-color: transparent;
-          border-color: #000000;
+          border-color: #9ca3af;
         }
         .incarico-checkbox:checked::after {
           content: '';
@@ -160,7 +160,7 @@ function BoardTable({
           top: 1px;
           width: 5px;
           height: 9px;
-          border: solid #000000;
+          border: solid #9ca3af;
           border-width: 0 2px 2px 0;
           transform: rotate(45deg);
         }
@@ -168,10 +168,10 @@ function BoardTable({
           border-color: #9ca3af;
         }
         .dark .incarico-checkbox:checked {
-          border-color: #ffffff;
+          border-color: #d1d5db;
         }
         .dark .incarico-checkbox:checked::after {
-          border-color: #ffffff;
+          border-color: #d1d5db;
         }
       `}</style>
 
