@@ -3,12 +3,14 @@ import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { FaPlus, FaTimes } from 'react-icons/fa';
+import NoteSidePeek from '../sidePeek/NoteSidePeek';
 
 const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) => {
   const [showAll, setShowAll] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newNoteText, setNewNoteText] = useState('');
   const [editingNote, setEditingNote] = useState(null);
+  const [isNoteSidePeekOpen, setIsNoteSidePeekOpen] = useState(false);
 
   const getAllNotes = () => {
     const allNotes = [];
@@ -31,7 +33,7 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
 
   const allNotes = getAllNotes();
   const latestNote = allNotes[0];
-  const displayedNotes = showAll ? allNotes : (latestNote ? [latestNote] : []);
+  const displayedNotes = latestNote ? [latestNote] : [];
 
   const handleAddNote = async () => {
     if (!newNoteText.trim()) return;
@@ -112,16 +114,17 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
 
   return (
     <div className="space-y-2 relative pb-12">
-      {allNotes.length > 1 && !showAll && (
+      {/* Open Side Peek Button - Always visible with hover */}
+      {allNotes.length > 0 && (
         <div className="flex justify-center mb-2">
           <button
-            onClick={() => setShowAll(true)}
-            className="inline-flex items-center gap-1 px-2 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-800"
+            onClick={() => setIsNoteSidePeekOpen(true)}
+            className="inline-flex items-center gap-1 px-2 py-1 bg-gray-700 dark:bg-dark-surface text-white dark:text-dark-text-primary border border-gray-600 dark:border-dark-border rounded text-xs hover:bg-gray-800 dark:hover:bg-dark-hover transition-colors"
           >
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <span>{allNotes.length}</span>
+            <span>Open ({allNotes.length})</span>
           </button>
         </div>
       )}
@@ -188,15 +191,6 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
         })}
       </div>
 
-      {showAll && (
-        <button
-          onClick={() => setShowAll(false)}
-          className="w-full text-xs text-blue-600 hover:text-blue-800"
-        >
-          Chiudi
-        </button>
-      )}
-
       {showAddForm ? (
         <div className="p-2 border border-gray-300 rounded">
           <textarea
@@ -243,6 +237,16 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
           </button>
         </div>
       )}
+
+      {/* Side Peek for all notes */}
+      <NoteSidePeek
+        isOpen={isNoteSidePeekOpen}
+        onClose={() => setIsNoteSidePeekOpen(false)}
+        pratica={pratica}
+        updatePratica={updatePratica}
+        localPratiche={localPratiche}
+        setLocalPratiche={setLocalPratiche}
+      />
     </div>
   );
 };

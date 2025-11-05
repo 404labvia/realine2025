@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { FaPlus, FaTimes, FaGoogle } from 'react-icons/fa';
+import TaskSidePeek from '../sidePeek/TaskSidePeek';
 
 const TaskCell = ({
   pratica,
@@ -17,6 +18,7 @@ const TaskCell = ({
   deleteGoogleCalendarEvent
 }) => {
   const [showAll, setShowAll] = useState(false);
+  const [isTaskSidePeekOpen, setIsTaskSidePeekOpen] = useState(false);
 
   const getAllTasks = () => {
     const allTasks = [];
@@ -51,7 +53,7 @@ const TaskCell = ({
   const closestTask = incompleteTasks.length > 0 ? incompleteTasks[0] : allTasks[0];
   const completedCount = allTasks.filter(t => t.completed).length;
   const totalCount = allTasks.length;
-  const displayedTasks = showAll ? allTasks : (closestTask ? [closestTask] : []);
+  const displayedTasks = closestTask ? [closestTask] : [];
 
   const handleToggleTask = async (task) => {
     const updatedWorkflow = { ...pratica.workflow };
@@ -147,17 +149,18 @@ const TaskCell = ({
 
   return (
     <div className="space-y-2 relative pb-12">
-      {allTasks.length > 1 && !showAll && (
+      {/* Open Side Peek Button - Always visible with hover */}
+      {allTasks.length > 0 && (
         <div className="flex justify-center mb-2">
           <button
-            onClick={() => setShowAll(true)}
-            className="inline-flex items-center gap-1 px-2 py-1 bg-gray-700 text-white rounded text-xs hover:bg-gray-800"
+            onClick={() => setIsTaskSidePeekOpen(true)}
+            className="inline-flex items-center gap-1 px-2 py-1 bg-gray-700 dark:bg-dark-surface text-white dark:text-dark-text-primary border border-gray-600 dark:border-dark-border rounded text-xs hover:bg-gray-800 dark:hover:bg-dark-hover transition-colors"
           >
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="10" strokeWidth="2"/>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4"/>
             </svg>
-            <span>{completedCount}/{totalCount}</span>
+            <span>Open ({completedCount}/{totalCount})</span>
           </button>
         </div>
       )}
@@ -201,15 +204,6 @@ const TaskCell = ({
         })}
       </div>
 
-      {showAll && (
-        <button
-          onClick={() => setShowAll(false)}
-          className="w-full text-xs text-blue-600 hover:text-blue-800"
-        >
-          Chiudi
-        </button>
-      )}
-
       <div className="absolute bottom-2 left-0 right-0 flex justify-center">
         <button
           onClick={() => {
@@ -248,6 +242,22 @@ const TaskCell = ({
           )}
         </button>
       </div>
+
+      {/* Side Peek for all tasks */}
+      <TaskSidePeek
+        isOpen={isTaskSidePeekOpen}
+        onClose={() => setIsTaskSidePeekOpen(false)}
+        pratica={pratica}
+        updatePratica={updatePratica}
+        localPratiche={localPratiche}
+        setLocalPratiche={setLocalPratiche}
+        isGoogleAuthenticated={isGoogleAuthenticated}
+        googleAuthLoading={googleAuthLoading}
+        loginToGoogleCalendar={loginToGoogleCalendar}
+        onOpenCalendarModal={onOpenCalendarModal}
+        onEditCalendarTask={onEditCalendarTask}
+        deleteGoogleCalendarEvent={deleteGoogleCalendarEvent}
+      />
     </div>
   );
 };
