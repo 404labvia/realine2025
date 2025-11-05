@@ -136,6 +136,43 @@ function BoardTable({
         .dark input[type="checkbox"] {
           accent-color: #ffffff;
         }
+
+        /* Transparent checkboxes with black checkmark for Incarico column */
+        .incarico-checkbox {
+          appearance: none;
+          width: 16px;
+          height: 16px;
+          border: 1.5px solid #6b7280;
+          border-radius: 3px;
+          background-color: transparent;
+          cursor: pointer;
+          position: relative;
+          transition: all 0.15s ease;
+        }
+        .incarico-checkbox:checked {
+          background-color: transparent;
+          border-color: #000000;
+        }
+        .incarico-checkbox:checked::after {
+          content: '';
+          position: absolute;
+          left: 4px;
+          top: 1px;
+          width: 5px;
+          height: 9px;
+          border: solid #000000;
+          border-width: 0 2px 2px 0;
+          transform: rotate(45deg);
+        }
+        .dark .incarico-checkbox {
+          border-color: #9ca3af;
+        }
+        .dark .incarico-checkbox:checked {
+          border-color: #ffffff;
+        }
+        .dark .incarico-checkbox:checked::after {
+          border-color: #ffffff;
+        }
       `}</style>
 
       <div className="board-table-container">

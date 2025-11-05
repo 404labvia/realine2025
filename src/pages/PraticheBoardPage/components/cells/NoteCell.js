@@ -113,7 +113,7 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
   }
 
   return (
-    <div className="group/cell space-y-2 relative pb-12">
+    <div className="group/cell space-y-2 relative">
       {/* Notes display */}
 
       <div className="space-y-2">
@@ -178,8 +178,8 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
         })}
       </div>
 
-      {/* Icon with note count and hover-only "Espandi" button */}
-      {allNotes.length > 0 && (
+      {/* Icon with note count and hover-only buttons */}
+      {allNotes.length > 0 ? (
         <div className="flex items-center justify-between pt-2">
           <div className="flex items-center gap-1 text-gray-500 dark:text-dark-text-muted">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -187,11 +187,28 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
             </svg>
             <span className="text-xs">({allNotes.length})</span>
           </div>
+          <div className="flex items-center gap-1 opacity-0 group-hover/cell:opacity-100 transition-opacity">
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="px-2 py-0.5 bg-gray-600 dark:bg-dark-surface text-white dark:text-dark-text-primary text-xs rounded hover:bg-gray-700 dark:hover:bg-dark-hover"
+            >
+              +
+            </button>
+            <button
+              onClick={() => setIsNoteSidePeekOpen(true)}
+              className="px-2 py-0.5 bg-gray-600 dark:bg-dark-surface text-white dark:text-dark-text-primary text-xs rounded hover:bg-gray-700 dark:hover:bg-dark-hover"
+            >
+              Espandi
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex justify-center pt-2">
           <button
-            onClick={() => setIsNoteSidePeekOpen(true)}
-            className="opacity-0 group-hover/cell:opacity-100 transition-opacity px-2 py-0.5 bg-gray-600 dark:bg-dark-surface text-white dark:text-dark-text-primary text-xs rounded hover:bg-gray-700 dark:hover:bg-dark-hover"
+            onClick={() => setShowAddForm(true)}
+            className="px-2 py-0.5 bg-gray-600 dark:bg-dark-surface text-white dark:text-dark-text-primary text-xs rounded hover:bg-gray-700 dark:hover:bg-dark-hover opacity-0 group-hover/cell:opacity-100 transition-opacity"
           >
-            Espandi
+            +
           </button>
         </div>
       )}
@@ -230,18 +247,7 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
             </button>
           </div>
         </div>
-      ) : (
-        <div className="absolute bottom-2 left-0 right-0 flex justify-center">
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="flex flex-col items-center gap-1 text-xs text-gray-400 hover:text-blue-600"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </button>
-        </div>
-      )}
+      ) : null}
 
       {/* Side Peek for all notes */}
       <NoteSidePeek

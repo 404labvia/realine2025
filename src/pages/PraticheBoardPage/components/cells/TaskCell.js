@@ -148,7 +148,7 @@ const TaskCell = ({
   }
 
   return (
-    <div className="group/cell space-y-2 relative pb-12">
+    <div className="group/cell space-y-2 relative">
       {/* Tasks display */}
 
       <div className="space-y-2">
@@ -190,8 +190,8 @@ const TaskCell = ({
         })}
       </div>
 
-      {/* Icon with task count and hover-only "Espandi" button */}
-      {allTasks.length > 0 && (
+      {/* Icon with task count and hover-only buttons */}
+      {allTasks.length > 0 ? (
         <div className="flex items-center justify-between pt-2">
           <div className="flex items-center gap-1 text-gray-500 dark:text-dark-text-muted">
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -200,53 +200,53 @@ const TaskCell = ({
             </svg>
             <span className="text-xs">({completedCount}/{totalCount})</span>
           </div>
+          <div className="flex items-center gap-1 opacity-0 group-hover/cell:opacity-100 transition-opacity">
+            <button
+              onClick={() => {
+                if (!isGoogleAuthenticated) {
+                  if (loginToGoogleCalendar && !googleAuthLoading) {
+                    loginToGoogleCalendar();
+                  } else {
+                    alert("Connetti Google Calendar per aggiungere task");
+                  }
+                  return;
+                }
+                onOpenCalendarModal(pratica.id, 'inizioPratica');
+              }}
+              disabled={googleAuthLoading}
+              className="px-2 py-0.5 bg-gray-600 dark:bg-dark-surface text-white dark:text-dark-text-primary text-xs rounded hover:bg-gray-700 dark:hover:bg-dark-hover disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              +
+            </button>
+            <button
+              onClick={() => setIsTaskSidePeekOpen(true)}
+              className="px-2 py-0.5 bg-gray-600 dark:bg-dark-surface text-white dark:text-dark-text-primary text-xs rounded hover:bg-gray-700 dark:hover:bg-dark-hover"
+            >
+              Espandi
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex justify-center pt-2">
           <button
-            onClick={() => setIsTaskSidePeekOpen(true)}
-            className="opacity-0 group-hover/cell:opacity-100 transition-opacity px-2 py-0.5 bg-gray-600 dark:bg-dark-surface text-white dark:text-dark-text-primary text-xs rounded hover:bg-gray-700 dark:hover:bg-dark-hover"
+            onClick={() => {
+              if (!isGoogleAuthenticated) {
+                if (loginToGoogleCalendar && !googleAuthLoading) {
+                  loginToGoogleCalendar();
+                } else {
+                  alert("Connetti Google Calendar per aggiungere task");
+                }
+                return;
+              }
+              onOpenCalendarModal(pratica.id, 'inizioPratica');
+            }}
+            disabled={googleAuthLoading}
+            className="px-2 py-0.5 bg-gray-600 dark:bg-dark-surface text-white dark:text-dark-text-primary text-xs rounded hover:bg-gray-700 dark:hover:bg-dark-hover opacity-0 group-hover/cell:opacity-100 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Espandi
+            +
           </button>
         </div>
       )}
-
-      <div className="absolute bottom-2 left-0 right-0 flex justify-center">
-        <button
-          onClick={() => {
-            if (!isGoogleAuthenticated) {
-              if (loginToGoogleCalendar && !googleAuthLoading) {
-                loginToGoogleCalendar();
-              } else {
-                alert("Connetti Google Calendar per aggiungere task");
-              }
-              return;
-            }
-            onOpenCalendarModal(pratica.id, 'inizioPratica');
-          }}
-          disabled={googleAuthLoading}
-          className={`text-xs flex flex-col items-center gap-1 ${
-            isGoogleAuthenticated
-              ? 'text-gray-400 hover:text-blue-600'
-              : 'text-gray-400 hover:text-orange-600'
-          } ${googleAuthLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          {isGoogleAuthenticated ? (
-            <>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10" strokeWidth="2"/>
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4"/>
-              </svg>
-            </>
-          ) : (
-            <>
-              {googleAuthLoading ? (
-                <span className="text-xs">...</span>
-              ) : (
-                <FaGoogle size={16} />
-              )}
-            </>
-          )}
-        </button>
-      </div>
 
       {/* Side Peek for all tasks */}
       <TaskSidePeek

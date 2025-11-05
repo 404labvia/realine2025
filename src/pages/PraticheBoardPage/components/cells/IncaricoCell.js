@@ -86,7 +86,7 @@ const IncaricoCell = ({
               type="checkbox"
               checked={committenteInviato}
               onChange={(e) => handleCheckboxChange('committenteInviato', e.target.checked)}
-              className="mr-1"
+              className="mr-1 incarico-checkbox"
             />
             Inviato
           </label>
@@ -95,7 +95,7 @@ const IncaricoCell = ({
               type="checkbox"
               checked={committenteFirmato}
               onChange={(e) => handleCheckboxChange('committenteFirmato', e.target.checked)}
-              className="mr-1"
+              className="mr-1 incarico-checkbox"
             />
             Firmato
           </label>
@@ -120,7 +120,7 @@ const IncaricoCell = ({
               type="checkbox"
               checked={collaboratoreInviato}
               onChange={(e) => handleCheckboxChange('collaboratoreInviato', e.target.checked)}
-              className="mr-1"
+              className="mr-1 incarico-checkbox"
             />
             Inviato
           </label>
@@ -129,7 +129,7 @@ const IncaricoCell = ({
               type="checkbox"
               checked={collaboratoreFirmato}
               onChange={(e) => handleCheckboxChange('collaboratoreFirmato', e.target.checked)}
-              className="mr-1"
+              className="mr-1 incarico-checkbox"
             />
             Firmato
           </label>
