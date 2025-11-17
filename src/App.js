@@ -31,7 +31,7 @@ import ApePage from './pages/ApePage';
 import PratichePage from './pages/PratichePage';
 import PraticheBoardPage from './pages/PraticheBoardPage';
 import PratichePrivatoPage from './pages/PratichePrivatoPage';
-import CalendarPage from './pages/CalendarPage';
+import CalendarTaskPage from './pages/CalendarTaskPage';
 import PrezziarioPage from './pages/PrezziarioPage';
 import AutomationConfigPage from './pages/AutomationConfigPage';
 import FinanzePage from './pages/FinanzePage';
@@ -90,7 +90,7 @@ function AppContent() {
       '/pratiche': 'Gestione Pratiche',
       '/pratiche-board': 'Gestione Pratiche - Vista Board',
       '/pratiche-privato': 'Gestione Pratiche Privato',
-      '/calendario': 'Calendario',
+      '/calendario': 'Calendario & Task',
       '/prezziario': 'Prezziario',
       '/finanze': 'Gestione Finanziaria',
       '/automazioni': 'Configurazione Automazioni'
@@ -244,7 +244,7 @@ function AppContent() {
               element={
                 <PraticheProvider>
                   <PratichePrivatoProvider>
-                    <CalendarPage />
+                    <CalendarTaskPage />
                   </PratichePrivatoProvider>
                 </PraticheProvider>
               }
