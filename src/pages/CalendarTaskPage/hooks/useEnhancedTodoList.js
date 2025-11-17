@@ -98,6 +98,14 @@ export const useEnhancedTodoList = () => {
 
   // Carica e trasforma eventi del calendario in task
   useEffect(() => {
+    console.log('🔍 Check condizioni caricamento task:', {
+      isLoadingCalendarEvents,
+      gapiClientInitialized,
+      hasGoogleToken: !!googleApiToken,
+      hasUserId: !!user?.uid,
+      calendarEventsCount: calendarEvents.length
+    });
+
     if (!isLoadingCalendarEvents && gapiClientInitialized && googleApiToken && user?.uid) {
       setIsLoadingHook(true);
 
@@ -187,8 +195,16 @@ export const useEnhancedTodoList = () => {
       loadTaskStates();
 
     } else if (!googleApiToken && gapiClientInitialized) {
+      console.log('⚠️ Nessun token Google disponibile, lista vuota');
       setAllTodoItems([]);
       setIsLoadingHook(false);
+    } else {
+      console.log('⏳ In attesa delle condizioni per caricare le task...');
+      // Se stiamo ancora caricando i calendari, mantieni loading
+      // Altrimenti imposta loading a false
+      if (!isLoadingCalendarEvents) {
+        setIsLoadingHook(false);
+      }
     }
   }, [calendarEvents, googleApiToken, gapiClientInitialized, isLoadingCalendarEvents, tutteLePratiche, user?.uid]);
 
