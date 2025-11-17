@@ -1,6 +1,6 @@
 // src/services/taskStateFirebaseService.js
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase/config';
+import { db } from '../firebase';
 
 // Keys per localStorage
 const TASK_STATES_KEY = 'taskStates_local';
