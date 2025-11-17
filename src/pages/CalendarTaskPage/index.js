@@ -239,8 +239,8 @@ function CalendarTaskPage() {
       {/* Layout principale */}
       {(googleApiToken && gapiClientInitialized) ? (
         <div className="flex-1 flex gap-4 overflow-hidden">
-          {/* TASK LIST - 60% (Sinistra) - Desktop sempre visibile, Mobile solo se tab attivo */}
-          <div className={`${activeTab === 'tasks' ? 'block' : 'hidden'} md:block md:w-3/5 overflow-hidden`}>
+          {/* TASK LIST - 50% (Sinistra) - Desktop sempre visibile, Mobile solo se tab attivo */}
+          <div className={`${activeTab === 'tasks' ? 'block' : 'hidden'} md:block md:w-1/2 overflow-hidden`}>
             <EnhancedTaskList
               todoItems={todoItems}
               isLoading={isLoadingTasks}
@@ -260,8 +260,8 @@ function CalendarTaskPage() {
             />
           </div>
 
-          {/* CALENDARIO - 40% (Destra) - Desktop sempre visibile, Mobile solo se tab attivo */}
-          <div className={`${activeTab === 'calendar' ? 'block' : 'hidden'} md:block md:w-2/5 bg-white dark:bg-dark-surface p-4 rounded-lg shadow overflow-hidden transition-colors duration-200`}>
+          {/* CALENDARIO - 50% (Destra) - Desktop sempre visibile, Mobile solo se tab attivo */}
+          <div className={`${activeTab === 'calendar' ? 'block' : 'hidden'} md:block md:w-1/2 bg-white dark:bg-dark-surface p-4 rounded-lg shadow overflow-hidden transition-colors duration-200`}>
             <Calendar
               localizer={localizer}
               events={calendarEvents}

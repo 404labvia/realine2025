@@ -102,55 +102,86 @@ export const useEnhancedTodoList = () => {
       setIsLoadingHook(true);
 
       const loadTaskStates = async () => {
-        const transformedItems = await Promise.all(
-          calendarEvents
-            .filter(event => event.sourceCalendarId === 'primary')
-            .map(async (event) => {
-              // Trova pratica correlata
-              let praticaInfo = null;
-              const relatedPraticaId = event.extendedProperties?.private?.relatedPraticaId;
-              if (relatedPraticaId) {
-                const praticaTrovata = tutteLePratiche.find(p => p.id === relatedPraticaId);
-                if (praticaTrovata) {
-                  praticaInfo = {
-                    id: praticaTrovata.id,
-                    codice: praticaTrovata.codice,
-                    indirizzo: praticaTrovata.indirizzo,
-                    cliente: praticaTrovata.cliente,
-                    agenzia: praticaTrovata.agenzia,
-                  };
+        try {
+          console.log('📋 Caricamento task da calendario primary...');
+
+          const transformedItems = await Promise.all(
+            calendarEvents
+              .filter(event => event.sourceCalendarId === 'primary') // SOLO primary calendar
+              .map(async (event) => {
+                // Trova pratica correlata
+                let praticaInfo = null;
+                const relatedPraticaId = event.extendedProperties?.private?.relatedPraticaId;
+                if (relatedPraticaId) {
+                  const praticaTrovata = tutteLePratiche.find(p => p.id === relatedPraticaId);
+                  if (praticaTrovata) {
+                    praticaInfo = {
+                      id: praticaTrovata.id,
+                      codice: praticaTrovata.codice,
+                      indirizzo: praticaTrovata.indirizzo,
+                      cliente: praticaTrovata.cliente,
+                      agenzia: praticaTrovata.agenzia,
+                    };
+                  }
                 }
-              }
 
-              // Parse date
-              let validDueDate, validEndDate;
-              if (event.start?.dateTime) validDueDate = parseISO(event.start.dateTime);
-              else if (event.start?.date) validDueDate = parseISO(event.start.date);
-              else if (event.start instanceof Date) validDueDate = event.start;
-              else validDueDate = new Date();
+                // Parse date
+                let validDueDate, validEndDate;
+                if (event.start?.dateTime) validDueDate = parseISO(event.start.dateTime);
+                else if (event.start?.date) validDueDate = parseISO(event.start.date);
+                else if (event.start instanceof Date) validDueDate = event.start;
+                else validDueDate = new Date();
 
-              if (event.end?.dateTime) validEndDate = parseISO(event.end.dateTime);
-              else if (event.end?.date) validEndDate = parseISO(event.end.date);
-              else if (event.end instanceof Date) validEndDate = event.end;
+                if (event.end?.dateTime) validEndDate = parseISO(event.end.dateTime);
+                else if (event.end?.date) validEndDate = parseISO(event.end.date);
+                else if (event.end instanceof Date) validEndDate = event.end;
 
-              // Carica stato da Firebase (con fallback localStorage)
-              const taskState = await getTaskState(user.uid, event.id);
+                // Carica stato da Firebase (con fallback localStorage)
+                let taskState = { isCompleted: false };
+                try {
+                  taskState = await getTaskState(user.uid, event.id);
+                } catch (error) {
+                  console.warn(`Errore caricamento stato task ${event.id}, uso default:`, error.message);
+                  // Fallback: usa solo localStorage
+                  taskState = { isCompleted: false };
+                }
 
-              return {
-                gCalEventId: event.id,
-                gCalCalendarId: event.sourceCalendarId,
-                title: event.summary || event.title || '(Nessun titolo)',
-                dueDate: isValid(validDueDate) ? validDueDate : new Date(),
-                endDate: isValid(validEndDate) ? validEndDate : undefined,
-                isCompleted: taskState.isCompleted || false,
-                praticaInfo,
-                originalGCalEventData: event,
-              };
-            })
-        );
+                return {
+                  gCalEventId: event.id,
+                  gCalCalendarId: event.sourceCalendarId,
+                  title: event.summary || event.title || '(Nessun titolo)',
+                  dueDate: isValid(validDueDate) ? validDueDate : new Date(),
+                  endDate: isValid(validEndDate) ? validEndDate : undefined,
+                  isCompleted: taskState.isCompleted || false,
+                  praticaInfo,
+                  originalGCalEventData: event,
+                };
+              })
+          );
 
-        setAllTodoItems(transformedItems);
-        setIsLoadingHook(false);
+          console.log(`✓ Caricate ${transformedItems.length} task da primary calendar`);
+          setAllTodoItems(transformedItems);
+
+        } catch (error) {
+          console.error('Errore nel caricamento task:', error);
+          // In caso di errore, mostra almeno i calendari senza stati
+          const fallbackItems = calendarEvents
+            .filter(event => event.sourceCalendarId === 'primary')
+            .map((event) => ({
+              gCalEventId: event.id,
+              gCalCalendarId: event.sourceCalendarId,
+              title: event.summary || event.title || '(Nessun titolo)',
+              dueDate: new Date(),
+              isCompleted: false,
+              praticaInfo: null,
+              originalGCalEventData: event,
+            }));
+          setAllTodoItems(fallbackItems);
+
+        } finally {
+          // IMPORTANTE: imposta sempre loading a false, anche in caso di errore
+          setIsLoadingHook(false);
+        }
       };
 
       loadTaskStates();
