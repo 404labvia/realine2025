@@ -106,7 +106,8 @@ export const useEnhancedTodoList = () => {
       calendarEventsCount: calendarEvents.length
     });
 
-    if (!isLoadingCalendarEvents && gapiClientInitialized && googleApiToken && user?.uid) {
+    // MODIFICATO: funziona anche senza user (usa solo localStorage in quel caso)
+    if (!isLoadingCalendarEvents && gapiClientInitialized && googleApiToken) {
       setIsLoadingHook(true);
 
       const loadTaskStates = async () => {
@@ -145,12 +146,13 @@ export const useEnhancedTodoList = () => {
                 else if (event.end instanceof Date) validEndDate = event.end;
 
                 // Carica stato da Firebase (con fallback localStorage)
+                // Se user?.uid è undefined, getTaskState userà solo localStorage
                 let taskState = { isCompleted: false };
                 try {
-                  taskState = await getTaskState(user.uid, event.id);
+                  taskState = await getTaskState(user?.uid, event.id);
                 } catch (error) {
                   console.warn(`Errore caricamento stato task ${event.id}, uso default:`, error.message);
-                  // Fallback: usa solo localStorage
+                  // Fallback: usa stato di default
                   taskState = { isCompleted: false };
                 }
 
@@ -210,11 +212,6 @@ export const useEnhancedTodoList = () => {
 
   // Toggle completamento task con Firebase
   const toggleComplete = useCallback(async (gCalEventId) => {
-    if (!user?.uid) {
-      console.warn('User non autenticato');
-      return;
-    }
-
     // Update ottimistico locale
     setAllTodoItems(prevItems =>
       prevItems.map(item =>
@@ -223,14 +220,20 @@ export const useEnhancedTodoList = () => {
     );
 
     // Salva su Firebase (con fallback localStorage)
+    // Se user?.uid è undefined, setTaskState userà solo localStorage
     const currentItem = allTodoItems.find(i => i.gCalEventId === gCalEventId);
     const newState = !currentItem?.isCompleted;
 
-    const result = await setTaskState(user.uid, gCalEventId, newState);
+    try {
+      const result = await setTaskState(user?.uid, gCalEventId, newState);
 
-    if (result.queued) {
-      // Salvato in coda, aggiorna contatore
-      setPendingSyncCount(getPendingCount());
+      if (result.queued) {
+        // Salvato in coda, aggiorna contatore
+        setPendingSyncCount(getPendingCount());
+      }
+    } catch (error) {
+      console.error('Errore nel toggle task:', error);
+      // L'update ottimistico è già fatto, quindi l'UI funziona comunque
     }
   }, [user?.uid, allTodoItems]);
 
