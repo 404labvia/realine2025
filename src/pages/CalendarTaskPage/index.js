@@ -1,7 +1,7 @@
 // src/pages/CalendarTaskPage/index.js
 import React, { useState, useMemo, useCallback } from 'react';
-import { Calendar, Views, DateLocalizer } from 'react-big-calendar';
-import { addDays } from 'date-fns';
+import { Calendar, Views, Navigate } from 'react-big-calendar';
+import { addDays, startOfDay } from 'date-fns';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { usePratiche } from '../../contexts/PraticheContext';
 import { usePratichePrivato } from '../../contexts/PratichePrivatoContext';
@@ -28,48 +28,15 @@ const calendarListForModal = [
   { id: calendarIds.ID_ANTONELLI, name: calendarNameMap[calendarIds.ID_ANTONELLI] },
 ].filter(cal => cal.id && cal.name);
 
-// Vista custom a 3 giorni (oggi + 2 giorni dopo)
-class ThreeDaysView extends React.Component {
-  render() {
-    const { date, localizer, ...props } = this.props;
-    const start = new Date(date);
-    start.setHours(0, 0, 0, 0);
-    const range = [start, addDays(start, 1), addDays(start, 2)];
-
-    return <Views.Week {...props} date={date} localizer={localizer} range={range} />;
-  }
-}
-
-ThreeDaysView.range = (date) => {
-  const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
-  return [start, addDays(start, 1), addDays(start, 2)];
-};
-
-ThreeDaysView.title = (date, { localizer }) => {
-  const start = new Date(date);
-  const end = addDays(start, 2);
-  return localizer.format({ start, end }, 'dayRangeHeaderFormat');
-};
-
-ThreeDaysView.navigate = (date, action) => {
-  const newDate = new Date(date);
-  switch (action) {
-    case 'PREV':
-      return addDays(newDate, -3);
-    case 'NEXT':
-      return addDays(newDate, 3);
-    default:
-      return newDate;
-  }
-};
-
 function CalendarTaskPage() {
   const { pratiche: praticheStandard, loading: loadingPraticheStandard, updatePratica: updatePraticaStandard } = usePratiche();
   const { pratiche: pratichePrivate, loading: loadingPratichePrivate, updatePratica: updatePraticaPrivata } = usePratichePrivato();
 
   // Tab attivo per mobile
   const [activeTab, setActiveTab] = useState('tasks'); // 'tasks' | 'calendar'
+
+  // Data corrente per vista a 3 giorni
+  const [currentDate, setCurrentDate] = useState(new Date());
 
   // Tutte le pratiche
   const tutteLePratiche = useMemo(() => {
@@ -374,19 +341,43 @@ function CalendarTaskPage() {
 
           {/* CALENDARIO - 60% (Destra) - Desktop sempre visibile, Mobile solo se tab attivo */}
           <div className={`${activeTab === 'calendar' ? 'block' : 'hidden'} md:block md:w-3/5 bg-white dark:bg-dark-surface p-4 rounded-lg shadow overflow-hidden transition-colors duration-200`}>
+            <style>{`
+              /* Nascondi colonne oltre la terza per vista settimanale */
+              .rbc-time-view .rbc-time-header-content > .rbc-row:first-child > .rbc-header:nth-child(n+4) {
+                display: none !important;
+              }
+              .rbc-time-view .rbc-time-content > .rbc-time-column:nth-child(n+4) {
+                display: none !important;
+              }
+              /* Forza larghezza uguale per le 3 colonne visibili */
+              .rbc-time-view .rbc-time-header-content > .rbc-row:first-child > .rbc-header {
+                flex: 1 1 33.333% !important;
+                max-width: 33.333% !important;
+              }
+              .rbc-time-view .rbc-time-content > .rbc-time-column {
+                flex: 1 1 33.333% !important;
+                max-width: 33.333% !important;
+              }
+            `}</style>
             <Calendar
               localizer={localizer}
               events={calendarEvents}
               startAccessor="start"
               endAccessor="end"
-              style={{ height: '100%' }}
-              views={{
-                month: Views.MONTH,
-                week: ThreeDaysView,
-                day: Views.DAY,
-                agenda: Views.AGENDA
+              date={currentDate}
+              onNavigate={(newDate, view, action) => {
+                // Navigazione personalizzata: +/- 3 giorni
+                if (action === Navigate.PREVIOUS) {
+                  setCurrentDate(addDays(newDate, -3));
+                } else if (action === Navigate.NEXT) {
+                  setCurrentDate(addDays(newDate, 3));
+                } else {
+                  setCurrentDate(newDate);
+                }
               }}
-              defaultView="week"
+              style={{ height: '100%' }}
+              views={[Views.WORK_WEEK, Views.DAY, Views.AGENDA]}
+              defaultView={Views.WORK_WEEK}
               selectable
               onSelectSlot={handleSelectSlot}
               onSelectEvent={handleSelectEvent}
