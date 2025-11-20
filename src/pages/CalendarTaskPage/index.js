@@ -29,14 +29,21 @@ const calendarListForModal = [
 ].filter(cal => cal.id && cal.name);
 
 // Vista custom a 3 giorni (oggi + 2 giorni dopo)
-const ThreeDaysView = ({ date, localizer, ...props }) => {
-  const range = useMemo(() => {
+class ThreeDaysView extends React.Component {
+  render() {
+    const { date, localizer, ...props } = this.props;
     const start = new Date(date);
     start.setHours(0, 0, 0, 0);
-    return [start, addDays(start, 1), addDays(start, 2)];
-  }, [date]);
+    const range = [start, addDays(start, 1), addDays(start, 2)];
 
-  return <Calendar.Views.Week {...props} date={date} localizer={localizer} range={range} />;
+    return <Views.Week {...props} date={date} localizer={localizer} range={range} />;
+  }
+}
+
+ThreeDaysView.range = (date) => {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  return [start, addDays(start, 1), addDays(start, 2)];
 };
 
 ThreeDaysView.title = (date, { localizer }) => {
