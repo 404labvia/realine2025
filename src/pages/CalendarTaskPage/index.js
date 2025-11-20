@@ -1,6 +1,7 @@
 // src/pages/CalendarTaskPage/index.js
 import React, { useState, useMemo, useCallback } from 'react';
-import { Calendar, Views } from 'react-big-calendar';
+import { Calendar, Views, DateLocalizer } from 'react-big-calendar';
+import { addDays } from 'date-fns';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { usePratiche } from '../../contexts/PraticheContext';
 import { usePratichePrivato } from '../../contexts/PratichePrivatoContext';
@@ -27,9 +28,38 @@ const calendarListForModal = [
   { id: calendarIds.ID_ANTONELLI, name: calendarNameMap[calendarIds.ID_ANTONELLI] },
 ].filter(cal => cal.id && cal.name);
 
+// Vista custom a 3 giorni (oggi + 2 giorni dopo)
+const ThreeDaysView = ({ date, localizer, ...props }) => {
+  const range = useMemo(() => {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    return [start, addDays(start, 1), addDays(start, 2)];
+  }, [date]);
+
+  return <Calendar.Views.Week {...props} date={date} localizer={localizer} range={range} />;
+};
+
+ThreeDaysView.title = (date, { localizer }) => {
+  const start = new Date(date);
+  const end = addDays(start, 2);
+  return localizer.format({ start, end }, 'dayRangeHeaderFormat');
+};
+
+ThreeDaysView.navigate = (date, action) => {
+  const newDate = new Date(date);
+  switch (action) {
+    case 'PREV':
+      return addDays(newDate, -3);
+    case 'NEXT':
+      return addDays(newDate, 3);
+    default:
+      return newDate;
+  }
+};
+
 function CalendarTaskPage() {
-  const { pratiche: praticheStandard, loading: loadingPraticheStandard } = usePratiche();
-  const { pratiche: pratichePrivate, loading: loadingPratichePrivate } = usePratichePrivato();
+  const { pratiche: praticheStandard, loading: loadingPraticheStandard, updatePratica: updatePraticaStandard } = usePratiche();
+  const { pratiche: pratichePrivate, loading: loadingPratichePrivate, updatePratica: updatePraticaPrivata } = usePratichePrivato();
 
   // Tab attivo per mobile
   const [activeTab, setActiveTab] = useState('tasks'); // 'tasks' | 'calendar'
@@ -96,6 +126,16 @@ function CalendarTaskPage() {
     pendingSyncCount,
   } = useEnhancedTodoList();
 
+  // Helper per aggiornare pratica (standard o privata)
+  const updatePratica = useCallback((praticaId, updates) => {
+    const isPraticaPrivata = pratichePrivate.some(p => p.id === praticaId);
+    if (isPraticaPrivata) {
+      return updatePraticaPrivata(praticaId, updates);
+    } else {
+      return updatePraticaStandard(praticaId, updates);
+    }
+  }, [pratichePrivate, updatePraticaPrivata, updatePraticaStandard]);
+
   // Salva evento
   const handleSaveEvent = async () => {
     if (new Date(formState.end) <= new Date(formState.start)) {
@@ -105,13 +145,84 @@ function CalendarTaskPage() {
 
     const eventResource = prepareEventForApi();
     const targetCalendar = formState.targetCalendarId;
+    const praticaIdCollegata = formState.relatedPraticaId;
 
     try {
+      let savedGoogleEvent;
       if (formState.id) {
-        await updateGoogleEvent(formState.id, eventResource, targetCalendar);
+        savedGoogleEvent = await updateGoogleEvent(formState.id, eventResource, targetCalendar);
       } else {
-        await createGoogleEvent(eventResource, targetCalendar);
+        savedGoogleEvent = await createGoogleEvent(eventResource, targetCalendar);
       }
+
+      // SYNC BIDIREZIONALE: Se l'evento è collegato a una pratica, salva anche nel workflow
+      if (savedGoogleEvent && praticaIdCollegata) {
+        const praticaDaAggiornare = tutteLePratiche.find(p => p.id === praticaIdCollegata);
+        if (praticaDaAggiornare) {
+          const updatedWorkflow = JSON.parse(JSON.stringify(praticaDaAggiornare.workflow || {}));
+          const stepId = 'inizioPratica'; // Step di default per task create dal Calendario
+
+          // Inizializza lo step se non esiste
+          if (!updatedWorkflow[stepId]) {
+            updatedWorkflow[stepId] = { tasks: [], notes: [] };
+          }
+          if (!updatedWorkflow[stepId].tasks) {
+            updatedWorkflow[stepId].tasks = [];
+          }
+
+          // Cerca se la task esiste già (nel caso di update)
+          const taskIndex = updatedWorkflow[stepId].tasks.findIndex(
+            (t) => t.googleCalendarEventId === savedGoogleEvent.id
+          );
+
+          // Determina sourceCalendarId
+          let determinedSourceCalendarId = targetCalendar;
+          if (savedGoogleEvent.organizer?.email) {
+            determinedSourceCalendarId = 'primary';
+          } else if (savedGoogleEvent.calendarId) {
+            determinedSourceCalendarId = savedGoogleEvent.calendarId;
+          }
+
+          // Dati della task
+          const taskData = {
+            text: savedGoogleEvent.summary || eventResource.summary,
+            dueDate: new Date(savedGoogleEvent.start?.dateTime || savedGoogleEvent.start?.date).toISOString(),
+            endDate: savedGoogleEvent.end?.dateTime
+              ? new Date(savedGoogleEvent.end.dateTime).toISOString()
+              : new Date(new Date(savedGoogleEvent.start?.dateTime || savedGoogleEvent.start?.date).getTime() + (60 * 60 * 1000)).toISOString(),
+            googleCalendarEventId: savedGoogleEvent.id,
+            sourceCalendarId: determinedSourceCalendarId,
+            priority: formState.priority || 'normal',
+            reminder: formState.reminder || 60,
+            completed: taskIndex > -1 ? (updatedWorkflow[stepId].tasks[taskIndex]?.completed || false) : false,
+            relatedPraticaId: praticaIdCollegata,
+            description: savedGoogleEvent.description || '',
+            location: savedGoogleEvent.location || '',
+            isPrivate: formState.isPrivate || false,
+            stepId: stepId
+          };
+
+          // Aggiorna o aggiungi la task
+          if (taskIndex > -1) {
+            const existingTask = updatedWorkflow[stepId].tasks[taskIndex];
+            updatedWorkflow[stepId].tasks[taskIndex] = {
+              ...existingTask,
+              ...taskData,
+              updatedAt: new Date().toISOString(),
+            };
+          } else {
+            updatedWorkflow[stepId].tasks.push({
+              ...taskData,
+              createdDate: new Date().toISOString(),
+            });
+          }
+
+          // Salva il workflow aggiornato
+          await updatePratica(praticaIdCollegata, { workflow: updatedWorkflow });
+          console.log(`✓ Task sincronizzata nel workflow della pratica ${praticaIdCollegata} (step: ${stepId})`);
+        }
+      }
+
       resetFormAndCloseModal();
       // Aggiorna anche la task list
       refreshCalendarEvents();
@@ -249,13 +360,7 @@ function CalendarTaskPage() {
               setActiveFilter={setActiveFilter}
               dateFilter={dateFilter}
               setDateFilter={setDateFilter}
-              agenziaFilter={agenziaFilter}
-              setAgenziaFilter={setAgenziaFilter}
-              praticaFilter={praticaFilter}
-              setPraticaFilter={setPraticaFilter}
               refreshCalendarEvents={refreshCalendarEvents}
-              availableAgenzie={availableAgenzie}
-              availablePratiche={availablePratiche}
               pendingSyncCount={pendingSyncCount}
             />
           </div>
@@ -268,8 +373,13 @@ function CalendarTaskPage() {
               startAccessor="start"
               endAccessor="end"
               style={{ height: '100%' }}
-              views={[Views.MONTH, Views.WORK_WEEK, Views.DAY, Views.AGENDA]}
-              defaultView={Views.WORK_WEEK}
+              views={{
+                month: Views.MONTH,
+                week: ThreeDaysView,
+                day: Views.DAY,
+                agenda: Views.AGENDA
+              }}
+              defaultView="week"
               selectable
               onSelectSlot={handleSelectSlot}
               onSelectEvent={handleSelectEvent}

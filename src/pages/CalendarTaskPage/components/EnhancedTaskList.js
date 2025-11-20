@@ -76,8 +76,8 @@ function EnhancedTaskList({
         </button>
       </div>
 
-      {/* Filtri avanzati */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4 text-sm">
+      {/* Filtri */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 text-sm">
         {/* Filtro Stato */}
         <div>
           <label htmlFor="statusFilter" className="block text-xs font-medium text-gray-700 dark:text-dark-text-secondary mb-1">
@@ -111,44 +111,6 @@ function EnhancedTaskList({
             <option value="today">Oggi</option>
             <option value="tomorrow">Domani</option>
             <option value="week">Questa settimana</option>
-          </select>
-        </div>
-
-        {/* Filtro Agenzia */}
-        <div>
-          <label htmlFor="agenziaFilter" className="block text-xs font-medium text-gray-700 dark:text-dark-text-secondary mb-1">
-            Agenzia:
-          </label>
-          <select
-            id="agenziaFilter"
-            value={agenziaFilter}
-            onChange={(e) => setAgenziaFilter(e.target.value)}
-            className="w-full p-2 border border-gray-300 dark:border-dark-border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-dark-hover text-gray-900 dark:text-dark-text-primary transition-colors"
-          >
-            <option value="tutte">Tutte le agenzie</option>
-            {availableAgenzie.map(agenzia => (
-              <option key={agenzia} value={agenzia}>{agenzia}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Filtro Pratica */}
-        <div>
-          <label htmlFor="praticaFilter" className="block text-xs font-medium text-gray-700 dark:text-dark-text-secondary mb-1">
-            Pratica:
-          </label>
-          <select
-            id="praticaFilter"
-            value={praticaFilter}
-            onChange={(e) => setPraticaFilter(e.target.value)}
-            className="w-full p-2 border border-gray-300 dark:border-dark-border rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-dark-hover text-gray-900 dark:text-dark-text-primary transition-colors"
-          >
-            <option value="tutte">Tutte le pratiche</option>
-            {availablePratiche.map(pratica => (
-              <option key={pratica.id} value={pratica.id}>
-                {pratica.indirizzo} - {pratica.cliente}
-              </option>
-            ))}
           </select>
         </div>
       </div>
@@ -205,13 +167,19 @@ function EnhancedTaskList({
                     )}
                   </div>
 
-                  {/* Informazioni pratica (indirizzo + committente) */}
+                  {/* Informazioni pratica (indirizzo e committente su righe separate) */}
                   {item.praticaInfo && (item.praticaInfo.indirizzo || item.praticaInfo.cliente) && (
-                    <div className="mt-1 ml-6 text-xs text-gray-500 dark:text-dark-text-muted truncate">
-                      {item.praticaInfo.indirizzo && item.praticaInfo.cliente
-                        ? `${item.praticaInfo.indirizzo} - ${item.praticaInfo.cliente}`
-                        : item.praticaInfo.indirizzo || item.praticaInfo.cliente
-                      }
+                    <div className="mt-1 ml-6 space-y-0.5">
+                      {item.praticaInfo.indirizzo && (
+                        <div className="text-xs text-gray-500 dark:text-dark-text-muted font-normal truncate">
+                          {item.praticaInfo.indirizzo}
+                        </div>
+                      )}
+                      {item.praticaInfo.cliente && (
+                        <div className="text-xs text-gray-500 dark:text-dark-text-muted font-normal truncate">
+                          {item.praticaInfo.cliente}
+                        </div>
+                      )}
                     </div>
                   )}
 
