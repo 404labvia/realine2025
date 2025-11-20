@@ -239,8 +239,8 @@ function CalendarTaskPage() {
       {/* Layout principale */}
       {(googleApiToken && gapiClientInitialized) ? (
         <div className="flex-1 flex gap-4 overflow-hidden">
-          {/* TASK LIST - 50% (Sinistra) - Desktop sempre visibile, Mobile solo se tab attivo */}
-          <div className={`${activeTab === 'tasks' ? 'block' : 'hidden'} md:block md:w-1/2 overflow-hidden`}>
+          {/* TASK LIST - 40% (Sinistra) - Desktop sempre visibile, Mobile solo se tab attivo */}
+          <div className={`${activeTab === 'tasks' ? 'block' : 'hidden'} md:block md:w-2/5 overflow-hidden`}>
             <EnhancedTaskList
               todoItems={todoItems}
               isLoading={isLoadingTasks}
@@ -260,8 +260,8 @@ function CalendarTaskPage() {
             />
           </div>
 
-          {/* CALENDARIO - 50% (Destra) - Desktop sempre visibile, Mobile solo se tab attivo */}
-          <div className={`${activeTab === 'calendar' ? 'block' : 'hidden'} md:block md:w-1/2 bg-white dark:bg-dark-surface p-4 rounded-lg shadow overflow-hidden transition-colors duration-200`}>
+          {/* CALENDARIO - 60% (Destra) - Desktop sempre visibile, Mobile solo se tab attivo */}
+          <div className={`${activeTab === 'calendar' ? 'block' : 'hidden'} md:block md:w-3/5 bg-white dark:bg-dark-surface p-4 rounded-lg shadow overflow-hidden transition-colors duration-200`}>
             <Calendar
               localizer={localizer}
               events={calendarEvents}
@@ -286,7 +286,9 @@ function CalendarTaskPage() {
                   `${local.format(s, 'dd/MM/yyyy', culture)} – ${local.format(e, 'dd/MM/yyyy', culture)}`,
                 dayHeaderFormat: (date, culture, local) => local.format(date, 'eeee dd MMMM', culture),
                 dayRangeHeaderFormat: ({ start: s, end: e }, culture, local) =>
-                  `${local.format(s, 'dd MMM', culture)} – ${local.format(e, 'dd MMM', culture)}`
+                  `${local.format(s, 'dd MMM', culture)} – ${local.format(e, 'dd MMM', culture)}`,
+                eventTimeRangeFormat: () => '', // Rimuove l'orario dalla visualizzazione degli eventi
+                timeGutterFormat: (date, culture, local) => local.format(date, 'HH:mm', culture), // Mantiene orari nella colonna laterale
               }}
               step={15}
               timeslots={4}

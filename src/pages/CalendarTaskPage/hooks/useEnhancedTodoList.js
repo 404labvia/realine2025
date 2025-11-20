@@ -63,25 +63,23 @@ export const useEnhancedTodoList = () => {
       .sort((a, b) => a.indirizzo.localeCompare(b.indirizzo));
   }, [tutteLePratiche]);
 
-  // Setup auto-sync quando user è autenticato
+  // Setup auto-sync (non richiede più user, usa UID hardcoded)
   useEffect(() => {
-    if (!user?.uid) return;
-
     // Migra dati vecchi al primo caricamento
-    migrateFromOldService(user.uid);
+    migrateFromOldService();
 
     // Sincronizza con Firebase
-    syncAllFromFirebase(user.uid).catch(err => {
+    syncAllFromFirebase().catch(err => {
       console.warn('Sync iniziale fallita, uso cache locale:', err);
     });
 
     // Setup auto-sync su ritorno online
-    const cleanup = setupAutoSync(user.uid);
+    const cleanup = setupAutoSync();
 
     // Sincronizza modifiche in sospeso periodicamente (ogni 5 minuti)
     const interval = setInterval(() => {
-      if (navigator.onLine && user?.uid) {
-        syncPendingChanges(user.uid).then(() => {
+      if (navigator.onLine) {
+        syncPendingChanges().then(() => {
           setPendingSyncCount(getPendingCount());
         });
       }
@@ -94,7 +92,7 @@ export const useEnhancedTodoList = () => {
       cleanup();
       clearInterval(interval);
     };
-  }, [user?.uid]);
+  }, []);
 
   // Carica e trasforma eventi del calendario in task
   useEffect(() => {
@@ -146,10 +144,10 @@ export const useEnhancedTodoList = () => {
                 else if (event.end instanceof Date) validEndDate = event.end;
 
                 // Carica stato da Firebase (con fallback localStorage)
-                // Se user?.uid è undefined, getTaskState userà solo localStorage
+                // Usa UID hardcoded internamente nel servizio
                 let taskState = { isCompleted: false };
                 try {
-                  taskState = await getTaskState(user?.uid, event.id);
+                  taskState = await getTaskState(event.id);
                 } catch (error) {
                   console.warn(`Errore caricamento stato task ${event.id}, uso default:`, error.message);
                   // Fallback: usa stato di default
@@ -220,12 +218,12 @@ export const useEnhancedTodoList = () => {
     );
 
     // Salva su Firebase (con fallback localStorage)
-    // Se user?.uid è undefined, setTaskState userà solo localStorage
+    // Usa UID hardcoded internamente nel servizio
     const currentItem = allTodoItems.find(i => i.gCalEventId === gCalEventId);
     const newState = !currentItem?.isCompleted;
 
     try {
-      const result = await setTaskState(user?.uid, gCalEventId, newState);
+      const result = await setTaskState(gCalEventId, newState);
 
       if (result.queued) {
         // Salvato in coda, aggiorna contatore
@@ -235,7 +233,7 @@ export const useEnhancedTodoList = () => {
       console.error('Errore nel toggle task:', error);
       // L'update ottimistico è già fatto, quindi l'UI funziona comunque
     }
-  }, [user?.uid, allTodoItems]);
+  }, [allTodoItems]);
 
   // Applica filtri
   const filteredAndSortedItems = useMemo(() => {

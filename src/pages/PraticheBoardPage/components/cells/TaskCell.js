@@ -1,9 +1,10 @@
 // src/pages/PraticheBoardPage/components/cells/TaskCell.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { FaPlus, FaTimes, FaGoogle } from 'react-icons/fa';
 import TaskSidePeek from '../sidePeek/TaskSidePeek';
+import { getTaskState, setTaskState } from '../../../../services/taskStateFirebaseService';
 
 const TaskCell = ({
   pratica,
@@ -19,6 +20,59 @@ const TaskCell = ({
 }) => {
   const [showAll, setShowAll] = useState(false);
   const [isTaskSidePeekOpen, setIsTaskSidePeekOpen] = useState(false);
+
+  // SYNC: Sincronizza stati DA Firebase quando la pratica cambia
+  useEffect(() => {
+    const syncTaskStatesFromFirebase = async () => {
+      const workflow = pratica.workflow || {};
+      let hasChanges = false;
+      const updatedWorkflow = { ...workflow };
+
+      for (const [stepId, stepData] of Object.entries(workflow)) {
+        if (stepData.tasks && Array.isArray(stepData.tasks)) {
+          for (let taskIndex = 0; taskIndex < stepData.tasks.length; taskIndex++) {
+            const task = stepData.tasks[taskIndex];
+
+            // Se la task è collegata a Google Calendar, sincronizza lo stato
+            if (task.googleCalendarEventId) {
+              try {
+                const firebaseState = await getTaskState(task.googleCalendarEventId);
+                const firebaseCompleted = firebaseState.isCompleted || false;
+
+                // Se lo stato Firebase è diverso da quello locale, aggiorna
+                if (task.completed !== firebaseCompleted) {
+                  console.log(`🔄 Sincronizzazione task ${task.googleCalendarEventId}: locale=${task.completed}, firebase=${firebaseCompleted}`);
+
+                  if (!updatedWorkflow[stepId].tasks) {
+                    updatedWorkflow[stepId].tasks = [...stepData.tasks];
+                  }
+                  updatedWorkflow[stepId].tasks[taskIndex] = {
+                    ...task,
+                    completed: firebaseCompleted,
+                    completedDate: firebaseCompleted ? (task.completedDate || new Date().toISOString()) : null
+                  };
+                  hasChanges = true;
+                }
+              } catch (error) {
+                console.warn(`Errore sincronizzazione task ${task.googleCalendarEventId}:`, error.message);
+              }
+            }
+          }
+        }
+      }
+
+      // Se ci sono cambiamenti, aggiorna il workflow
+      if (hasChanges) {
+        setLocalPratiche(prev => prev.map(p =>
+          p.id === pratica.id ? { ...p, workflow: updatedWorkflow } : p
+        ));
+        await updatePratica(pratica.id, { workflow: updatedWorkflow });
+        console.log('✓ Workflow sincronizzato con Firebase taskStates');
+      }
+    };
+
+    syncTaskStatesFromFirebase();
+  }, [pratica.id]); // Esegui solo quando cambia la pratica, non ad ogni render
 
   const getAllTasks = () => {
     const allTasks = [];
@@ -71,14 +125,28 @@ const TaskCell = ({
     const updatedWorkflow = { ...pratica.workflow };
     const taskToUpdate = updatedWorkflow[task.stepId].tasks[task.taskIndex];
 
-    taskToUpdate.completed = !taskToUpdate.completed;
-    taskToUpdate.completedDate = taskToUpdate.completed ? new Date().toISOString() : null;
+    const newCompletedState = !taskToUpdate.completed;
+    taskToUpdate.completed = newCompletedState;
+    taskToUpdate.completedDate = newCompletedState ? new Date().toISOString() : null;
 
+    // Update ottimistico locale
     setLocalPratiche(prev => prev.map(p =>
       p.id === pratica.id ? { ...p, workflow: updatedWorkflow } : p
     ));
 
+    // Salva su Firestore (pratica.workflow)
     await updatePratica(pratica.id, { workflow: updatedWorkflow });
+
+    // SYNC BIDIREZIONALE: Se la task è collegata a Google Calendar, sincronizza anche taskStates
+    if (task.googleCalendarEventId) {
+      try {
+        await setTaskState(task.googleCalendarEventId, newCompletedState);
+        console.log(`✓ Task ${task.googleCalendarEventId} sincronizzata con Firebase taskStates`);
+      } catch (error) {
+        console.error('Errore sincronizzazione taskState:', error);
+        // Non blocca l'esecuzione, la task locale è già aggiornata
+      }
+    }
   };
 
   const handleDeleteTask = async (task) => {

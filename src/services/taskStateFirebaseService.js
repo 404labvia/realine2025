@@ -2,6 +2,9 @@
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
+// UID hardcoded per tutte le operazioni Firebase
+const FIREBASE_USER_ID = 'fSjGJAhUlsQwcCGJAzSWgp4Tpxi1';
+
 // Keys per localStorage
 const TASK_STATES_KEY = 'taskStates_local';
 const PENDING_SYNC_KEY = 'taskStates_pendingSync';
@@ -165,11 +168,12 @@ const getAllFromFirebase = async (userId) => {
 /**
  * Legge lo stato di una task (con fallback automatico)
  * Prova prima Firebase, se fallisce usa localStorage
+ * Nota: userId non è più necessario, usa FIREBASE_USER_ID hardcoded
  */
-export const getTaskState = async (userId, eventId) => {
+export const getTaskState = async (eventId) => {
   try {
-    // TENTATIVO 1: Firebase (cloud)
-    const firebaseState = await getFromFirebase(userId, eventId);
+    // TENTATIVO 1: Firebase (cloud) con UID hardcoded
+    const firebaseState = await getFromFirebase(FIREBASE_USER_ID, eventId);
 
     // Aggiorna cache locale
     saveToLocalStorage(eventId, firebaseState);
@@ -186,16 +190,17 @@ export const getTaskState = async (userId, eventId) => {
 /**
  * Salva lo stato di una task (con fallback automatico)
  * Salva sempre su localStorage, poi prova Firebase
+ * Nota: userId non è più necessario, usa FIREBASE_USER_ID hardcoded
  */
-export const setTaskState = async (userId, eventId, isCompleted) => {
+export const setTaskState = async (eventId, isCompleted) => {
   const state = { isCompleted, lastModified: Date.now() };
 
   // SEMPRE: Salva subito in localStorage (feedback istantaneo)
   saveToLocalStorage(eventId, state);
 
   try {
-    // POI: Prova a salvare su Firebase
-    const timestamp = await saveToFirebase(userId, eventId, state);
+    // POI: Prova a salvare su Firebase con UID hardcoded
+    const timestamp = await saveToFirebase(FIREBASE_USER_ID, eventId, state);
 
     // Successo: rimuovi dalla coda di sync se presente
     removeFromPendingSync(eventId);
@@ -214,13 +219,9 @@ export const setTaskState = async (userId, eventId, isCompleted) => {
 /**
  * Sincronizza tutte le modifiche in sospeso con Firebase
  * Chiamata automaticamente quando si torna online
+ * Nota: usa FIREBASE_USER_ID hardcoded
  */
-export const syncPendingChanges = async (userId) => {
-  if (!userId) {
-    console.warn('Sync richiede userId');
-    return { synced: 0, failed: 0 };
-  }
-
+export const syncPendingChanges = async () => {
   const queue = getPendingQueue();
   const eventIds = Object.keys(queue);
 
@@ -237,8 +238,8 @@ export const syncPendingChanges = async (userId) => {
     const localState = queue[eventId];
 
     try {
-      // Leggi stato remoto
-      const remoteState = await getFromFirebase(userId, eventId);
+      // Leggi stato remoto con UID hardcoded
+      const remoteState = await getFromFirebase(FIREBASE_USER_ID, eventId);
 
       // Risoluzione conflitto: vince il più recente
       if (remoteState.lastModified > localState.lastModified) {
@@ -247,7 +248,7 @@ export const syncPendingChanges = async (userId) => {
         saveToLocalStorage(eventId, remoteState);
       } else {
         // Locale più recente: carica su Firebase
-        await saveToFirebase(userId, eventId, localState);
+        await saveToFirebase(FIREBASE_USER_ID, eventId, localState);
         console.log(`✓ Sincronizzato ${eventId}`);
       }
 
@@ -268,16 +269,12 @@ export const syncPendingChanges = async (userId) => {
 /**
  * Sincronizza tutti gli stati da Firebase al localStorage
  * Utile per il primo caricamento o refresh completo
+ * Nota: usa FIREBASE_USER_ID hardcoded
  */
-export const syncAllFromFirebase = async (userId) => {
-  if (!userId) {
-    console.warn('Sync richiede userId');
-    return;
-  }
-
+export const syncAllFromFirebase = async () => {
   try {
     console.log('📥 Sincronizzazione completa da Firebase...');
-    const remoteStates = await getAllFromFirebase(userId);
+    const remoteStates = await getAllFromFirebase(FIREBASE_USER_ID);
 
     // Sovrascrivi localStorage con dati remoti
     localStorage.setItem(TASK_STATES_KEY, JSON.stringify(remoteStates));
@@ -300,12 +297,13 @@ export const getPendingCount = () => {
 
 /**
  * Setup listener per sincronizzazione automatica quando si torna online
+ * Nota: usa FIREBASE_USER_ID hardcoded
  */
-export const setupAutoSync = (userId) => {
+export const setupAutoSync = () => {
   // Listener per evento online
   const handleOnline = async () => {
     console.log('📡 Connessione ripristinata, avvio sincronizzazione...');
-    const result = await syncPendingChanges(userId);
+    const result = await syncPendingChanges();
 
     if (result.synced > 0) {
       console.log(`✓ Sincronizzate ${result.synced} modifiche`);
@@ -326,8 +324,9 @@ export const setupAutoSync = (userId) => {
 
 /**
  * Migra dati dal vecchio todoStateService al nuovo sistema
+ * Nota: usa FIREBASE_USER_ID hardcoded
  */
-export const migrateFromOldService = async (userId) => {
+export const migrateFromOldService = async () => {
   try {
     const oldData = localStorage.getItem('todoListCompletedState');
     if (!oldData) return;
@@ -343,9 +342,9 @@ export const migrateFromOldService = async (userId) => {
         const state = { isCompleted: true, lastModified: timestamp };
         saveToLocalStorage(eventId, state);
 
-        // Prova a salvare su Firebase
+        // Prova a salvare su Firebase con UID hardcoded
         try {
-          await saveToFirebase(userId, eventId, state);
+          await saveToFirebase(FIREBASE_USER_ID, eventId, state);
         } catch (error) {
           // Ignora errori, verrà sincronizzato dopo
           addToPendingSync(eventId, state);

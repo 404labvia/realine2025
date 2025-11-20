@@ -170,7 +170,7 @@ function EnhancedTaskList({
                 <div
                   key={item.gCalEventId}
                   className={`
-                    p-3 rounded-lg border transition-all
+                    p-2 rounded-lg border transition-all
                     ${item.isCompleted
                       ? 'bg-gray-100 dark:bg-dark-hover border-gray-300 dark:border-dark-border opacity-60'
                       : isScaduta
@@ -179,60 +179,42 @@ function EnhancedTaskList({
                     }
                   `}
                 >
-                  {/* Header task con checkbox */}
-                  <div className="flex items-start gap-3">
+                  {/* Header task: checkbox + titolo + data/ora */}
+                  <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={item.isCompleted}
                       onChange={() => toggleComplete(item.gCalEventId)}
-                      className="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                      className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer flex-shrink-0"
                       style={{ accentColor: '#000000' }}
                     />
 
-                    <div className="flex-1 min-w-0">
-                      {/* Titolo task */}
-                      <div className={`text-sm font-medium flex items-center gap-2 ${item.isCompleted ? 'line-through text-gray-500 dark:text-dark-text-muted' : 'text-gray-900 dark:text-dark-text-primary'}`}>
-                        {isScaduta && (
-                          <FaExclamationTriangle className="text-red-500 flex-shrink-0" title="Scaduta" size={14} />
-                        )}
-                        <span className="truncate">{item.title}</span>
-                      </div>
-
-                      {/* Metadati */}
-                      <div className="mt-2 space-y-1">
-                        {/* Data scadenza */}
-                        {validDueDate && (
-                          <div className={`text-xs flex items-center gap-2 ${isScaduta ? 'text-red-600 dark:text-red-400 font-bold' : 'text-gray-600 dark:text-dark-text-secondary'}`}>
-                            <FaCalendarAlt className="flex-shrink-0" size={12} />
-                            <span>
-                              {format(new Date(item.dueDate), 'dd MMM yy, HH:mm', { locale: it })}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Info pratica se collegata */}
-                        {item.praticaInfo && (
-                          <div className="space-y-1">
-                            {/* Agenzia */}
-                            {item.praticaInfo.agenzia && (
-                              <div className="text-xs flex items-center gap-2 text-blue-600 dark:text-blue-400">
-                                <FaBuilding className="flex-shrink-0" size={12} />
-                                <span>{item.praticaInfo.agenzia}</span>
-                              </div>
-                            )}
-
-                            {/* Pratica */}
-                            <div className="text-xs flex items-center gap-2 text-gray-600 dark:text-dark-text-secondary">
-                              <FaFileAlt className="flex-shrink-0" size={12} />
-                              <span className="truncate">
-                                {item.praticaInfo.indirizzo} - {item.praticaInfo.cliente}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                    {/* Titolo (espandibile) */}
+                    <div className={`flex-1 min-w-0 text-sm font-medium flex items-center gap-1 ${item.isCompleted ? 'line-through text-gray-500 dark:text-dark-text-muted' : 'text-gray-900 dark:text-dark-text-primary'}`}>
+                      {isScaduta && (
+                        <FaExclamationTriangle className="text-red-500 flex-shrink-0" title="Scaduta" size={12} />
+                      )}
+                      <span className="truncate">{item.title}</span>
                     </div>
+
+                    {/* Data/Ora (allineata a destra) */}
+                    {validDueDate && (
+                      <div className={`text-xs whitespace-nowrap flex-shrink-0 ${isScaduta ? 'text-red-600 dark:text-red-400 font-semibold' : 'text-gray-500 dark:text-dark-text-secondary'}`}>
+                        {format(new Date(item.dueDate), 'dd MMM, HH:mm', { locale: it })}
+                      </div>
+                    )}
                   </div>
+
+                  {/* Informazioni pratica (indirizzo + committente) */}
+                  {item.praticaInfo && (item.praticaInfo.indirizzo || item.praticaInfo.cliente) && (
+                    <div className="mt-1 ml-6 text-xs text-gray-500 dark:text-dark-text-muted truncate">
+                      {item.praticaInfo.indirizzo && item.praticaInfo.cliente
+                        ? `${item.praticaInfo.indirizzo} - ${item.praticaInfo.cliente}`
+                        : item.praticaInfo.indirizzo || item.praticaInfo.cliente
+                      }
+                    </div>
+                  )}
+
                 </div>
               );
             })}
