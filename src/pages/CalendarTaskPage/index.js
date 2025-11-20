@@ -1,7 +1,6 @@
 // src/pages/CalendarTaskPage/index.js
 import React, { useState, useMemo, useCallback } from 'react';
-import { Calendar, Views, Navigate } from 'react-big-calendar';
-import { addDays, startOfDay } from 'date-fns';
+import { Calendar, Views } from 'react-big-calendar';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { usePratiche } from '../../contexts/PraticheContext';
 import { usePratichePrivato } from '../../contexts/PratichePrivatoContext';
@@ -34,9 +33,6 @@ function CalendarTaskPage() {
 
   // Tab attivo per mobile
   const [activeTab, setActiveTab] = useState('tasks'); // 'tasks' | 'calendar'
-
-  // Data corrente per vista a 3 giorni
-  const [currentDate, setCurrentDate] = useState(new Date());
 
   // Tutte le pratiche
   const tutteLePratiche = useMemo(() => {
@@ -341,40 +337,11 @@ function CalendarTaskPage() {
 
           {/* CALENDARIO - 60% (Destra) - Desktop sempre visibile, Mobile solo se tab attivo */}
           <div className={`${activeTab === 'calendar' ? 'block' : 'hidden'} md:block md:w-3/5 bg-white dark:bg-dark-surface p-4 rounded-lg shadow overflow-hidden transition-colors duration-200`}>
-            <style>{`
-              /* Nascondi colonne oltre la terza per vista settimanale */
-              .rbc-time-view .rbc-time-header-content > .rbc-row:first-child > .rbc-header:nth-child(n+4) {
-                display: none !important;
-              }
-              .rbc-time-view .rbc-time-content > .rbc-time-column:nth-child(n+4) {
-                display: none !important;
-              }
-              /* Forza larghezza uguale per le 3 colonne visibili */
-              .rbc-time-view .rbc-time-header-content > .rbc-row:first-child > .rbc-header {
-                flex: 1 1 33.333% !important;
-                max-width: 33.333% !important;
-              }
-              .rbc-time-view .rbc-time-content > .rbc-time-column {
-                flex: 1 1 33.333% !important;
-                max-width: 33.333% !important;
-              }
-            `}</style>
             <Calendar
               localizer={localizer}
               events={calendarEvents}
               startAccessor="start"
               endAccessor="end"
-              date={currentDate}
-              onNavigate={(newDate, view, action) => {
-                // Navigazione personalizzata: +/- 3 giorni
-                if (action === Navigate.PREVIOUS) {
-                  setCurrentDate(addDays(newDate, -3));
-                } else if (action === Navigate.NEXT) {
-                  setCurrentDate(addDays(newDate, 3));
-                } else {
-                  setCurrentDate(newDate);
-                }
-              }}
               style={{ height: '100%' }}
               views={[Views.WORK_WEEK, Views.DAY, Views.AGENDA]}
               defaultView={Views.WORK_WEEK}

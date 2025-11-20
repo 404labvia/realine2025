@@ -167,19 +167,13 @@ function EnhancedTaskList({
                     )}
                   </div>
 
-                  {/* Informazioni pratica (indirizzo e committente su righe separate) */}
+                  {/* Informazioni pratica (indirizzo e committente sulla stessa riga) */}
                   {item.praticaInfo && (item.praticaInfo.indirizzo || item.praticaInfo.cliente) && (
-                    <div className="mt-1 ml-6 space-y-0.5">
-                      {item.praticaInfo.indirizzo && (
-                        <div className="text-xs text-gray-500 dark:text-dark-text-muted font-normal truncate">
-                          {item.praticaInfo.indirizzo}
-                        </div>
-                      )}
-                      {item.praticaInfo.cliente && (
-                        <div className="text-xs text-gray-500 dark:text-dark-text-muted font-normal truncate">
-                          {item.praticaInfo.cliente}
-                        </div>
-                      )}
+                    <div className="mt-1 ml-6 text-xs text-gray-500 dark:text-dark-text-muted font-normal truncate">
+                      {item.praticaInfo.indirizzo && item.praticaInfo.cliente
+                        ? `${item.praticaInfo.indirizzo}  ${item.praticaInfo.cliente}`
+                        : item.praticaInfo.indirizzo || item.praticaInfo.cliente
+                      }
                     </div>
                   )}
 
