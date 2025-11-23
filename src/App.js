@@ -7,7 +7,6 @@ import {
   MdAttachMoney,
   MdChevronLeft,
   MdChevronRight,
-  MdFormatListBulleted,
   MdLogout,
   MdAccountCircle,
   MdFolderSpecial,
@@ -15,7 +14,7 @@ import {
   MdBolt,
   MdViewColumn,
 } from 'react-icons/md';
-import { FaCalendarAlt, FaRobot } from 'react-icons/fa';
+import { FaCalendarAlt } from 'react-icons/fa';
 
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -32,8 +31,6 @@ import PratichePage from './pages/PratichePage';
 import PraticheBoardPage from './pages/PraticheBoardPage';
 import PratichePrivatoPage from './pages/PratichePrivatoPage';
 import CalendarTaskPage from './pages/CalendarTaskPage';
-import PrezziarioPage from './pages/PrezziarioPage';
-import AutomationConfigPage from './pages/AutomationConfigPage';
 import FinanzePage from './pages/FinanzePage';
 import LoginPage from './components/Login';
 
@@ -91,9 +88,7 @@ function AppContent() {
       '/pratiche-board': 'Gestione Pratiche - Vista Board',
       '/pratiche-privato': 'Gestione Pratiche Privato',
       '/calendario': 'Calendario & Task',
-      '/prezziario': 'Prezziario',
-      '/finanze': 'Gestione Finanziaria',
-      '/automazioni': 'Configurazione Automazioni'
+      '/finanze': 'Gestione Finanziaria'
     };
     return titles[path] || 'Realine Studio';
   };
@@ -132,8 +127,6 @@ function AppContent() {
               { to: "/pratiche-privato", label: "Pratiche Privato", icon: MdFolderSpecial },
               { to: "/finanze", label: "Finanze", icon: MdAttachMoney },
               { to: "/calendario", label: "Calendario", icon: FaCalendarAlt },
-              { to: "/prezziario", label: "Prezziario", icon: MdFormatListBulleted },
-              { to: "/automazioni", label: "Automazioni", icon: FaRobot },
             ].map((item) => (
               <NavLink
                 key={item.to}
@@ -249,8 +242,6 @@ function AppContent() {
                 </PraticheProvider>
               }
             />
-            <Route path="/prezziario" element={<PrezziarioPage />} />
-            <Route path="/automazioni" element={<AutomationConfigPage />} />
           </Routes>
         </main>
       </div>
