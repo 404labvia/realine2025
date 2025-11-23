@@ -212,7 +212,9 @@ function AppContent() {
               element={
                 <PraticheProvider>
                   <PratichePrivatoProvider>
-                    <PraticheBoardPage />
+                    <AccessoAttiProvider>
+                      <PraticheBoardPage />
+                    </AccessoAttiProvider>
                   </PratichePrivatoProvider>
                 </PraticheProvider>
               }
