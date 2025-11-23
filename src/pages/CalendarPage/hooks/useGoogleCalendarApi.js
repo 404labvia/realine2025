@@ -16,6 +16,10 @@ const SHARED_CALENDAR_IDS = [
 
 export const useGoogleCalendarApi = () => {
   const [googleApiToken, setGoogleApiToken] = useState(() => localStorage.getItem('googleApiToken'));
+  const [tokenExpiresAt, setTokenExpiresAt] = useState(() => {
+    const stored = localStorage.getItem('googleApiTokenExpiresAt');
+    return stored ? parseInt(stored, 10) : null;
+  });
   const [gapiClientInitialized, setGapiClientInitialized] = useState(false);
   const [isLoadingGapi, setIsLoadingGapi] = useState(true);
   const [calendarEvents, setCalendarEvents] = useState([]);
@@ -92,15 +96,26 @@ export const useGoogleCalendarApi = () => {
 
   const clearAppAuthTokenAndState = useCallback(() => {
     localStorage.removeItem('googleApiToken');
+    localStorage.removeItem('googleApiTokenExpiresAt');
     setGoogleApiToken(null);
+    setTokenExpiresAt(null);
     setCalendarEvents([]);
     console.log("Token API di Google dell'app e stato eventi cancellati.");
   }, []);
 
   const handleLoginSuccess = useCallback((tokenResponse) => {
     const accessToken = tokenResponse.access_token;
+    const expiresIn = tokenResponse.expires_in || 3600; // Default 1 ora se non fornito
+    const expiresAt = Date.now() + (expiresIn * 1000); // Timestamp scadenza
+
     localStorage.setItem('googleApiToken', accessToken);
+    localStorage.setItem('googleApiTokenExpiresAt', expiresAt.toString());
+
     setGoogleApiToken(accessToken);
+    setTokenExpiresAt(expiresAt);
+
+    console.log(`✅ Token Google salvato. Scadenza: ${new Date(expiresAt).toLocaleString()}`);
+
     if (gapiClientInitialized && window.gapi?.client) {
        try {
           window.gapi.client.setToken({ access_token: accessToken });
@@ -121,6 +136,45 @@ export const useGoogleCalendarApi = () => {
     onError: handleLoginError,
     scope: 'https://www.googleapis.com/auth/calendar.events',
   });
+
+  // Funzione per silent refresh del token
+  const silentRefreshToken = useGoogleLogin({
+    onSuccess: handleLoginSuccess,
+    onError: (error) => {
+      console.warn('Silent refresh fallito, richiesto login manuale:', error);
+      clearAppAuthTokenAndState();
+    },
+    scope: 'https://www.googleapis.com/auth/calendar.events',
+    prompt: 'none', // Non mostra UI se utente già autenticato
+  });
+
+  // Controllo automatico scadenza token
+  useEffect(() => {
+    if (!googleApiToken || !tokenExpiresAt) return;
+
+    const checkTokenExpiration = () => {
+      const now = Date.now();
+      const timeUntilExpiry = tokenExpiresAt - now;
+      const fiveMinutes = 5 * 60 * 1000; // 5 minuti in millisecondi
+
+      // Se mancano meno di 5 minuti alla scadenza, fai refresh
+      if (timeUntilExpiry <= fiveMinutes && timeUntilExpiry > 0) {
+        console.log('⚠️ Token in scadenza tra', Math.floor(timeUntilExpiry / 1000 / 60), 'minuti. Avvio refresh silenzioso...');
+        silentRefreshToken();
+      } else if (timeUntilExpiry <= 0) {
+        console.warn('❌ Token scaduto. Richiedo nuovo login.');
+        clearAppAuthTokenAndState();
+      }
+    };
+
+    // Controlla subito
+    checkTokenExpiration();
+
+    // Poi controlla ogni 2 minuti
+    const intervalId = setInterval(checkTokenExpiration, 2 * 60 * 1000);
+
+    return () => clearInterval(intervalId);
+  }, [googleApiToken, tokenExpiresAt, silentRefreshToken, clearAppAuthTokenAndState]);
 
   const fetchGoogleEvents = useCallback(async () => {
     if (!gapiClientInitialized || !googleApiToken) {
@@ -231,7 +285,9 @@ export const useGoogleCalendarApi = () => {
   const logoutFromGoogle = useCallback(() => {
     try { googleLogout(); } catch (e) { console.error("Errore googleLogout:", e); }
     localStorage.removeItem('googleApiToken');
+    localStorage.removeItem('googleApiTokenExpiresAt');
     setGoogleApiToken(null);
+    setTokenExpiresAt(null);
     setCalendarEvents([]); // Pulisce gli eventi del calendario allo logout
     console.log("Logged out from Google API (hook).");
   }, []);
