@@ -5,7 +5,6 @@ import StatistichePrincipali from './components/StatistichePrincipali';
 import UpcomingDeadlines from './components/UpcomingDeadlines'; // ORA CORRETTO: renderizzerà solo una card
 import ChartAgenzie from './components/ChartAgenzie';
 import ChartFatturato from './components/ChartFatturato';
-import TodoList from './components/TodoList';
 
 // Rimuovi import non più usati
 // import TaskNotification from './components/TaskNotification';
@@ -51,10 +50,6 @@ function Dashboard() {
           filtroStato={filtroStatoFatturato}
           setFiltroStato={setFiltroStatoFatturato}
         />
-      </div>
-
-      <div className="my-6">
-        <TodoList />
       </div>
 
       {/* CORRETTO: Chiama UpcomingDeadlines senza props */}

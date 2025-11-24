@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePratiche } from '../../contexts/PraticheContext';
 import { usePratichePrivato } from '../../contexts/PratichePrivatoContext';
+import { useAccessiAtti } from '../AccessiAgliAttiPage/contexts/AccessoAttiContext';
 import { FaPlus, FaSearch, FaFilter, FaSort } from 'react-icons/fa';
 import Fuse from 'fuse.js';
 import { addDays } from 'date-fns';
@@ -10,8 +11,11 @@ import { useCalendarState } from '../CalendarPage/hooks/useCalendarState';
 import { useGoogleCalendarApi } from '../CalendarPage/hooks/useGoogleCalendarApi';
 
 import BoardTable from './components/BoardTable';
+import CollapsibleAccessoAttiCard from './components/CollapsibleAccessoAttiCard';
 import EventModal from '../CalendarPage/components/EventModal';
 import { NewPraticaForm, EditPraticaForm } from '../PratichePage/components/forms';
+import NewAccessoAttiForm from '../AccessiAgliAttiPage/components/NewAccessoAttiForm';
+import EditAccessoAttiForm from '../AccessiAgliAttiPage/components/EditAccessoAttiForm';
 
 import { agenzieCollaboratori } from '../PratichePage/utils';
 import { calendarIds, calendarNameMap } from '../CalendarPage/utils/calendarUtils';
@@ -27,6 +31,13 @@ const calendarListForModal = [
 function PraticheBoardPage() {
   const { pratiche, loading, deletePratica, addPratica, updatePratica } = usePratiche();
   const { pratiche: pratichePrivateData, loading: loadingPratichePrivate } = usePratichePrivato();
+  const {
+    accessi,
+    loading: loadingAccessiAtti,
+    addAccesso,
+    updateAccesso,
+    deleteAccesso,
+  } = useAccessiAtti();
 
   const [localPratiche, setLocalPratiche] = useState([]);
   const [filtroAgenzia, setFiltroAgenzia] = useState('');
@@ -36,6 +47,11 @@ function PraticheBoardPage() {
   const [editingPraticaId, setEditingPraticaId] = useState(null);
   const [showNewPraticaForm, setShowNewPraticaForm] = useState(false);
   const [currentStepIdForCalendar, setCurrentStepIdForCalendar] = useState(null);
+
+  // Stati per gestione accessi atti
+  const [showNewAccessoForm, setShowNewAccessoForm] = useState(false);
+  const [editingAccesso, setEditingAccesso] = useState(null);
+  const [newAccessoAgenzia, setNewAccessoAgenzia] = useState('');
 
   useEffect(() => {
     if (!loading) {
@@ -126,6 +142,39 @@ function PraticheBoardPage() {
 
     return filtered;
   }, [localPratiche, filtroAgenzia, filtroStato, searchQuery, fuse, ordinaPerScadenza]);
+
+  // Filtra accessi atti per agenzia selezionata
+  const accessiFiltered = useMemo(() => {
+    if (!filtroAgenzia) return [];
+    return accessi.filter(accesso => accesso.agenzia === filtroAgenzia);
+  }, [accessi, filtroAgenzia]);
+
+  // Handlers per Accessi Atti
+  const handleAddNewAccessoAtti = async (nuovoAccesso) => {
+    await addAccesso(nuovoAccesso);
+    setShowNewAccessoForm(false);
+    setNewAccessoAgenzia('');
+  };
+
+  const handleEditAccessoAtti = (accesso) => {
+    setEditingAccesso(accesso);
+  };
+
+  const handleSaveEditedAccessoAtti = async (accessoModificato) => {
+    await updateAccesso(accessoModificato.id, accessoModificato);
+    setEditingAccesso(null);
+  };
+
+  const handleDeleteAccessoAtti = async (id) => {
+    if (window.confirm("Sei sicuro di voler eliminare questo accesso?")) {
+      await deleteAccesso(id);
+    }
+  };
+
+  const handleOpenNewAccessoForm = () => {
+    setNewAccessoAgenzia(filtroAgenzia);
+    setShowNewAccessoForm(true);
+  };
 
   const handleEditPratica = (praticaId) => {
     setEditingPraticaId(praticaId);
@@ -414,7 +463,7 @@ function PraticheBoardPage() {
     }
   };
 
-  if (loading || loadingPratichePrivate || (isLoadingGapi && !googleApiToken)) {
+  if (loading || loadingPratichePrivate || loadingAccessiAtti || (isLoadingGapi && !googleApiToken)) {
     return <div className="flex justify-center items-center h-full">Caricamento...</div>;
   }
 
@@ -500,6 +549,18 @@ function PraticheBoardPage() {
         )}
       </div>
 
+      {/* Card Accessi Atti - visibile solo quando è selezionata un'agenzia */}
+      {filtroAgenzia && accessiFiltered.length >= 0 && (
+        <CollapsibleAccessoAttiCard
+          titolo={filtroAgenzia}
+          accessi={accessiFiltered}
+          onEdit={handleEditAccessoAtti}
+          onDelete={handleDeleteAccessoAtti}
+          onUpdate={updateAccesso}
+          onAddNew={handleOpenNewAccessoForm}
+        />
+      )}
+
       {praticheFiltered.length === 0 && searchQuery ? (
         <div className="bg-white dark:bg-dark-surface rounded-lg shadow-sm p-12 text-center transition-colors duration-200">
           <FaSearch size={48} className="mx-auto mb-4 text-gray-300 dark:text-dark-text-muted" />
@@ -560,6 +621,28 @@ function PraticheBoardPage() {
           tutteLePratiche={praticheInCorsoPerModal}
           pratichePrivate={pratichePrivateData}
           calendarList={calendarListForModal}
+        />
+      )}
+
+      {/* Form Nuovo Accesso Atti */}
+      {showNewAccessoForm && (
+        <NewAccessoAttiForm
+          onClose={() => {
+            setShowNewAccessoForm(false);
+            setNewAccessoAgenzia('');
+          }}
+          onSave={handleAddNewAccessoAtti}
+          agenziaPreselezionata={newAccessoAgenzia}
+        />
+      )}
+
+      {/* Form Modifica Accesso Atti */}
+      {editingAccesso && (
+        <EditAccessoAttiForm
+          accesso={editingAccesso}
+          onClose={() => setEditingAccesso(null)}
+          onSave={handleSaveEditedAccessoAtti}
+          onDelete={handleDeleteAccessoAtti}
         />
       )}
     </div>
