@@ -26,6 +26,7 @@ function Step5Pagamento({ incaricoData, updateIncaricoData, onNext, onPrev }) {
       importoTotale: Math.round(importoTotale * 100) / 100,
       importoSaldo: Math.round(importoSaldo * 100) / 100,
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.importoNetto, formData.iva, formData.importoAcconto]);
 
   const handleChange = (field, value) => {

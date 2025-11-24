@@ -56,7 +56,6 @@ function Step4TipologiaIntervento({ incaricoData, updateIncaricoData, onNext, on
   };
 
   // Separa interventi predefiniti da quelli custom
-  const predefiniti = selectedInterventi.filter(s => interventiDisponibili.some(i => i.id === s));
   const custom = selectedInterventi.filter(s => !interventiDisponibili.some(i => i.id === s));
 
   return (
