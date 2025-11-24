@@ -157,7 +157,7 @@ function Step6Riepilogo({ incaricoData, onPrev, onReset }) {
                 <div>
                   <span className="text-gray-500 dark:text-dark-text-secondary">Importo Netto:</span>
                   <span className="ml-2 font-medium text-gray-900 dark:text-dark-text-primary">
-                    € {incaricoData.importoNetto.toFixed(2)}
+                    € {parseFloat(incaricoData.importoNetto || 0).toFixed(2)}
                   </span>
                 </div>
                 <div>
@@ -169,19 +169,19 @@ function Step6Riepilogo({ incaricoData, onPrev, onReset }) {
                 <div className="col-span-2">
                   <span className="text-gray-500 dark:text-dark-text-secondary font-semibold">Totale:</span>
                   <span className="ml-2 font-bold text-lg text-blue-700 dark:text-blue-400">
-                    € {incaricoData.importoTotale.toFixed(2)}
+                    € {parseFloat(incaricoData.importoTotale || 0).toFixed(2)}
                   </span>
                 </div>
                 <div>
                   <span className="text-gray-500 dark:text-dark-text-secondary">Acconto:</span>
                   <span className="ml-2 font-medium text-gray-900 dark:text-dark-text-primary">
-                    € {incaricoData.importoAcconto.toFixed(2)}
+                    € {parseFloat(incaricoData.importoAcconto || 0).toFixed(2)}
                   </span>
                 </div>
                 <div>
                   <span className="text-gray-500 dark:text-dark-text-secondary">Saldo:</span>
                   <span className="ml-2 font-medium text-green-700 dark:text-green-400">
-                    € {incaricoData.importoSaldo.toFixed(2)}
+                    € {parseFloat(incaricoData.importoSaldo || 0).toFixed(2)}
                   </span>
                 </div>
               </div>

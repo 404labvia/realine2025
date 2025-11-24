@@ -69,6 +69,13 @@ function Step5Pagamento({ incaricoData, updateIncaricoData, onNext, onPrev }) {
 
   const handleContinue = () => {
     if (validateForm()) {
+      // Assicurati che tutti i valori numerici siano convertiti correttamente
+      updateIncaricoData({
+        importoNetto: parseFloat(formData.importoNetto) || 0,
+        iva: parseFloat(formData.iva) || 22,
+        importoAcconto: parseFloat(formData.importoAcconto) || 0,
+        tempistica: formData.tempistica,
+      });
       onNext();
     }
   };

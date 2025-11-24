@@ -1,5 +1,5 @@
 // src/pages/GeneraIncaricoPage/utils/ocrUtils.js
-import Tesseract from 'tesseract.js';
+import { createWorker } from 'tesseract.js';
 
 /**
  * Preprocessa un'immagine per migliorare l'accuratezza dell'OCR
@@ -188,22 +188,20 @@ const extractResidenza = (text) => {
  * @returns {Promise<Object>} - Dati estratti
  */
 export const extractDataFromCartaIdentita = async (file, onProgress = null) => {
+  const worker = await createWorker('ita', 1, {
+    logger: (m) => {
+      if (onProgress && m.status === 'recognizing text') {
+        onProgress(Math.round(m.progress * 100));
+      }
+    }
+  });
+
   try {
     // Preprocessa immagine
     const processedImage = await preprocessImageForOCR(file);
 
     // Esegui OCR
-    const result = await Tesseract.recognize(
-      processedImage,
-      'ita', // Lingua italiana
-      {
-        logger: (m) => {
-          if (onProgress && m.status === 'recognizing text') {
-            onProgress(Math.round(m.progress * 100));
-          }
-        }
-      }
-    );
+    const result = await worker.recognize(processedImage);
 
     const text = result.data.text;
     console.log('OCR Carta Identità - Testo estratto:', text);
@@ -214,6 +212,8 @@ export const extractDataFromCartaIdentita = async (file, onProgress = null) => {
     const dataNascita = extractDataNascita(text);
     const luogoNascita = extractLuogoNascita(text);
     const residenza = extractResidenza(text);
+
+    await worker.terminate();
 
     return {
       nomeCommittente: nome,
@@ -226,6 +226,7 @@ export const extractDataFromCartaIdentita = async (file, onProgress = null) => {
     };
   } catch (error) {
     console.error('Errore OCR Carta Identità:', error);
+    await worker.terminate();
     throw new Error('Impossibile elaborare la carta d\'identità. Verifica che l\'immagine sia leggibile.');
   }
 };
@@ -356,22 +357,20 @@ const extractIntestatariFromVisura = (text) => {
  * @returns {Promise<Object>} - Dati estratti
  */
 export const extractDataFromVisura = async (file, onProgress = null) => {
+  const worker = await createWorker('ita', 1, {
+    logger: (m) => {
+      if (onProgress && m.status === 'recognizing text') {
+        onProgress(Math.round(m.progress * 100));
+      }
+    }
+  });
+
   try {
     // Preprocessa immagine
     const processedImage = await preprocessImageForOCR(file);
 
     // Esegui OCR
-    const result = await Tesseract.recognize(
-      processedImage,
-      'ita', // Lingua italiana
-      {
-        logger: (m) => {
-          if (onProgress && m.status === 'recognizing text') {
-            onProgress(Math.round(m.progress * 100));
-          }
-        }
-      }
-    );
+    const result = await worker.recognize(processedImage);
 
     const text = result.data.text;
     console.log('OCR Visura - Testo estratto:', text);
@@ -382,6 +381,8 @@ export const extractDataFromVisura = async (file, onProgress = null) => {
     const viaImmobile = extractViaFromVisura(text);
     const intestatari = extractIntestatariFromVisura(text);
 
+    await worker.terminate();
+
     return {
       comuneImmobile,
       frazioneImmobile,
@@ -391,6 +392,7 @@ export const extractDataFromVisura = async (file, onProgress = null) => {
     };
   } catch (error) {
     console.error('Errore OCR Visura:', error);
+    await worker.terminate();
     throw new Error('Impossibile elaborare la visura catastale. Verifica che l\'immagine sia leggibile.');
   }
 };
