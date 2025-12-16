@@ -1,8 +1,22 @@
 // src/pages/GeneraIncaricoPage/components/Step6Riepilogo.js
 import React, { useState } from 'react';
-import { FaFileDownload, FaCheckCircle, FaSpinner, FaExclamationTriangle, FaRedo, FaUser, FaHome } from 'react-icons/fa';
+import { FaFileDownload, FaCheckCircle, FaSpinner, FaExclamationTriangle, FaRedo, FaUser, FaHome, FaUniversity, FaClipboardList } from 'react-icons/fa';
 import { generateAndDownloadIncarico, validateIncaricoData } from '../utils/pdfGenerator';
 import { formatIntestatarioName } from '../utils/validationUtils';
+
+// Mappa degli interventi per ottenere le label
+const INTERVENTI_MAP = {
+  'scia_sanatoria': 'SCIA in Sanatoria ai sensi dell\'art. 206/bis',
+  'aggiornamento_planimetria': 'Aggiornamento planimetria catastale',
+  'agibilita': 'Attestazione asseverata di agibilità',
+  'stato_legittimo': 'Redazione di Stato legittimo urbanistico',
+  'idoneita_statica': 'Certificato di Idoneità Statica',
+  'relazione_tecnica': 'Redazione relazione tecnica',
+  'permesso_sanatoria': 'Permesso di Costruire in Sanatoria',
+  'accertamento_conformita': 'Accertamento di conformità (art.209 L.R. 65/2014)',
+  'compatibilita_paesaggistica': 'Compatibilità Paesaggistica (art.167 Dlgs 42/2004)',
+  'cila': 'C.I.L.A.',
+};
 
 function Step6Riepilogo({ incaricoData, prepareDataForDocument, onPrev, onReset }) {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -37,21 +51,7 @@ function Step6Riepilogo({ incaricoData, prepareDataForDocument, onPrev, onReset 
 
   // Mappa gli ID degli interventi a descrizioni leggibili
   const getInterventoLabel = (id) => {
-    const map = {
-      'rilievo': 'Rilievo metrico-planimetrico',
-      'pratica_edilizia': 'Pratica edilizia',
-      'agibilita': 'Certificato di agibilità',
-      'accatastamento': 'Accatastamento',
-      'planimetria': 'Planimetria catastale',
-      'sanatoria': 'Sanatoria edilizia',
-      'condono': 'Condono edilizio',
-      'ape': 'APE - Attestato Prestazione Energetica',
-      'frazionamento': 'Frazionamento catastale',
-      'consulenza': 'Consulenza tecnica',
-      'perizia': 'Perizia estimativa',
-      'altro': 'Altro',
-    };
-    return map[id] || id;
+    return INTERVENTI_MAP[id] || id;
   };
 
   // Ottieni residenza formattata
@@ -62,6 +62,14 @@ function Step6Riepilogo({ incaricoData, prepareDataForDocument, onPrev, onReset 
       return `${r.indirizzoCompleto}, ${r.comune} (${r.provincia})`;
     }
     return `${incaricoData.immobile.indirizzo}, ${incaricoData.immobile.comune}`;
+  };
+
+  // Ottieni descrizione modalità pagamento
+  const getModalitaPagamentoLabel = () => {
+    if (incaricoData.modalitaPagamento === 'rogito') {
+      return '100% alla chiusura del rogito notarile';
+    }
+    return '50% all\'accettazione, 50% al deposito pratica';
   };
 
   return (
@@ -150,16 +158,29 @@ function Step6Riepilogo({ incaricoData, prepareDataForDocument, onPrev, onReset 
 
           {/* Tipologia Intervento */}
           <div className="border-b pb-4">
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-dark-text-primary mb-3">
-              Tipologia Intervento
-            </h3>
-            <ul className="list-disc list-inside space-y-1">
+            <div className="flex items-center space-x-2 mb-3">
+              <FaClipboardList className="text-purple-600 dark:text-purple-400" />
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-dark-text-primary">
+                Tipologia Intervento
+              </h3>
+            </div>
+            <ul className="space-y-2">
               {incaricoData.tipologiaIntervento.map((intervento, index) => (
-                <li key={index} className="text-sm text-gray-700 dark:text-dark-text-primary">
-                  {getInterventoLabel(intervento)}
+                <li key={index} className="flex items-start space-x-2">
+                  <FaCheckCircle className="text-green-500 mt-0.5 flex-shrink-0" size={14} />
+                  <span className="text-sm text-gray-700 dark:text-dark-text-primary">
+                    {getInterventoLabel(intervento)}
+                  </span>
                 </li>
               ))}
             </ul>
+            {incaricoData.hasRelazioneTecnica && (
+              <div className="mt-3 p-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded">
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  <strong>Nota:</strong> Include "Redazione relazione tecnica" - verrà applicata causale speciale
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Dati Economici */}
@@ -189,7 +210,7 @@ function Step6Riepilogo({ incaricoData, prepareDataForDocument, onPrev, onReset 
                 </div>
                 <div>
                   <span className="text-gray-500 dark:text-dark-text-secondary">Acconto:</span>
-                  <span className="ml-2 font-medium text-gray-900 dark:text-dark-text-primary">
+                  <span className="ml-2 font-medium text-amber-700 dark:text-amber-400">
                     € {parseFloat(incaricoData.importoAcconto || 0).toFixed(2)}
                   </span>
                 </div>
@@ -199,7 +220,45 @@ function Step6Riepilogo({ incaricoData, prepareDataForDocument, onPrev, onReset 
                     € {parseFloat(incaricoData.importoSaldo || 0).toFixed(2)}
                   </span>
                 </div>
+                <div className="col-span-2 pt-2 border-t border-gray-200 dark:border-dark-border">
+                  <span className="text-gray-500 dark:text-dark-text-secondary">Modalità:</span>
+                  <span className="ml-2 font-medium text-gray-900 dark:text-dark-text-primary">
+                    {getModalitaPagamentoLabel()}
+                  </span>
+                </div>
               </div>
+            </div>
+          </div>
+
+          {/* Dati Bancari */}
+          <div className="border-b pb-4">
+            <div className="flex items-center space-x-2 mb-3">
+              <FaUniversity className="text-blue-600 dark:text-blue-400" />
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-dark-text-primary">
+                Dati per il Bonifico
+              </h3>
+            </div>
+            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-sm">
+              <div className="mb-2">
+                <span className="text-blue-600 dark:text-blue-400">Intestatario: </span>
+                <span className="font-medium text-blue-900 dark:text-blue-200">
+                  {incaricoData.datiBancari?.intestatario}
+                </span>
+              </div>
+              <div>
+                <span className="text-blue-600 dark:text-blue-400">IBAN: </span>
+                <span className="font-mono font-medium text-blue-900 dark:text-blue-200">
+                  {incaricoData.datiBancari?.iban}
+                </span>
+              </div>
+              {incaricoData.causale && (
+                <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-700">
+                  <span className="text-blue-600 dark:text-blue-400">Causale: </span>
+                  <span className="font-medium text-blue-900 dark:text-blue-200">
+                    {incaricoData.causale}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 

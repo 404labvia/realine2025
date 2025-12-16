@@ -53,7 +53,9 @@ export const useIncaricoWizard = () => {
     committentiSelezionati: [],
 
     // === DATI INTERVENTO (Step 4) ===
-    tipologiaIntervento: [],
+    tipologiaIntervento: [], // Array di ID degli interventi selezionati
+    interventiCompleti: [], // Array completo degli interventi con sotto-voci
+    hasRelazioneTecnica: false, // Flag per causale speciale
 
     // === DATI PAGAMENTO (Step 5) ===
     importoNetto: 0,
@@ -61,7 +63,15 @@ export const useIncaricoWizard = () => {
     importoTotale: 0,
     importoAcconto: 0,
     importoSaldo: 0,
+    modalitaPagamento: 'standard', // 'standard' o 'rogito'
     tempistica: '',
+    tempisticaId: '30_giorni',
+    tempisticaCustom: '',
+    datiBancari: {
+      intestatario: 'REALINE STUDIO di Alessandro De Antoni & C. sas',
+      iban: 'IT49Z0306924606100000002815',
+    },
+    causale: '',
 
     // === METADATI ===
     dataIncarico: new Date().toLocaleDateString('it-IT'),
@@ -259,12 +269,22 @@ export const useIncaricoWizard = () => {
       committentiSelezionatiIndici: [],
       committentiSelezionati: [],
       tipologiaIntervento: [],
+      interventiCompleti: [],
+      hasRelazioneTecnica: false,
       importoNetto: 0,
       iva: 22,
       importoTotale: 0,
       importoAcconto: 0,
       importoSaldo: 0,
+      modalitaPagamento: 'standard',
       tempistica: '',
+      tempisticaId: '30_giorni',
+      tempisticaCustom: '',
+      datiBancari: {
+        intestatario: 'REALINE STUDIO di Alessandro De Antoni & C. sas',
+        iban: 'IT49Z0306924606100000002815',
+      },
+      causale: '',
       dataIncarico: new Date().toLocaleDateString('it-IT'),
       pdfBlob: null,
       pdfUrl: '',
@@ -294,12 +314,17 @@ export const useIncaricoWizard = () => {
 
       // Altri dati
       tipologiaIntervento: incaricoData.tipologiaIntervento,
+      interventiCompleti: incaricoData.interventiCompleti,
+      hasRelazioneTecnica: incaricoData.hasRelazioneTecnica,
       importoNetto: incaricoData.importoNetto,
       iva: incaricoData.iva,
       importoTotale: incaricoData.importoTotale,
       importoAcconto: incaricoData.importoAcconto,
       importoSaldo: incaricoData.importoSaldo,
+      modalitaPagamento: incaricoData.modalitaPagamento,
       tempistica: incaricoData.tempistica,
+      datiBancari: incaricoData.datiBancari,
+      causale: incaricoData.causale,
       dataIncarico: incaricoData.dataIncarico,
 
       // Dati aggiuntivi (per template avanzati)
