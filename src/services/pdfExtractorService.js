@@ -4,8 +4,8 @@
 import * as pdfjsLib from 'pdfjs-dist';
 
 // Configura il worker di PDF.js
-// In Create React App, il worker viene servito dalla cartella public o via CDN
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Usa unpkg come CDN alternativo più affidabile
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 /**
  * Estrae il testo da un file PDF
