@@ -13,6 +13,7 @@ import {
   MdFolderOpen,
   MdBolt,
   MdViewColumn,
+  MdAssignment,
 } from 'react-icons/md';
 import { FaCalendarAlt } from 'react-icons/fa';
 
@@ -32,6 +33,7 @@ import PraticheBoardPage from './pages/PraticheBoardPage';
 import PratichePrivatoPage from './pages/PratichePrivatoPage';
 import CalendarTaskPage from './pages/CalendarTaskPage';
 import FinanzePage from './pages/FinanzePage';
+import GeneraIncaricoPage from './pages/GeneraIncaricoPage';
 import LoginPage from './components/Login';
 
 import { auth, onAuthStateChanged, logoutUser as firebaseLogoutUser } from './firebase';
@@ -88,7 +90,8 @@ function AppContent() {
       '/pratiche-board': 'Gestione Pratiche - Vista Board',
       '/pratiche-privato': 'Gestione Pratiche Privato',
       '/calendario': 'Calendario & Task',
-      '/finanze': 'Gestione Finanziaria'
+      '/finanze': 'Gestione Finanziaria',
+      '/genera-incarico': 'Genera Incarico Professionale'
     };
     return titles[path] || 'Realine Studio';
   };
@@ -125,6 +128,7 @@ function AppContent() {
               { to: "/pratiche", label: "Pratiche", icon: MdDescription },
               { to: "/pratiche-board", label: "Pratiche Board", icon: MdViewColumn },
               { to: "/pratiche-privato", label: "Pratiche Privato", icon: MdFolderSpecial },
+              { to: "/genera-incarico", label: "Genera Incarico", icon: MdAssignment },
               { to: "/finanze", label: "Finanze", icon: MdAttachMoney },
               { to: "/calendario", label: "Calendario", icon: FaCalendarAlt },
             ].map((item) => (
@@ -243,6 +247,10 @@ function AppContent() {
                   </PratichePrivatoProvider>
                 </PraticheProvider>
               }
+            />
+            <Route
+              path="/genera-incarico"
+              element={<GeneraIncaricoPage />}
             />
           </Routes>
         </main>
