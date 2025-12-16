@@ -4,11 +4,12 @@ import PizZip from 'pizzip';
 import { saveAs } from 'file-saver';
 
 /**
- * Scarica il template Word da GitHub
+ * Scarica il template Word dalla cartella public
  * @returns {Promise<ArrayBuffer>} - Buffer del file Word
  */
 const downloadTemplate = async () => {
-  const templateUrl = 'https://github.com/404labvia/realine2025/raw/main/REALINE%20conferimento%20incarico%20COMMITTENTE%20-%20FERRARI.docx';
+  // Template locale nella cartella public (evita problemi CORS)
+  const templateUrl = '/template-incarico.docx';
 
   try {
     const response = await fetch(templateUrl);
@@ -18,7 +19,7 @@ const downloadTemplate = async () => {
     return await response.arrayBuffer();
   } catch (error) {
     console.error('Errore download template:', error);
-    throw new Error('Impossibile scaricare il template. Verifica la connessione internet.');
+    throw new Error('Impossibile scaricare il template. Verifica che il file template-incarico.docx sia nella cartella public.');
   }
 };
 
