@@ -13,6 +13,7 @@ import {
   MdFolderOpen,
   MdBolt,
   MdViewColumn,
+  MdNoteAdd,
 } from 'react-icons/md';
 import { FaCalendarAlt } from 'react-icons/fa';
 
@@ -32,6 +33,7 @@ import PraticheBoardPage from './pages/PraticheBoardPage';
 import PratichePrivatoPage from './pages/PratichePrivatoPage';
 import CalendarTaskPage from './pages/CalendarTaskPage';
 import FinanzePage from './pages/FinanzePage';
+import GeneraIncaricoPage from './pages/GeneraIncaricoPage';
 import LoginPage from './components/Login';
 
 import { auth, onAuthStateChanged, logoutUser as firebaseLogoutUser } from './firebase';
@@ -88,7 +90,8 @@ function AppContent() {
       '/pratiche-board': 'Gestione Pratiche - Vista Board',
       '/pratiche-privato': 'Gestione Pratiche Privato',
       '/calendario': 'Calendario & Task',
-      '/finanze': 'Gestione Finanziaria'
+      '/finanze': 'Gestione Finanziaria',
+      '/genera-incarico': 'Genera Incarico Professionale'
     };
     return titles[path] || 'Realine Studio';
   };
@@ -138,6 +141,17 @@ function AppContent() {
                 {sidebarOpen && <span>{item.label}</span>}
               </NavLink>
             ))}
+
+            {/* Separatore e Genera Incarico */}
+            <div className="my-2 mx-4 border-t border-gray-200 dark:border-dark-border"></div>
+            <NavLink
+              to="/genera-incarico"
+              className={({isActive}) => `flex items-center py-3 transition-colors duration-150 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-r-2 border-green-600 dark:border-green-400' : 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20' }`}
+              title={!sidebarOpen ? "Genera Incarico" : ""}
+            >
+              <span className={sidebarOpen ? 'mr-3' : ''}><MdNoteAdd className="h-5 w-5" /></span>
+              {sidebarOpen && <span className="font-medium">Genera Incarico</span>}
+            </NavLink>
           </nav>
         </div>
         {user && (
@@ -243,6 +257,10 @@ function AppContent() {
                   </PratichePrivatoProvider>
                 </PraticheProvider>
               }
+            />
+            <Route
+              path="/genera-incarico"
+              element={<GeneraIncaricoPage />}
             />
           </Routes>
         </main>
