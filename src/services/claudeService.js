@@ -118,16 +118,19 @@ Struttura richiesta:
     "categoria": "string (es: A/3, C/6)",
     "classe": "string",
     "consistenza": "string (es: 6 vani, 120 mq)",
-    "superficieCatastale": "string (solo numero in mq)",
+    "superficieCatastale": "string (testo completo superficie, es: 'Totale: 69 m² Totale escluse aree scoperte: 61 m²')",
     "rendita": "string (solo numero, senza € e simboli)"
-  }
+  },
+  "datiDerivanti": "string (testo completo della sezione DATI DERIVANTI DA, es: 'Variazione del 09/11/2015 - Inserimento in visura dei dati di superficie.')"
 }
 
 IMPORTANTE:
 - Estrai solo gli intestatari ATTUALI (la visura storica contiene anche i precedenti proprietari, ignorali)
 - Se ci sono più intestatari, includili tutti nell'array
 - Se un campo non è presente, usa null
-- La rendita deve essere solo il numero (es: "670.88" non "Euro 670,88")`;
+- La rendita deve essere solo il numero (es: "670.88" non "Euro 670,88")
+- Per superficieCatastale riporta il testo completo come appare nella visura (es: "Totale: 69 m² Totale escluse aree scoperte: 61 m²")
+- Per datiDerivanti riporta il testo completo della sezione "DATI DERIVANTI DA"`;
 
 /**
  * Prompt per l'estrazione residenza dalla Carta d'Identità
@@ -242,6 +245,7 @@ export const extractDataFromVisuraCatastale = async (file, onProgress = null) =>
           superficieCatastale: null,
           rendita: null,
         },
+        datiDerivanti: null,
       },
     };
   }

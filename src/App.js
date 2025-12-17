@@ -14,6 +14,9 @@ import {
   MdBolt,
   MdViewColumn,
   MdNoteAdd,
+  MdExpandMore,
+  MdExpandLess,
+  MdPeople,
 } from 'react-icons/md';
 import { FaCalendarAlt } from 'react-icons/fa';
 
@@ -42,7 +45,15 @@ function AppContent() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [generaDocumentiOpen, setGeneraDocumentiOpen] = useState(false);
   const location = useLocation();
+
+  // Espandi automaticamente il menu se siamo su una pagina di generazione documenti
+  useEffect(() => {
+    if (location.pathname.startsWith('/genera-')) {
+      setGeneraDocumentiOpen(true);
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
@@ -91,7 +102,8 @@ function AppContent() {
       '/pratiche-privato': 'Gestione Pratiche Privato',
       '/calendario': 'Calendario & Task',
       '/finanze': 'Gestione Finanziaria',
-      '/genera-incarico': 'Genera Incarico Professionale'
+      '/genera-incarico-committente': 'Genera Incarico Committente',
+      '/genera-incarico-collaboratore': 'Genera Incarico Collaboratore'
     };
     return titles[path] || 'Realine Studio';
   };
@@ -142,16 +154,55 @@ function AppContent() {
               </NavLink>
             ))}
 
-            {/* Separatore e Genera Incarico */}
+            {/* Separatore e Genera Documenti (menu espandibile) */}
             <div className="my-2 mx-4 border-t border-gray-200 dark:border-dark-border"></div>
-            <NavLink
-              to="/genera-incarico"
-              className={({isActive}) => `flex items-center py-3 transition-colors duration-150 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${ isActive ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 border-r-2 border-green-600 dark:border-green-400' : 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20' }`}
-              title={!sidebarOpen ? "Genera Incarico" : ""}
+
+            {/* Header menu espandibile */}
+            <button
+              onClick={() => sidebarOpen && setGeneraDocumentiOpen(!generaDocumentiOpen)}
+              className={`w-full flex items-center py-3 transition-colors duration-150 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${
+                location.pathname.startsWith('/genera-')
+                  ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                  : 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20'
+              }`}
+              title={!sidebarOpen ? "Genera Documenti" : ""}
             >
               <span className={sidebarOpen ? 'mr-3' : ''}><MdNoteAdd className="h-5 w-5" /></span>
-              {sidebarOpen && <span className="font-medium">Genera Incarico</span>}
-            </NavLink>
+              {sidebarOpen && (
+                <>
+                  <span className="font-medium flex-1 text-left">Genera Documenti</span>
+                  {generaDocumentiOpen ? <MdExpandLess className="h-5 w-5" /> : <MdExpandMore className="h-5 w-5" />}
+                </>
+              )}
+            </button>
+
+            {/* Sub-menu items */}
+            {sidebarOpen && generaDocumentiOpen && (
+              <div className="bg-gray-50 dark:bg-dark-hover">
+                <NavLink
+                  to="/genera-incarico-committente"
+                  className={({isActive}) => `flex items-center py-2.5 pl-12 pr-6 text-sm transition-colors duration-150 ${
+                    isActive
+                      ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border-r-2 border-green-600'
+                      : 'text-gray-600 dark:text-dark-text-secondary hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 dark:hover:text-green-400'
+                  }`}
+                >
+                  <MdNoteAdd className="h-4 w-4 mr-2" />
+                  Incarico Committente
+                </NavLink>
+                <NavLink
+                  to="/genera-incarico-collaboratore"
+                  className={({isActive}) => `flex items-center py-2.5 pl-12 pr-6 text-sm transition-colors duration-150 ${
+                    isActive
+                      ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 border-r-2 border-green-600'
+                      : 'text-gray-600 dark:text-dark-text-secondary hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 dark:hover:text-green-400'
+                  }`}
+                >
+                  <MdPeople className="h-4 w-4 mr-2" />
+                  Incarico Collaboratore
+                </NavLink>
+              </div>
+            )}
           </nav>
         </div>
         {user && (
@@ -259,8 +310,24 @@ function AppContent() {
               }
             />
             <Route
-              path="/genera-incarico"
-              element={<GeneraIncaricoPage />}
+              path="/genera-incarico-committente"
+              element={
+                <PratichePrivatoProvider>
+                  <GeneraIncaricoPage />
+                </PratichePrivatoProvider>
+              }
+            />
+            <Route
+              path="/genera-incarico-collaboratore"
+              element={
+                <PratichePrivatoProvider>
+                  <div className="flex items-center justify-center h-64">
+                    <p className="text-gray-500 dark:text-dark-text-secondary">
+                      Incarico Collaboratore - In sviluppo
+                    </p>
+                  </div>
+                </PratichePrivatoProvider>
+              }
             />
           </Routes>
         </main>

@@ -2,17 +2,74 @@
 import { useState } from 'react';
 
 /**
- * Hook per la gestione dello stato del wizard Genera Incarico
+ * Lista fissa dei collaboratori
+ */
+export const COLLABORATORI = [
+  {
+    id: 'tiziano_martini',
+    nome: 'Geom. Tiziano Martini',
+    descrizioneCompleta: 'Geom. Tiziano Martini, Iscritto al Collegio dei Geometri di Lucca matricola n. 1472, Polizza Assicurativa: AIG Advisors n° IADF025473, Codice Fiscale MRTTZN72P01E715F.',
+    collegio: 'Collegio dei Geometri di Lucca',
+    matricola: '1472',
+    polizza: 'AIG Advisors n° IADF025473',
+    codiceFiscale: 'MRTTZN72P01E715F',
+  },
+  {
+    id: 'luca_pitanti',
+    nome: 'Arch. Luca Pitanti',
+    descrizioneCompleta: 'Arch. Luca Pitanti, iscritto all\'Ordine degli Architetti P.P.C. della Provincia di Massa Carrara al n. 556, Polizza Assicurativa: Zurich Pro n° 593A3337, Codice Fiscale PTNLCU78B12F023U.',
+    collegio: 'Ordine degli Architetti P.P.C. della Provincia di Massa Carrara',
+    matricola: '556',
+    polizza: 'Zurich Pro n° 593A3337',
+    codiceFiscale: 'PTNLCU78B12F023U',
+  },
+  {
+    id: 'alessandro_deantoni',
+    nome: 'Geom. Alessandro De Antoni',
+    descrizioneCompleta: 'Geom. Alessandro De Antoni, iscritto al Collegio dei Geometri della Provincia di Lucca al n. 2302, Polizza Cattolica Assicurazioni n. 730283823, Codice Fiscale DNTLSN86H05L833J.',
+    collegio: 'Collegio dei Geometri della Provincia di Lucca',
+    matricola: '2302',
+    polizza: 'Cattolica Assicurazioni n. 730283823',
+    codiceFiscale: 'DNTLSN86H05L833J',
+  },
+  {
+    id: 'emanuele_donati',
+    nome: 'P.E. Emanuele Donati',
+    descrizioneCompleta: 'P.E. Emanuele Donati, iscritto al Collegio dei Periti Industriali di Pisa al n. 948, Polizza Assicurativa: TUA Assicurazioni n° 40015812002229, Codice Fiscale DNTMNL78S17G702E.',
+    collegio: 'Collegio dei Periti Industriali di Pisa',
+    matricola: '948',
+    polizza: 'TUA Assicurazioni n° 40015812002229',
+    codiceFiscale: 'DNTMNL78S17G702E',
+  },
+  {
+    id: 'andrea_ricci',
+    nome: 'Geom. Andrea Ricci',
+    descrizioneCompleta: 'Geom. Andrea Ricci, iscritto al Collegio dei Geometri della Provincia di Massa Carrara al n. 1331, Polizza Assicurativa: AIG Advisors n° IADF013932, Codice Fiscale RCCNDR93C11F023T.',
+    collegio: 'Collegio dei Geometri della Provincia di Massa Carrara',
+    matricola: '1331',
+    polizza: 'AIG Advisors n° IADF013932',
+    codiceFiscale: 'RCCNDR93C11F023T',
+  },
+];
+
+/**
+ * Hook per la gestione dello stato del wizard Genera Incarico Committente
  *
- * Nuova struttura dati:
- * - Step 1: Visura → estrae intestatari + dati immobile
- * - Step 2: CI (opzionale) → estrae solo residenza
- * - Step 3: Selezione committente/i + verifica dati
- * - Step 4-6: invariati
+ * Flusso step:
+ * - Step 1: Visura → estrazione dati + visualizzazione immobile + data incarico
+ * - Step 2: Selezione committente/i
+ * - Step 3: Selezione collaboratore
+ * - Step 4: Tipologia Intervento
+ * - Step 5: Pagamento
+ * - Step 6: Riepilogo
  */
 export const useIncaricoWizard = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [incaricoData, setIncaricoData] = useState({
+    // === PRATICA ASSOCIATA ===
+    praticaId: null,
+    praticaNome: '',
+
     // === DATI DA VISURA CATASTALE ===
     visuraFile: null,
     visuraData: null, // Dati grezzi estratti da Claude
@@ -37,20 +94,20 @@ export const useIncaricoWizard = () => {
       categoria: '',
       classe: '',
       consistenza: '',
-      superficieCatastale: '',
+      superficieCatastale: '', // Testo completo (es: "Totale: 69 m² Totale escluse aree scoperte: 61 m²")
       rendita: '',
     },
 
-    // === DATI DA CARTA IDENTITÀ (opzionale) ===
-    cartaIdentitaFiles: [], // Array di file (fronte/retro)
-    cartaIdentitaSkipped: false, // Se l'utente ha saltato questo step
-    residenzaData: null, // Dati residenza estratti
+    // Dati derivanti da
+    datiDerivanti: '',
 
     // === SELEZIONE COMMITTENTE ===
-    // Indici degli intestatari selezionati come committenti
     committentiSelezionatiIndici: [],
-    // Dati committenti completi (con eventuale residenza da CI)
     committentiSelezionati: [],
+
+    // === COLLABORATORE SELEZIONATO ===
+    collaboratoreId: null,
+    collaboratore: null, // Oggetto completo del collaboratore selezionato
 
     // === DATI INTERVENTO (Step 4) ===
     tipologiaIntervento: [], // Array di ID degli interventi selezionati
@@ -67,14 +124,9 @@ export const useIncaricoWizard = () => {
     tempistica: '',
     tempisticaId: '30_giorni',
     tempisticaCustom: '',
-    datiBancari: {
-      intestatario: 'REALINE STUDIO di Alessandro De Antoni & C. sas',
-      iban: 'IT49Z0306924606100000002815',
-    },
-    causale: '',
 
     // === METADATI ===
-    dataIncarico: new Date().toLocaleDateString('it-IT'),
+    dataIncarico: new Date().toLocaleDateString('it-IT'), // Formato DD/MM/YYYY
 
     // === OUTPUT ===
     pdfBlob: null,
@@ -86,6 +138,17 @@ export const useIncaricoWizard = () => {
    */
   const updateIncaricoData = (updates) => {
     setIncaricoData(prev => ({ ...prev, ...updates }));
+  };
+
+  /**
+   * Imposta la pratica associata
+   */
+  const setPratica = (praticaId, praticaNome) => {
+    setIncaricoData(prev => ({
+      ...prev,
+      praticaId,
+      praticaNome,
+    }));
   };
 
   /**
@@ -115,28 +178,7 @@ export const useIncaricoWizard = () => {
         superficieCatastale: extractedData.datiClassamento?.superficieCatastale || '',
         rendita: extractedData.datiClassamento?.rendita || '',
       },
-    }));
-  };
-
-  /**
-   * Imposta i dati residenza estratti dalla CI
-   */
-  const setResidenzaExtractedData = (extractedData) => {
-    setIncaricoData(prev => ({
-      ...prev,
-      residenzaData: extractedData,
-    }));
-  };
-
-  /**
-   * Salta lo step della carta d'identità
-   */
-  const skipCartaIdentita = () => {
-    setIncaricoData(prev => ({
-      ...prev,
-      cartaIdentitaSkipped: true,
-      cartaIdentitaFiles: [],
-      residenzaData: null,
+      datiDerivanti: extractedData.datiDerivanti || '',
     }));
   };
 
@@ -158,16 +200,7 @@ export const useIncaricoWizard = () => {
       const committentiSelezionati = currentSelection.map(i => {
         const intestatario = prev.intestatari[i];
         if (!intestatario) return null;
-
-        return {
-          ...intestatario,
-          // Aggiungi residenza da CI se disponibile, altrimenti usa indirizzo immobile
-          residenza: prev.residenzaData?.residenza
-            ? `${prev.residenzaData.residenza.indirizzoCompleto}, ${prev.residenzaData.residenza.comune} (${prev.residenzaData.residenza.provincia})`
-            : prev.immobile?.indirizzo
-              ? `${prev.immobile.indirizzo}, ${prev.immobile.comune}`
-              : '',
-        };
+        return { ...intestatario };
       }).filter(Boolean);
 
       return {
@@ -176,6 +209,18 @@ export const useIncaricoWizard = () => {
         committentiSelezionati,
       };
     });
+  };
+
+  /**
+   * Seleziona un collaboratore
+   */
+  const setCollaboratore = (collaboratoreId) => {
+    const collaboratore = COLLABORATORI.find(c => c.id === collaboratoreId) || null;
+    setIncaricoData(prev => ({
+      ...prev,
+      collaboratoreId,
+      collaboratore,
+    }));
   };
 
   /**
@@ -198,6 +243,16 @@ export const useIncaricoWizard = () => {
     setIncaricoData(prev => ({
       ...prev,
       immobile: { ...prev.immobile, ...updates },
+    }));
+  };
+
+  /**
+   * Aggiorna i dati del classamento
+   */
+  const updateClassamentoData = (updates) => {
+    setIncaricoData(prev => ({
+      ...prev,
+      classamento: { ...prev.classamento, ...updates },
     }));
   };
 
@@ -243,6 +298,8 @@ export const useIncaricoWizard = () => {
   const resetWizard = () => {
     setCurrentStep(1);
     setIncaricoData({
+      praticaId: null,
+      praticaNome: '',
       visuraFile: null,
       visuraData: null,
       intestatari: [],
@@ -263,11 +320,11 @@ export const useIncaricoWizard = () => {
         superficieCatastale: '',
         rendita: '',
       },
-      cartaIdentitaFiles: [],
-      cartaIdentitaSkipped: false,
-      residenzaData: null,
+      datiDerivanti: '',
       committentiSelezionatiIndici: [],
       committentiSelezionati: [],
+      collaboratoreId: null,
+      collaboratore: null,
       tipologiaIntervento: [],
       interventiCompleti: [],
       hasRelazioneTecnica: false,
@@ -280,11 +337,6 @@ export const useIncaricoWizard = () => {
       tempistica: '',
       tempisticaId: '30_giorni',
       tempisticaCustom: '',
-      datiBancari: {
-        intestatario: 'REALINE STUDIO di Alessandro De Antoni & C. sas',
-        iban: 'IT49Z0306924606100000002815',
-      },
-      causale: '',
       dataIncarico: new Date().toLocaleDateString('it-IT'),
       pdfBlob: null,
       pdfUrl: '',
@@ -292,40 +344,70 @@ export const useIncaricoWizard = () => {
   };
 
   /**
-   * Prepara i dati per la generazione del documento
-   * Converte la nuova struttura nella vecchia per compatibilità con pdfGenerator
+   * Prepara i dati per la generazione del documento PDF
+   * Usa snake_case per i nomi dei campi (per template PDF)
    */
   const prepareDataForDocument = () => {
     const firstCommittente = incaricoData.committentiSelezionati[0] || {};
 
     return {
-      // Dati primo committente (per compatibilità template esistente)
-      nomeCommittente: firstCommittente.nome || '',
-      cognomeCommittente: firstCommittente.cognome || '',
-      codiceFiscale: firstCommittente.codiceFiscale || '',
-      dataNascita: firstCommittente.dataNascita || '',
-      luogoNascita: firstCommittente.luogoNascita || '',
-      residenza: firstCommittente.residenza || '',
+      // Dati pratica
+      pratica_id: incaricoData.praticaId,
+      pratica_nome: incaricoData.praticaNome,
+
+      // Dati primo committente
+      committente_nome: firstCommittente.nome || '',
+      committente_cognome: firstCommittente.cognome || '',
+      committente_codice_fiscale: firstCommittente.codiceFiscale || '',
+      committente_data_nascita: firstCommittente.dataNascita || '',
+      committente_luogo_nascita: firstCommittente.luogoNascita || '',
+      committente_provincia_nascita: firstCommittente.provinciaNascita || '',
+      committente_quota_proprieta: firstCommittente.quotaProprieta || '',
 
       // Dati immobile
-      comuneImmobile: incaricoData.immobile.comune || '',
-      frazioneImmobile: '', // Non più usato direttamente
-      viaImmobile: incaricoData.immobile.indirizzo || '',
+      immobile_comune: incaricoData.immobile.comune || '',
+      immobile_provincia: incaricoData.immobile.provincia || '',
+      immobile_indirizzo: incaricoData.immobile.indirizzo || '',
+      immobile_interno: incaricoData.immobile.interno || '',
+      immobile_piano: incaricoData.immobile.piano || '',
+      immobile_foglio: incaricoData.immobile.foglio || '',
+      immobile_particella: incaricoData.immobile.particella || '',
+      immobile_subalterno: incaricoData.immobile.subalterno || '',
 
-      // Altri dati
-      tipologiaIntervento: incaricoData.tipologiaIntervento,
-      interventiCompleti: incaricoData.interventiCompleti,
-      hasRelazioneTecnica: incaricoData.hasRelazioneTecnica,
-      importoNetto: incaricoData.importoNetto,
+      // Dati classamento
+      classamento_categoria: incaricoData.classamento.categoria || '',
+      classamento_classe: incaricoData.classamento.classe || '',
+      classamento_consistenza: incaricoData.classamento.consistenza || '',
+      classamento_superficie: incaricoData.classamento.superficieCatastale || '',
+      classamento_rendita: incaricoData.classamento.rendita || '',
+
+      // Dati derivanti
+      dati_derivanti: incaricoData.datiDerivanti || '',
+
+      // Collaboratore
+      collaboratore_nome: incaricoData.collaboratore?.nome || '',
+      collaboratore_descrizione: incaricoData.collaboratore?.descrizioneCompleta || '',
+      collaboratore_collegio: incaricoData.collaboratore?.collegio || '',
+      collaboratore_matricola: incaricoData.collaboratore?.matricola || '',
+      collaboratore_polizza: incaricoData.collaboratore?.polizza || '',
+      collaboratore_codice_fiscale: incaricoData.collaboratore?.codiceFiscale || '',
+
+      // Interventi
+      tipologia_intervento: incaricoData.tipologiaIntervento,
+      interventi_completi: incaricoData.interventiCompleti,
+      has_relazione_tecnica: incaricoData.hasRelazioneTecnica,
+
+      // Pagamento
+      importo_netto: incaricoData.importoNetto,
       iva: incaricoData.iva,
-      importoTotale: incaricoData.importoTotale,
-      importoAcconto: incaricoData.importoAcconto,
-      importoSaldo: incaricoData.importoSaldo,
-      modalitaPagamento: incaricoData.modalitaPagamento,
+      importo_totale: incaricoData.importoTotale,
+      importo_acconto: incaricoData.importoAcconto,
+      importo_saldo: incaricoData.importoSaldo,
+      modalita_pagamento: incaricoData.modalitaPagamento,
       tempistica: incaricoData.tempistica,
-      datiBancari: incaricoData.datiBancari,
-      causale: incaricoData.causale,
-      dataIncarico: incaricoData.dataIncarico,
+
+      // Metadati
+      data_incarico: incaricoData.dataIncarico,
 
       // Dati aggiuntivi (per template avanzati)
       committenti: incaricoData.committentiSelezionati,
@@ -338,17 +420,19 @@ export const useIncaricoWizard = () => {
     currentStep,
     incaricoData,
     updateIncaricoData,
+    setPratica,
     setVisuraExtractedData,
-    setResidenzaExtractedData,
-    skipCartaIdentita,
     toggleCommittenteSelection,
+    setCollaboratore,
     updateCommittenteData,
     updateImmobileData,
+    updateClassamentoData,
     updateIntestatarioData,
     nextStep,
     prevStep,
     goToStep,
     resetWizard,
     prepareDataForDocument,
+    COLLABORATORI,
   };
 };

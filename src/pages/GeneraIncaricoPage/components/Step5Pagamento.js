@@ -1,6 +1,6 @@
 // src/pages/GeneraIncaricoPage/components/Step5Pagamento.js
 import React, { useState, useEffect } from 'react';
-import { FaEuroSign, FaCalculator, FaUniversity, FaClock, FaCheckCircle, FaCircle } from 'react-icons/fa';
+import { FaEuroSign, FaCalculator, FaClock, FaCheckCircle, FaCircle } from 'react-icons/fa';
 
 // Dati bancari fissi
 const DATI_BANCARI = {
@@ -266,32 +266,6 @@ function Step5Pagamento({ incaricoData, updateIncaricoData, onNext, onPrev }) {
             </div>
           </div>
         )}
-
-        {/* Dati Bancari */}
-        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <div className="flex items-center space-x-2 mb-3">
-            <FaUniversity className="text-blue-600 dark:text-blue-400" />
-            <h3 className="font-semibold text-blue-800 dark:text-blue-300">
-              Dati per il Bonifico
-            </h3>
-          </div>
-          <div className="space-y-2 text-sm">
-            <div>
-              <span className="text-blue-600 dark:text-blue-400">Intestatario: </span>
-              <span className="font-medium text-blue-900 dark:text-blue-200">{DATI_BANCARI.intestatario}</span>
-            </div>
-            <div>
-              <span className="text-blue-600 dark:text-blue-400">IBAN: </span>
-              <span className="font-mono font-medium text-blue-900 dark:text-blue-200">{DATI_BANCARI.iban}</span>
-            </div>
-            {incaricoData.hasRelazioneTecnica && (
-              <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-700">
-                <span className="text-blue-600 dark:text-blue-400">Causale suggerita: </span>
-                <span className="font-medium text-amber-700 dark:text-amber-300">{getCausale()}</span>
-              </div>
-            )}
-          </div>
-        </div>
 
         {/* Tempistica */}
         <div className="mb-6">

@@ -1,6 +1,6 @@
 // src/pages/GeneraIncaricoPage/components/Step6Riepilogo.js
 import React, { useState } from 'react';
-import { FaFileDownload, FaCheckCircle, FaSpinner, FaExclamationTriangle, FaRedo, FaUser, FaHome, FaUniversity, FaClipboardList } from 'react-icons/fa';
+import { FaFileDownload, FaCheckCircle, FaSpinner, FaExclamationTriangle, FaRedo, FaUser, FaHome, FaClipboardList, FaUserTie, FaCalendar } from 'react-icons/fa';
 import { generateAndDownloadIncarico, validateIncaricoData } from '../utils/pdfGenerator';
 import { formatIntestatarioName } from '../utils/validationUtils';
 
@@ -54,16 +54,6 @@ function Step6Riepilogo({ incaricoData, prepareDataForDocument, onPrev, onReset 
     return INTERVENTI_MAP[id] || id;
   };
 
-  // Ottieni residenza formattata
-  const getResidenza = (committente) => {
-    if (committente.residenza) return committente.residenza;
-    if (incaricoData.residenzaData?.residenza) {
-      const r = incaricoData.residenzaData.residenza;
-      return `${r.indirizzoCompleto}, ${r.comune} (${r.provincia})`;
-    }
-    return `${incaricoData.immobile.indirizzo}, ${incaricoData.immobile.comune}`;
-  };
-
   // Ottieni descrizione modalità pagamento
   const getModalitaPagamentoLabel = () => {
     if (incaricoData.modalitaPagamento === 'rogito') {
@@ -83,6 +73,32 @@ function Step6Riepilogo({ incaricoData, prepareDataForDocument, onPrev, onReset 
         </p>
 
         <div className="space-y-6">
+          {/* Data Incarico e Pratica */}
+          <div className="border-b pb-4">
+            <div className="flex items-center space-x-2 mb-3">
+              <FaCalendar className="text-gray-600 dark:text-gray-400" />
+              <h3 className="text-lg font-semibold text-gray-800 dark:text-dark-text-primary">
+                Dati Generali
+              </h3>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <div>
+                <span className="text-gray-500 dark:text-dark-text-secondary">Data Incarico:</span>
+                <span className="ml-2 font-medium text-gray-900 dark:text-dark-text-primary">
+                  {incaricoData.dataIncarico}
+                </span>
+              </div>
+              {incaricoData.praticaNome && (
+                <div>
+                  <span className="text-gray-500 dark:text-dark-text-secondary">Pratica:</span>
+                  <span className="ml-2 font-medium text-gray-900 dark:text-dark-text-primary">
+                    {incaricoData.praticaNome}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Committenti */}
           <div className="border-b pb-4">
             <div className="flex items-center space-x-2 mb-3">
@@ -109,15 +125,45 @@ function Step6Riepilogo({ incaricoData, prepareDataForDocument, onPrev, onReset 
                         {committente.luogoNascita || 'N/D'} ({committente.provinciaNascita || ''}) il {committente.dataNascita || 'N/D'}
                       </span>
                     </div>
-                    <div className="col-span-2">
-                      <span className="text-gray-500 dark:text-dark-text-secondary">Residenza: </span>
-                      <span className="text-gray-900 dark:text-dark-text-primary">{getResidenza(committente)}</span>
-                    </div>
+                    {committente.quotaProprieta && (
+                      <div className="col-span-2">
+                        <span className="text-gray-500 dark:text-dark-text-secondary">Quota: </span>
+                        <span className="text-gray-900 dark:text-dark-text-primary">{committente.quotaProprieta}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           </div>
+
+          {/* Collaboratore */}
+          {incaricoData.collaboratore && (
+            <div className="border-b pb-4">
+              <div className="flex items-center space-x-2 mb-3">
+                <FaUserTie className="text-purple-600 dark:text-purple-400" />
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-dark-text-primary">
+                  Collaboratore Incaricato
+                </h3>
+              </div>
+              <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3">
+                <p className="font-semibold text-purple-900 dark:text-purple-200">
+                  {incaricoData.collaboratore.nome}
+                </p>
+                <div className="mt-2 text-sm space-y-1">
+                  <p className="text-purple-700 dark:text-purple-300">
+                    <span className="font-medium">Iscrizione:</span> {incaricoData.collaboratore.collegio} n. {incaricoData.collaboratore.matricola}
+                  </p>
+                  <p className="text-purple-700 dark:text-purple-300">
+                    <span className="font-medium">Polizza:</span> {incaricoData.collaboratore.polizza}
+                  </p>
+                  <p className="text-purple-600 dark:text-purple-400 text-xs">
+                    CF: {incaricoData.collaboratore.codiceFiscale}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Dati Immobile */}
           <div className="border-b pb-4">
@@ -139,6 +185,7 @@ function Step6Riepilogo({ incaricoData, prepareDataForDocument, onPrev, onReset 
                 <span className="ml-2 font-medium text-gray-900 dark:text-dark-text-primary">
                   {incaricoData.immobile.indirizzo}
                   {incaricoData.immobile.interno && ` - Int. ${incaricoData.immobile.interno}`}
+                  {incaricoData.immobile.piano && ` - Piano ${incaricoData.immobile.piano}`}
                 </span>
               </div>
               <div>
@@ -153,7 +200,31 @@ function Step6Riepilogo({ incaricoData, prepareDataForDocument, onPrev, onReset 
                   {incaricoData.classamento?.categoria || 'N/D'}
                 </span>
               </div>
+              {incaricoData.classamento?.rendita && (
+                <div>
+                  <span className="text-gray-500 dark:text-dark-text-secondary">Rendita:</span>
+                  <span className="ml-2 font-medium text-gray-900 dark:text-dark-text-primary">
+                    € {incaricoData.classamento.rendita}
+                  </span>
+                </div>
+              )}
+              {incaricoData.classamento?.superficieCatastale && (
+                <div>
+                  <span className="text-gray-500 dark:text-dark-text-secondary">Superficie:</span>
+                  <span className="ml-2 font-medium text-gray-900 dark:text-dark-text-primary">
+                    {incaricoData.classamento.superficieCatastale}
+                  </span>
+                </div>
+              )}
             </div>
+            {incaricoData.datiDerivanti && (
+              <div className="mt-3 pt-3 border-t border-gray-200 dark:border-dark-border">
+                <span className="text-gray-500 dark:text-dark-text-secondary text-sm">Dati derivanti da:</span>
+                <p className="text-sm font-medium text-gray-900 dark:text-dark-text-primary mt-1">
+                  {incaricoData.datiDerivanti}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Tipologia Intervento */}
@@ -227,38 +298,6 @@ function Step6Riepilogo({ incaricoData, prepareDataForDocument, onPrev, onReset 
                   </span>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Dati Bancari */}
-          <div className="border-b pb-4">
-            <div className="flex items-center space-x-2 mb-3">
-              <FaUniversity className="text-blue-600 dark:text-blue-400" />
-              <h3 className="text-lg font-semibold text-gray-800 dark:text-dark-text-primary">
-                Dati per il Bonifico
-              </h3>
-            </div>
-            <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 text-sm">
-              <div className="mb-2">
-                <span className="text-blue-600 dark:text-blue-400">Intestatario: </span>
-                <span className="font-medium text-blue-900 dark:text-blue-200">
-                  {incaricoData.datiBancari?.intestatario}
-                </span>
-              </div>
-              <div>
-                <span className="text-blue-600 dark:text-blue-400">IBAN: </span>
-                <span className="font-mono font-medium text-blue-900 dark:text-blue-200">
-                  {incaricoData.datiBancari?.iban}
-                </span>
-              </div>
-              {incaricoData.causale && (
-                <div className="mt-2 pt-2 border-t border-blue-200 dark:border-blue-700">
-                  <span className="text-blue-600 dark:text-blue-400">Causale: </span>
-                  <span className="font-medium text-blue-900 dark:text-blue-200">
-                    {incaricoData.causale}
-                  </span>
-                </div>
-              )}
             </div>
           </div>
 

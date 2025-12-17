@@ -2,70 +2,55 @@
 import React, { useState } from 'react';
 import { FaCheckCircle, FaCircle, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 
-// 10 tipologie di intervento con sotto-voci
+// 10 tipologie di intervento con sotto-voci ESATTE
 const interventiDisponibili = [
   {
     id: 'scia_sanatoria',
     label: 'SCIA in Sanatoria ai sensi dell\'art. 206/bis',
     sottovoci: [
-      'Ricerca e recupero pratiche edilizie presso Comune',
-      'Reperimento documenti catastali',
-      'Visure catastali',
-      'Rilievo Architettonico',
-      'Redazione Elaborati grafici stato dei luoghi',
-      'Redazione Elaborati grafici ante-operam',
-      'Redazione e Deposito Pratica SCIA in Sanatoria ai sensi dell\'art. 206/bis L.R. 65/2014',
-      'Aggiornamento planimetria catastale Doc.Fa',
-      'Accatastamento (se necessario)',
+      'Elaborati grafici',
+      'Relazione tecnica',
+      'Estratti cartografici',
+      'Estratti fotografici',
+      'Dichiarazioni',
+      'Procura Speciale',
     ],
   },
   {
     id: 'aggiornamento_planimetria',
-    label: 'Aggiornamento planimetria catastale',
+    label: 'Aggiornamento planimetria catastale dell\'unità immobiliare',
     sottovoci: [
-      'Rilievo Architettonico',
-      'Redazione Elaborati grafici stato dei luoghi',
-      'Redazione Doc.Fa',
-      'Deposito pratica catastale',
+      'Pratica Docfa',
+      'n.1 Planimetria',
     ],
   },
   {
     id: 'agibilita',
     label: 'Attestazione asseverata di agibilità',
     sottovoci: [
-      'Verifica documentazione esistente',
-      'Sopralluogo tecnico',
-      'Redazione attestazione asseverata',
-      'Deposito pratica',
+      'Modulistica',
+      'Dichiarazioni',
     ],
   },
   {
     id: 'stato_legittimo',
-    label: 'Redazione di Stato legittimo urbanistico',
+    label: 'Redazione di Stato legittimo urbanistico a firma di tecnico abilitato',
     sottovoci: [
-      'Ricerca pratiche edilizie presso archivi comunali',
-      'Reperimento documenti catastali storici',
-      'Analisi conformità urbanistica',
-      'Redazione relazione stato legittimo',
+      'Elaborati Grafici (stato legittimato)',
+      'Relazione Tecnica',
     ],
   },
   {
     id: 'idoneita_statica',
-    label: 'Certificato di Idoneità Statica',
-    sottovoci: [
-      'Sopralluogo e verifica strutturale',
-      'Analisi documentazione esistente',
-      'Prove e verifiche (se necessarie)',
-      'Redazione certificato di idoneità statica',
-    ],
+    label: 'Certificato di Idoneità Statica a firma di tecnico abilitato',
+    sottovoci: [],
   },
   {
     id: 'relazione_tecnica',
     label: 'Redazione relazione tecnica',
     sottovoci: [
-      'Sopralluogo',
-      'Analisi documentazione',
-      'Redazione relazione tecnica dettagliata',
+      'Trasmissione relazione tecnica al Notaio comprensiva di allegati',
+      'Presenza al rogito notarile',
     ],
     isSpecial: true, // Flag per causale speciale nel pagamento
   },
@@ -73,45 +58,54 @@ const interventiDisponibili = [
     id: 'permesso_sanatoria',
     label: 'Permesso di Costruire in Sanatoria',
     sottovoci: [
-      'Ricerca e recupero pratiche edilizie presso Comune',
-      'Reperimento documenti catastali',
-      'Rilievo Architettonico completo',
-      'Redazione Elaborati grafici stato dei luoghi',
-      'Redazione Elaborati grafici ante-operam',
-      'Redazione e Deposito Permesso di Costruire in Sanatoria',
-      'Aggiornamento catastale (se necessario)',
+      'Elaborati Grafici (stato legittimato – stato di progetto – stato sovrapposto)',
+      'Relazione Tecnica',
+      'Estratti cartografici',
+      'Estratti fotografici',
+      'Dichiarazioni',
+      'Procura Speciale',
     ],
   },
   {
     id: 'accertamento_conformita',
-    label: 'Accertamento di conformità (art.209 L.R. 65/2014)',
+    label: 'Accertamento di conformità in sanatoria ai sensi dell\'art.209 della L.R. 65 del 2014',
     sottovoci: [
-      'Ricerca pratiche edilizie',
-      'Rilievo architettonico',
-      'Redazione elaborati grafici',
-      'Predisposizione istanza accertamento conformità',
-      'Deposito pratica',
+      'Elaborati Grafici (stato legittimato – stato di progetto – stato sovrapposto)',
+      'Relazione Tecnica',
+      'Estratti cartografici',
+      'Estratti fotografici',
+      'Modulistica Regionale',
+      'Dichiarazioni',
+      'Procura Speciale',
+      'Responsabilità Congiunta',
+      'Scheda Vincoli',
     ],
   },
   {
     id: 'compatibilita_paesaggistica',
-    label: 'Compatibilità Paesaggistica (art.167 Dlgs 42/2004)',
+    label: 'Compatibilità Paesaggistica ai sensi dell\'art 167 del Dlgs 42/2004',
     sottovoci: [
-      'Analisi vincoli paesaggistici',
-      'Rilievo fotografico',
-      'Redazione relazione paesaggistica',
-      'Predisposizione istanza compatibilità',
-      'Deposito pratica presso Soprintendenza',
+      'Elaborati Grafici (stato legittimato – stato di progetto – stato sovrapposto)',
+      'Relazione Tecnica',
+      'Estratti cartografici',
+      'Estratti fotografici',
+      'Perizia di Stima danno',
+      'Dichiarazioni',
+      'Procura Speciale',
+      'Responsabilità Congiunta',
+      'Scheda Vincoli',
     ],
   },
   {
     id: 'cila',
     label: 'C.I.L.A.',
     sottovoci: [
-      'Rilievo architettonico',
-      'Redazione elaborati grafici stato attuale',
-      'Redazione elaborati grafici di progetto',
-      'Compilazione e deposito CILA',
+      'Elaborati grafici (stato legittimato – stato di progetto – stato sovrapposto)',
+      'Relazione tecnica',
+      'Estratti cartografici',
+      'Estratti fotografici',
+      'Dichiarazioni',
+      'Procura Speciale',
     ],
   },
 ];
@@ -176,6 +170,7 @@ function Step4TipologiaIntervento({ incaricoData, updateIncaricoData, onNext, on
           {interventiDisponibili.map((intervento) => {
             const isSelected = selectedInterventi.includes(intervento.id);
             const isExpanded = expandedIntervento === intervento.id;
+            const hasSottovoci = intervento.sottovoci && intervento.sottovoci.length > 0;
 
             return (
               <div
@@ -217,24 +212,28 @@ function Step4TipologiaIntervento({ incaricoData, updateIncaricoData, onNext, on
                           </span>
                         )}
                       </h3>
-                      <p className="text-xs text-gray-500 dark:text-dark-text-muted mt-1">
-                        {intervento.sottovoci.length} attività incluse
-                      </p>
+                      {hasSottovoci && (
+                        <p className="text-xs text-gray-500 dark:text-dark-text-muted mt-1">
+                          {intervento.sottovoci.length} {intervento.sottovoci.length === 1 ? 'attività inclusa' : 'attività incluse'}
+                        </p>
+                      )}
                     </div>
                   </button>
 
                   {/* Bottone espandi/comprimi */}
-                  <button
-                    onClick={() => toggleExpand(intervento.id)}
-                    className="p-2 text-gray-500 hover:text-gray-700 dark:text-dark-text-secondary dark:hover:text-dark-text-primary transition-colors"
-                    aria-label={isExpanded ? 'Comprimi' : 'Espandi'}
-                  >
-                    {isExpanded ? <FaChevronUp size={16} /> : <FaChevronDown size={16} />}
-                  </button>
+                  {hasSottovoci && (
+                    <button
+                      onClick={() => toggleExpand(intervento.id)}
+                      className="p-2 text-gray-500 hover:text-gray-700 dark:text-dark-text-secondary dark:hover:text-dark-text-primary transition-colors"
+                      aria-label={isExpanded ? 'Comprimi' : 'Espandi'}
+                    >
+                      {isExpanded ? <FaChevronUp size={16} /> : <FaChevronDown size={16} />}
+                    </button>
+                  )}
                 </div>
 
                 {/* Sotto-voci (espandibili) */}
-                {isExpanded && (
+                {isExpanded && hasSottovoci && (
                   <div className="px-4 pb-4 border-t border-gray-200 dark:border-dark-border">
                     <p className="text-xs font-medium text-gray-500 dark:text-dark-text-muted mt-3 mb-2 uppercase tracking-wide">
                       Attività incluse:

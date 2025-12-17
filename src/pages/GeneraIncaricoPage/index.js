@@ -3,8 +3,8 @@ import React from 'react';
 import { useIncaricoWizard } from './hooks/useIncaricoWizard';
 import ProgressStepper from './components/ProgressStepper';
 import Step1Visura from './components/Step1Visura';
-import Step2CartaIdentita from './components/Step2CartaIdentita';
-import Step3DatiCommittente from './components/Step3DatiCommittente';
+import Step2DatiCommittente from './components/Step2DatiCommittente';
+import Step3Collaboratore from './components/Step3Collaboratore';
 import Step4TipologiaIntervento from './components/Step4TipologiaIntervento';
 import Step5Pagamento from './components/Step5Pagamento';
 import Step6Riepilogo from './components/Step6Riepilogo';
@@ -15,11 +15,12 @@ function GeneraIncaricoPage() {
     incaricoData,
     updateIncaricoData,
     setVisuraExtractedData,
-    setResidenzaExtractedData,
-    skipCartaIdentita,
+    setPratica,
     toggleCommittenteSelection,
+    setCollaboratore,
     updateIntestatarioData,
     updateImmobileData,
+    updateClassamentoData,
     nextStep,
     prevStep,
     goToStep,
@@ -34,29 +35,28 @@ function GeneraIncaricoPage() {
           <Step1Visura
             incaricoData={incaricoData}
             setVisuraExtractedData={setVisuraExtractedData}
+            setPratica={setPratica}
             updateIncaricoData={updateIncaricoData}
+            updateImmobileData={updateImmobileData}
+            updateClassamentoData={updateClassamentoData}
             onNext={nextStep}
           />
         );
       case 2:
         return (
-          <Step2CartaIdentita
+          <Step2DatiCommittente
             incaricoData={incaricoData}
-            updateIncaricoData={updateIncaricoData}
-            setResidenzaExtractedData={setResidenzaExtractedData}
-            skipCartaIdentita={skipCartaIdentita}
+            toggleCommittenteSelection={toggleCommittenteSelection}
+            updateIntestatarioData={updateIntestatarioData}
             onNext={nextStep}
             onPrev={prevStep}
           />
         );
       case 3:
         return (
-          <Step3DatiCommittente
+          <Step3Collaboratore
             incaricoData={incaricoData}
-            toggleCommittenteSelection={toggleCommittenteSelection}
-            updateIntestatarioData={updateIntestatarioData}
-            updateImmobileData={updateImmobileData}
-            updateIncaricoData={updateIncaricoData}
+            setCollaboratore={setCollaboratore}
             onNext={nextStep}
             onPrev={prevStep}
           />
@@ -99,7 +99,7 @@ function GeneraIncaricoPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-800 dark:text-dark-text-primary mb-2">
-            Genera Incarico Professionale
+            Genera Incarico Committente
           </h1>
           <p className="text-gray-600 dark:text-dark-text-secondary">
             Crea un nuovo incarico professionale in pochi passi utilizzando AI per l'estrazione dati
