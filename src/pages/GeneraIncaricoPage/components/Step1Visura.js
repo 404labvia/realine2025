@@ -1,26 +1,106 @@
 // src/pages/GeneraIncaricoPage/components/Step1Visura.js
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import FileUploadZone from './FileUploadZone';
 import { extractDataFromVisuraCatastale } from '../../../services/claudeService';
 import { validateVisuraData, formatIntestatarioName, formatQuotaProprieta } from '../utils/validationUtils';
+import { usePratiche } from '../../../contexts/PraticheContext';
 import { usePratichePrivato } from '../../../contexts/PratichePrivatoContext';
-import { FaSpinner, FaExclamationTriangle, FaCheckCircle, FaUser, FaHome, FaInfoCircle, FaEdit, FaCalendarAlt, FaFolderOpen } from 'react-icons/fa';
+import { FaSpinner, FaExclamationTriangle, FaCheckCircle, FaUser, FaHome, FaInfoCircle, FaEdit, FaCalendarAlt, FaFolderOpen, FaSave } from 'react-icons/fa';
 
 function Step1Visura({ incaricoData, setVisuraExtractedData, updateIncaricoData, updateImmobileData, updateClassamentoData, setPratica, onNext }) {
-  const { pratiche, loading: praticheLoading } = usePratichePrivato();
+  // Usa entrambi i context come nel Calendario
+  const { pratiche: praticheStandard, loading: loadingPraticheStandard, updatePratica: updatePraticaStandard } = usePratiche();
+  const { pratiche: pratichePrivate, loading: loadingPratichePrivate, updatePratica: updatePraticaPrivato } = usePratichePrivato();
+
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState(null);
   const [validation, setValidation] = useState(null);
   const [isEditingImmobile, setIsEditingImmobile] = useState(false);
+  const [isSavingToFirebase, setIsSavingToFirebase] = useState(false);
+  const [savedToFirebase, setSavedToFirebase] = useState(false);
+
+  // Combina le pratiche come nel Calendario
+  const tutteLePratiche = useMemo(() => {
+    if (loadingPraticheStandard || loadingPratichePrivate) return [];
+    const std = Array.isArray(praticheStandard) ? praticheStandard : [];
+    const prv = Array.isArray(pratichePrivate) ? pratichePrivate : [];
+    return [...std, ...prv];
+  }, [praticheStandard, pratichePrivate, loadingPraticheStandard, loadingPratichePrivate]);
+
+  // Filtra solo pratiche "in corso" (non completate)
+  const praticheInCorso = useMemo(() => {
+    return tutteLePratiche.filter(pratica => pratica.stato !== 'Completata');
+  }, [tutteLePratiche]);
+
+  // Verifica se una pratica è privata
+  const isPraticaPrivata = (praticaId) => {
+    return pratichePrivate.some(p => p.id === praticaId);
+  };
+
+  // Formatta la label della pratica come nel Calendario
+  const formatPraticaLabel = (pratica) => {
+    const codice = pratica.codice || `ID:${pratica.id.substring(0, 5)}`;
+    const indirizzo = pratica.indirizzo || pratica.titolo || pratica.nome || '';
+    const cliente = pratica.cliente || pratica.committente || 'N/D';
+    const isPrivata = isPraticaPrivata(pratica.id);
+    return `${codice} - ${indirizzo} (${cliente})${isPrivata ? ' (Priv.)' : ''}`;
+  };
 
   const handlePraticaSelect = (e) => {
     const praticaId = e.target.value;
     if (praticaId) {
-      const pratica = pratiche.find(p => p.id === praticaId);
-      setPratica(praticaId, pratica?.titolo || pratica?.nome || `Pratica ${praticaId}`);
+      const pratica = tutteLePratiche.find(p => p.id === praticaId);
+      const isPrivata = isPraticaPrivata(praticaId);
+      setPratica(praticaId, formatPraticaLabel(pratica), isPrivata);
+      setSavedToFirebase(false); // Reset saved status when changing pratica
     } else {
-      setPratica(null, '');
+      setPratica(null, '', false);
+    }
+  };
+
+  // Salva i dati della visura nella pratica su Firebase
+  const saveVisuraToFirebase = async () => {
+    if (!incaricoData.praticaId || !incaricoData.intestatari.length) {
+      setError({
+        type: 'error',
+        message: 'Seleziona una pratica e carica una visura prima di salvare',
+      });
+      return;
+    }
+
+    setIsSavingToFirebase(true);
+    setError(null);
+
+    try {
+      const visuraData = {
+        intestatari: incaricoData.intestatari,
+        immobile: incaricoData.immobile,
+        classamento: incaricoData.classamento,
+        datiDerivanti: incaricoData.datiDerivanti,
+        dataEstrazione: new Date().toISOString(),
+      };
+
+      // Usa il context corretto in base al tipo di pratica
+      if (incaricoData.isPraticaPrivata) {
+        await updatePraticaPrivato(incaricoData.praticaId, { visuraData });
+      } else {
+        await updatePraticaStandard(incaricoData.praticaId, { visuraData });
+      }
+
+      setSavedToFirebase(true);
+      setError({
+        type: 'success',
+        message: 'Dati visura salvati nella pratica con successo!',
+      });
+    } catch (err) {
+      console.error('Errore salvataggio Firebase:', err);
+      setError({
+        type: 'error',
+        message: 'Errore durante il salvataggio dei dati nella pratica: ' + err.message,
+      });
+    } finally {
+      setIsSavingToFirebase(false);
     }
   };
 
@@ -29,6 +109,7 @@ function Step1Visura({ incaricoData, setVisuraExtractedData, updateIncaricoData,
     setValidation(null);
     setIsProcessing(true);
     setProgress(0);
+    setSavedToFirebase(false);
 
     try {
       // Salva il file
@@ -106,6 +187,7 @@ function Step1Visura({ incaricoData, setVisuraExtractedData, updateIncaricoData,
     setError(null);
     setValidation(null);
     setIsEditingImmobile(false);
+    setSavedToFirebase(false);
   };
 
   const handleContinue = () => {
@@ -138,20 +220,24 @@ function Step1Visura({ incaricoData, setVisuraExtractedData, updateIncaricoData,
 
   const handleImmobileChange = (field, value) => {
     updateImmobileData({ [field]: value });
+    setSavedToFirebase(false);
   };
 
   const handleClassamentoChange = (field, value) => {
     updateClassamentoData({ [field]: value });
+    setSavedToFirebase(false);
   };
 
   const handleDatiDerivantiChange = (value) => {
     updateIncaricoData({ datiDerivanti: value });
+    setSavedToFirebase(false);
   };
 
   const handleDataIncaricoChange = (e) => {
     updateIncaricoData({ dataIncarico: e.target.value });
   };
 
+  const isLoading = loadingPraticheStandard || loadingPratichePrivate;
   const hasExtractedData = incaricoData.intestatari && incaricoData.intestatari.length > 0;
 
   return (
@@ -165,10 +251,10 @@ function Step1Visura({ incaricoData, setVisuraExtractedData, updateIncaricoData,
           </h2>
         </div>
         <p className="text-gray-600 dark:text-dark-text-secondary mb-4 text-sm">
-          Associa questo incarico a una pratica esistente
+          Associa questo incarico a una pratica in corso (mostra solo pratiche non completate)
         </p>
 
-        {praticheLoading ? (
+        {isLoading ? (
           <div className="flex items-center space-x-2 text-gray-500">
             <FaSpinner className="animate-spin" />
             <span>Caricamento pratiche...</span>
@@ -179,14 +265,19 @@ function Step1Visura({ incaricoData, setVisuraExtractedData, updateIncaricoData,
             onChange={handlePraticaSelect}
             className="w-full px-4 py-3 border border-gray-300 dark:border-dark-border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-dark-bg dark:text-dark-text-primary"
           >
-            <option value="">-- Seleziona una pratica --</option>
-            {pratiche.map((pratica) => (
+            <option value="">-- Seleziona una pratica in corso --</option>
+            {praticheInCorso.map((pratica) => (
               <option key={pratica.id} value={pratica.id}>
-                {pratica.titolo || pratica.nome || `Pratica ${pratica.id}`}
-                {pratica.committente && ` - ${pratica.committente}`}
+                {formatPraticaLabel(pratica)}
               </option>
             ))}
           </select>
+        )}
+
+        {praticheInCorso.length === 0 && !isLoading && (
+          <p className="mt-2 text-sm text-amber-600 dark:text-amber-400">
+            Nessuna pratica in corso trovata. Crea prima una pratica dalla sezione Pratiche o Pratiche Privato.
+          </p>
         )}
 
         {incaricoData.praticaId && (
@@ -194,6 +285,11 @@ function Step1Visura({ incaricoData, setVisuraExtractedData, updateIncaricoData,
             <p className="text-green-700 dark:text-green-300 text-sm">
               <FaCheckCircle className="inline mr-2" />
               Pratica selezionata: <strong>{incaricoData.praticaNome}</strong>
+              {incaricoData.isPraticaPrivata && (
+                <span className="ml-2 px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 text-xs rounded">
+                  Privata
+                </span>
+              )}
             </p>
           </div>
         )}
@@ -263,21 +359,31 @@ function Step1Visura({ incaricoData, setVisuraExtractedData, updateIncaricoData,
           </div>
         )}
 
-        {/* Messaggio di errore o warning */}
+        {/* Messaggio di errore, warning o success */}
         {error && (
-          <div className={`mt-6 border rounded-lg p-4 ${error.type === 'error'
+          <div className={`mt-6 border rounded-lg p-4 ${
+            error.type === 'error'
               ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-              : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
+              : error.type === 'success'
+                ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
+                : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'
             }`}>
             <div className="flex items-start space-x-3">
-              <FaExclamationTriangle
-                className={error.type === 'error' ? 'text-red-600 dark:text-red-400' : 'text-yellow-600 dark:text-yellow-400'}
-                size={20}
-              />
+              {error.type === 'success' ? (
+                <FaCheckCircle className="text-green-600 dark:text-green-400" size={20} />
+              ) : (
+                <FaExclamationTriangle
+                  className={error.type === 'error' ? 'text-red-600 dark:text-red-400' : 'text-yellow-600 dark:text-yellow-400'}
+                  size={20}
+                />
+              )}
               <div className="flex-1">
-                <p className={`font-medium ${error.type === 'error'
+                <p className={`font-medium ${
+                  error.type === 'error'
                     ? 'text-red-700 dark:text-red-300'
-                    : 'text-yellow-700 dark:text-yellow-300'
+                    : error.type === 'success'
+                      ? 'text-green-700 dark:text-green-300'
+                      : 'text-yellow-700 dark:text-yellow-300'
                   }`}>
                   {error.message}
                 </p>
@@ -568,6 +674,48 @@ function Step1Visura({ incaricoData, setVisuraExtractedData, updateIncaricoData,
                 </div>
               )}
             </div>
+
+            {/* Bottone Salva in Firebase */}
+            {incaricoData.praticaId && (
+              <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-purple-800 dark:text-purple-300">
+                      Salva dati visura nella pratica
+                    </h4>
+                    <p className="text-xs text-purple-600 dark:text-purple-400 mt-1">
+                      I dati estratti verranno salvati nella pratica per riutilizzi futuri
+                    </p>
+                  </div>
+                  <button
+                    onClick={saveVisuraToFirebase}
+                    disabled={isSavingToFirebase || savedToFirebase}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                      savedToFirebase
+                        ? 'bg-green-600 text-white cursor-default'
+                        : 'bg-purple-600 hover:bg-purple-700 text-white'
+                    } disabled:opacity-50`}
+                  >
+                    {isSavingToFirebase ? (
+                      <>
+                        <FaSpinner className="animate-spin" />
+                        <span>Salvataggio...</span>
+                      </>
+                    ) : savedToFirebase ? (
+                      <>
+                        <FaCheckCircle />
+                        <span>Salvato!</span>
+                      </>
+                    ) : (
+                      <>
+                        <FaSave />
+                        <span>Salva nella Pratica</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Info */}
             <div className="flex items-start space-x-2 text-xs text-gray-600 dark:text-dark-text-secondary">

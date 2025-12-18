@@ -69,6 +69,7 @@ export const useIncaricoWizard = () => {
     // === PRATICA ASSOCIATA ===
     praticaId: null,
     praticaNome: '',
+    isPraticaPrivata: false,
 
     // === DATI DA VISURA CATASTALE ===
     visuraFile: null,
@@ -143,11 +144,12 @@ export const useIncaricoWizard = () => {
   /**
    * Imposta la pratica associata
    */
-  const setPratica = (praticaId, praticaNome) => {
+  const setPratica = (praticaId, praticaNome, isPraticaPrivata = false) => {
     setIncaricoData(prev => ({
       ...prev,
       praticaId,
       praticaNome,
+      isPraticaPrivata,
     }));
   };
 

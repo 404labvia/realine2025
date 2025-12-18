@@ -312,9 +312,11 @@ function AppContent() {
             <Route
               path="/genera-incarico-committente"
               element={
-                <PratichePrivatoProvider>
-                  <GeneraIncaricoPage />
-                </PratichePrivatoProvider>
+                <PraticheProvider>
+                  <PratichePrivatoProvider>
+                    <GeneraIncaricoPage />
+                  </PratichePrivatoProvider>
+                </PraticheProvider>
               }
             />
             <Route
