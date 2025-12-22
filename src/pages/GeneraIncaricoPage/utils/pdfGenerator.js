@@ -4,6 +4,20 @@ import PizZip from 'pizzip';
 import { saveAs } from 'file-saver';
 
 /**
+ * Formatta una stringa con la prima lettera maiuscola per ogni parola
+ * @param {string} str - Stringa da formattare (es: "ROSSI" o "SAN GIULIANO TERME")
+ * @returns {string} - Stringa formattata (es: "Rossi" o "San Giuliano Terme")
+ */
+const formatProperCase = (str) => {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
+/**
  * Scarica il template Word dalla cartella public
  * @returns {Promise<ArrayBuffer>} - Buffer del file Word
  */
@@ -50,13 +64,13 @@ export const generateIncaricoDocument = async (data) => {
       data_incarico: data.data_incarico || new Date().toLocaleDateString('it-IT'),
 
       // === DATI COMMITTENTE ===
-      committente_nome: data.committente_nome || '',
-      committente_cognome: data.committente_cognome || '',
-      committente_nome_completo: `${data.committente_nome || ''} ${data.committente_cognome || ''}`.trim(),
-      committente_codice_fiscale: data.committente_codice_fiscale || '',
+      committente_nome: formatProperCase(data.committente_nome || ''),
+      committente_cognome: formatProperCase(data.committente_cognome || ''),
+      committente_nome_completo: `${formatProperCase(data.committente_nome || '')} ${formatProperCase(data.committente_cognome || '')}`.trim(),
+      committente_codice_fiscale: (data.committente_codice_fiscale || '').toUpperCase(),
       committente_data_nascita: data.committente_data_nascita || '',
-      committente_luogo_nascita: data.committente_luogo_nascita || '',
-      committente_provincia_nascita: data.committente_provincia_nascita || '',
+      committente_luogo_nascita: formatProperCase(data.committente_luogo_nascita || ''),
+      committente_provincia_nascita: (data.committente_provincia_nascita || '').toUpperCase(),
       committente_quota_proprieta: data.committente_quota_proprieta || '',
 
       // === DATI IMMOBILE ===
@@ -100,7 +114,14 @@ export const generateIncaricoDocument = async (data) => {
       importo_acconto_numero: parseFloat(data.importo_acconto || 0).toFixed(2),
       importo_saldo: formatCurrency(data.importo_saldo || 0),
       importo_saldo_numero: parseFloat(data.importo_saldo || 0).toFixed(2),
+
+      // Tre placeholder separati per modalità pagamento
+      modalita_acconto: 'Acconto 50% alla sottoscrizione del presente incarico',
+      modalita_saldo: 'Saldo alla presentazione della pratica',
+      modalita_rogito: 'Saldo in sede di rogito notarile',
+      // Placeholder legacy (mantiene compatibilità)
       modalita_pagamento: formatModalitaPagamento(data.modalita_pagamento),
+
       tempistica: data.tempistica || '',
 
       // === DATI CATASTALI FORMATTATI ===
@@ -250,9 +271,9 @@ const formatInterventiSemplice = (tipologiaIntervento) => {
  */
 const formatModalitaPagamento = (modalita) => {
   if (modalita === 'rogito') {
-    return '100% alla chiusura del rogito notarile';
+    return 'Saldo in sede di rogito notarile';
   }
-  return '50% all\'accettazione dell\'incarico, 50% al deposito della pratica';
+  return 'Acconto 50% alla sottoscrizione del presente incarico; Saldo alla presentazione della pratica';
 };
 
 /**

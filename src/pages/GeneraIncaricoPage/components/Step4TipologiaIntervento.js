@@ -139,9 +139,14 @@ function Step4TipologiaIntervento({ incaricoData, updateIncaricoData, onNext, on
     }
 
     // Salva anche i dati completi degli interventi selezionati per il documento
-    const interventiSelezionatiCompleti = interventiDisponibili.filter((i) =>
-      selectedInterventi.includes(i.id)
-    );
+    // Includi le sottovoci come sottovociSelezionate (tutte incluse automaticamente)
+    const interventiSelezionatiCompleti = interventiDisponibili
+      .filter((i) => selectedInterventi.includes(i.id))
+      .map((i) => ({
+        id: i.id,
+        label: i.label,
+        sottovociSelezionate: i.sottovoci || [], // Tutte le sottovoci sono incluse
+      }));
 
     // Controlla se c'è la relazione tecnica (caso speciale)
     const hasRelazioneTecnica = selectedInterventi.includes('relazione_tecnica');
