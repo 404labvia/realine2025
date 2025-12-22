@@ -80,13 +80,9 @@ export const generateIncaricoDocument = async (data) => {
       classamento_rendita: data.classamento_rendita || '',
       dati_derivanti: data.dati_derivanti || '',
 
-      // === DATI COLLABORATORE ===
+      // === DATI COLLABORATORE (solo nome e descrizione) ===
       collaboratore_nome: data.collaboratore_nome || '',
       collaboratore_descrizione: data.collaboratore_descrizione || '',
-      collaboratore_collegio: data.collaboratore_collegio || '',
-      collaboratore_matricola: data.collaboratore_matricola || '',
-      collaboratore_polizza: data.collaboratore_polizza || '',
-      collaboratore_codice_fiscale: data.collaboratore_codice_fiscale || '',
 
       // === TIPOLOGIA INTERVENTO ===
       tipologia_intervento: formatInterventi(data.interventi_completi || []),
@@ -196,7 +192,7 @@ const formatIndirizzoCompleto = (data) => {
 /**
  * Formatta l'elenco degli interventi completi con sottovoci
  * @param {Array} interventiCompleti - Array di oggetti {id, label, sottovociSelezionate}
- * @returns {string} - Testo formattato
+ * @returns {string} - Testo formattato con bullet per titoli e testo semplice per sottovoci
  */
 const formatInterventi = (interventiCompleti) => {
   if (!interventiCompleti || interventiCompleti.length === 0) {
@@ -204,13 +200,14 @@ const formatInterventi = (interventiCompleti) => {
   }
 
   return interventiCompleti
-    .map((intervento, index) => {
-      let text = `${index + 1}. ${intervento.label}`;
+    .map((intervento) => {
+      // Bullet semplice per il titolo dell'intervento
+      let text = `• ${intervento.label}`;
 
-      // Aggiungi sottovoci se presenti
+      // Sottovoci senza bullet né trattino, solo indentate
       if (intervento.sottovociSelezionate && intervento.sottovociSelezionate.length > 0) {
         const sottovociText = intervento.sottovociSelezionate
-          .map(sv => `   • ${sv}`)
+          .map(sv => `   ${sv}`)
           .join('\n');
         text += `\n${sottovociText}`;
       }
