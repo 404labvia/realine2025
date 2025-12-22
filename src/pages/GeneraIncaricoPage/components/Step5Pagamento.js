@@ -10,9 +10,9 @@ const DATI_BANCARI = {
 
 // Opzioni tempistica predefinite
 const OPZIONI_TEMPISTICA = [
-  { id: '30_giorni', label: '30 giorni dalla firma dell\'incarico', value: '30 giorni dalla firma dell\'incarico per la consegna della documentazione completa' },
-  { id: '60_giorni', label: '60 giorni dalla firma dell\'incarico', value: '60 giorni dalla firma dell\'incarico per la consegna della documentazione completa' },
-  { id: 'rogito', label: 'Prima del rogito notarile', value: 'Prima del rogito notarile' },
+  { id: '30_giorni', label: '30 giorni', value: '30 giorni' },
+  { id: '60_giorni', label: '60 giorni', value: '60 giorni' },
+  { id: 'rogito', label: 'Entro il rogito notarile', value: 'entro il rogito notarile' },
   { id: 'custom', label: 'Inserimento manuale', value: '' },
 ];
 
@@ -21,13 +21,13 @@ const MODALITA_PAGAMENTO = [
   {
     id: 'standard',
     label: 'Pagamento Standard',
-    descrizione: '50% all\'accettazione dell\'incarico, 50% al deposito della pratica',
+    descrizione: 'Acconto 50% alla sottoscrizione del presente incarico; Saldo alla presentazione della pratica',
     accontoPercentuale: 50,
   },
   {
     id: 'rogito',
     label: 'Pagamento al Rogito',
-    descrizione: '100% alla chiusura del rogito notarile',
+    descrizione: 'Saldo in sede di rogito notarile',
     accontoPercentuale: 0,
   },
 ];
@@ -249,7 +249,7 @@ function Step5Pagamento({ incaricoData, updateIncaricoData, onNext, onPrev }) {
               </p>
               {accontoPercentuale > 0 && (
                 <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-                  Alla firma dell'incarico
+                  Alla sottoscrizione dell'incarico
                 </p>
               )}
             </div>
@@ -261,7 +261,7 @@ function Step5Pagamento({ incaricoData, updateIncaricoData, onNext, onPrev }) {
                 € {importoSaldo.toFixed(2)}
               </p>
               <p className="text-xs text-green-600 dark:text-green-400 mt-1">
-                {formData.modalitaPagamento === 'rogito' ? 'Al rogito notarile' : 'Al deposito pratica'}
+                {formData.modalitaPagamento === 'rogito' ? 'In sede di rogito notarile' : 'Alla presentazione della pratica'}
               </p>
             </div>
           </div>
