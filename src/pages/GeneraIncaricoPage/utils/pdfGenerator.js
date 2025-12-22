@@ -74,9 +74,9 @@ export const generateIncaricoDocument = async (data) => {
       committente_quota_proprieta: data.committente_quota_proprieta || '',
 
       // === DATI IMMOBILE ===
-      immobile_comune: data.immobile_comune || '',
-      immobile_provincia: data.immobile_provincia || '',
-      immobile_indirizzo: data.immobile_indirizzo || '',
+      immobile_comune: formatProperCase(data.immobile_comune || ''),
+      immobile_provincia: formatProperCase(data.immobile_provincia || ''),
+      immobile_indirizzo: formatProperCase(data.immobile_indirizzo || ''),
       immobile_interno: data.immobile_interno || '',
       immobile_piano: data.immobile_piano || '',
       immobile_foglio: data.immobile_foglio || '',
@@ -194,7 +194,7 @@ export const generateAndDownloadIncarico = async (data) => {
  * Formatta l'indirizzo completo dell'immobile
  */
 const formatIndirizzoCompleto = (data) => {
-  let indirizzo = data.immobile_indirizzo || '';
+  let indirizzo = formatProperCase(data.immobile_indirizzo || '');
   if (data.immobile_interno) {
     indirizzo += `, Int. ${data.immobile_interno}`;
   }
@@ -202,9 +202,9 @@ const formatIndirizzoCompleto = (data) => {
     indirizzo += `, Piano ${data.immobile_piano}`;
   }
   if (data.immobile_comune) {
-    indirizzo += ` - ${data.immobile_comune}`;
+    indirizzo += ` - ${formatProperCase(data.immobile_comune)}`;
     if (data.immobile_provincia) {
-      indirizzo += ` (${data.immobile_provincia})`;
+      indirizzo += ` (${formatProperCase(data.immobile_provincia)})`;
     }
   }
   return indirizzo;
