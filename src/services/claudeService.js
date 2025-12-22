@@ -133,13 +133,19 @@ IMPORTANTE:
 - Per datiDerivanti riporta il testo completo della sezione "DATI DERIVANTI DA"`;
 
 /**
- * Prompt per l'estrazione residenza dalla Carta d'Identità
+ * Prompt per l'estrazione dati completi dalla Carta d'Identità
  */
 const CI_PROMPT = `Analizza questa carta d'identità italiana (fronte e/o retro).
-Devo estrarre SOLO l'indirizzo di residenza.
+Estrai tutti i dati anagrafici visibili.
 
 Rispondi SOLO con un oggetto JSON:
 {
+  "nome": "string",
+  "cognome": "string",
+  "luogoNascita": "string (solo comune)",
+  "provinciaNascita": "string (sigla 2 lettere, es: LU, PI, MS)",
+  "dataNascita": "string (formato DD/MM/YYYY)",
+  "codiceFiscale": "string (16 caratteri)",
   "residenza": {
     "indirizzoCompleto": "string (via, numero civico, eventuale interno)",
     "comune": "string",
@@ -147,8 +153,13 @@ Rispondi SOLO con un oggetto JSON:
   }
 }
 
-Se la residenza non è visibile nelle immagini fornite, rispondi con:
-{"residenza": null, "error": "Residenza non visibile, caricare il retro della carta d'identità"}`;
+IMPORTANTE:
+- Estrai i dati dal fronte della carta (nome, cognome, data/luogo nascita)
+- Il codice fiscale è sul fronte in basso o sul retro
+- La residenza è sul retro della carta
+- Se un dato non è visibile, usa null per quel campo
+- Per la data di nascita usa il formato DD/MM/YYYY (es: 15/03/1985)
+- Per la provincia di nascita usa la sigla a 2 lettere`;
 
 /**
  * Estrae i dati dalla Visura Catastale usando Claude
@@ -252,40 +263,44 @@ export const extractDataFromVisuraCatastale = async (file, onProgress = null) =>
 };
 
 /**
- * Estrae la residenza dalla Carta d'Identità usando Claude Vision
- * @param {Array<File>} imageFiles - Array di 1 o 2 file immagine (fronte e retro)
+ * Estrae i dati anagrafici dalla Carta d'Identità usando Claude Vision
+ * @param {File} imageFile - File immagine della carta d'identità
  * @param {Function} onProgress - Callback per aggiornamenti di progresso
- * @returns {Promise<Object>} - Dati residenza estratti
+ * @returns {Promise<Object>} - Dati anagrafici estratti
  */
-export const extractResidenzaFromCartaIdentita = async (imageFiles, onProgress = null) => {
+export const extractDataFromCartaIdentita = async (imageFile, onProgress = null) => {
   try {
-    if (!imageFiles || imageFiles.length === 0) {
+    if (!imageFile) {
       throw new Error('Nessun file immagine fornito');
     }
 
     if (onProgress) onProgress(10);
 
-    // Converti tutte le immagini in base64
+    // Processa il file immagine
+    const processed = await processFileForClaude(imageFile);
+
+    if (onProgress) onProgress(30);
+
+    // Costruisci contenuto immagini
     const imageContents = [];
-
-    for (const file of imageFiles) {
-      const processed = await processFileForClaude(file);
-
-      if (processed.type === 'images') {
-        for (const img of processed.content) {
-          imageContents.push({
-            type: 'image',
-            source: {
-              type: 'base64',
-              media_type: img.mediaType,
-              data: img.base64,
-            },
-          });
-        }
+    if (processed.type === 'images') {
+      for (const img of processed.content) {
+        imageContents.push({
+          type: 'image',
+          source: {
+            type: 'base64',
+            media_type: img.mediaType,
+            data: img.base64,
+          },
+        });
       }
     }
 
-    if (onProgress) onProgress(40);
+    if (imageContents.length === 0) {
+      throw new Error('Impossibile elaborare l\'immagine');
+    }
+
+    if (onProgress) onProgress(50);
 
     // Costruisci il messaggio per Claude
     const messages = [{
@@ -295,8 +310,6 @@ export const extractResidenzaFromCartaIdentita = async (imageFiles, onProgress =
         ...imageContents,
       ],
     }];
-
-    if (onProgress) onProgress(60);
 
     // Chiama Claude
     const response = await callClaudeProxy({
@@ -315,15 +328,6 @@ export const extractResidenzaFromCartaIdentita = async (imageFiles, onProgress =
 
     if (onProgress) onProgress(100);
 
-    // Controlla se c'è un errore nella risposta
-    if (extractedData.error) {
-      return {
-        success: false,
-        data: null,
-        error: extractedData.error,
-      };
-    }
-
     return {
       success: true,
       data: extractedData,
@@ -337,6 +341,12 @@ export const extractResidenzaFromCartaIdentita = async (imageFiles, onProgress =
       error: error.message,
       // Template vuoto per inserimento manuale
       emptyTemplate: {
+        nome: null,
+        cognome: null,
+        luogoNascita: null,
+        provinciaNascita: null,
+        dataNascita: null,
+        codiceFiscale: null,
         residenza: {
           indirizzoCompleto: null,
           comune: null,
@@ -349,5 +359,5 @@ export const extractResidenzaFromCartaIdentita = async (imageFiles, onProgress =
 
 export default {
   extractDataFromVisuraCatastale,
-  extractResidenzaFromCartaIdentita,
+  extractDataFromCartaIdentita,
 };

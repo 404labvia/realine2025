@@ -8,47 +8,27 @@ export const COLLABORATORI = [
   {
     id: 'tiziano_martini',
     nome: 'Geom. Tiziano Martini',
-    descrizioneCompleta: 'Geom. Tiziano Martini, Iscritto al Collegio dei Geometri di Lucca matricola n. 1472, Polizza Assicurativa: AIG Advisors n° IADF025473, Codice Fiscale MRTTZN72P01E715F.',
-    collegio: 'Collegio dei Geometri di Lucca',
-    matricola: '1472',
-    polizza: 'AIG Advisors n° IADF025473',
-    codiceFiscale: 'MRTTZN72P01E715F',
+    descrizione: 'Iscritto al Collegio dei Geometri di Lucca matricola n. 1472, Polizza Assicurativa: AIG Advisors n° IADF025473, Codice Fiscale MRTTZN72P01E715F.',
   },
   {
     id: 'luca_pitanti',
     nome: 'Arch. Luca Pitanti',
-    descrizioneCompleta: 'Arch. Luca Pitanti, iscritto all\'Ordine degli Architetti P.P.C. della Provincia di Massa Carrara al n. 556, Polizza Assicurativa: Zurich Pro n° 593A3337, Codice Fiscale PTNLCU78B12F023U.',
-    collegio: 'Ordine degli Architetti P.P.C. della Provincia di Massa Carrara',
-    matricola: '556',
-    polizza: 'Zurich Pro n° 593A3337',
-    codiceFiscale: 'PTNLCU78B12F023U',
+    descrizione: 'Iscritto all\'Ordine degli Architetti P.P.C. della Provincia di Massa Carrara al n. 556, Polizza Assicurativa: Zurich Pro n° 593A3337, Codice Fiscale PTNLCU78B12F023U.',
   },
   {
     id: 'alessandro_deantoni',
     nome: 'Geom. Alessandro De Antoni',
-    descrizioneCompleta: 'Geom. Alessandro De Antoni, iscritto al Collegio dei Geometri della Provincia di Lucca al n. 2302, Polizza Cattolica Assicurazioni n. 730283823, Codice Fiscale DNTLSN86H05L833J.',
-    collegio: 'Collegio dei Geometri della Provincia di Lucca',
-    matricola: '2302',
-    polizza: 'Cattolica Assicurazioni n. 730283823',
-    codiceFiscale: 'DNTLSN86H05L833J',
+    descrizione: 'Iscritto al Collegio dei Geometri della Provincia di Lucca al n. 2302, Polizza Cattolica Assicurazioni n. 730283823, Codice Fiscale DNTLSN86H05L833J.',
   },
   {
     id: 'emanuele_donati',
     nome: 'P.E. Emanuele Donati',
-    descrizioneCompleta: 'P.E. Emanuele Donati, iscritto al Collegio dei Periti Industriali di Pisa al n. 948, Polizza Assicurativa: TUA Assicurazioni n° 40015812002229, Codice Fiscale DNTMNL78S17G702E.',
-    collegio: 'Collegio dei Periti Industriali di Pisa',
-    matricola: '948',
-    polizza: 'TUA Assicurazioni n° 40015812002229',
-    codiceFiscale: 'DNTMNL78S17G702E',
+    descrizione: 'Iscritto al Collegio dei Periti Industriali di Pisa al n. 948, Polizza Assicurativa: TUA Assicurazioni n° 40015812002229, Codice Fiscale DNTMNL78S17G702E.',
   },
   {
     id: 'andrea_ricci',
     nome: 'Geom. Andrea Ricci',
-    descrizioneCompleta: 'Geom. Andrea Ricci, iscritto al Collegio dei Geometri della Provincia di Massa Carrara al n. 1331, Polizza Assicurativa: AIG Advisors n° IADF013932, Codice Fiscale RCCNDR93C11F023T.',
-    collegio: 'Collegio dei Geometri della Provincia di Massa Carrara',
-    matricola: '1331',
-    polizza: 'AIG Advisors n° IADF013932',
-    codiceFiscale: 'RCCNDR93C11F023T',
+    descrizione: 'Iscritto al Collegio dei Geometri della Provincia di Massa Carrara al n. 1331, Polizza Assicurativa: AIG Advisors n° IADF013932, Codice Fiscale RCCNDR93C11F023T.',
   },
 ];
 
@@ -386,13 +366,9 @@ export const useIncaricoWizard = () => {
       // Dati derivanti
       dati_derivanti: incaricoData.datiDerivanti || '',
 
-      // Collaboratore
+      // Collaboratore (solo nome e descrizione)
       collaboratore_nome: incaricoData.collaboratore?.nome || '',
-      collaboratore_descrizione: incaricoData.collaboratore?.descrizioneCompleta || '',
-      collaboratore_collegio: incaricoData.collaboratore?.collegio || '',
-      collaboratore_matricola: incaricoData.collaboratore?.matricola || '',
-      collaboratore_polizza: incaricoData.collaboratore?.polizza || '',
-      collaboratore_codice_fiscale: incaricoData.collaboratore?.codiceFiscale || '',
+      collaboratore_descrizione: incaricoData.collaboratore?.descrizione || '',
 
       // Interventi
       tipologia_intervento: incaricoData.tipologiaIntervento,

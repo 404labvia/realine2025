@@ -67,17 +67,9 @@ function Step3Collaboratore({ incaricoData, setCollaboratore, onNext, onPrev }) 
                       {collaboratore.nome}
                     </h3>
 
-                    <div className="mt-2 text-sm space-y-1">
-                      <p className="text-gray-600 dark:text-dark-text-secondary">
-                        <span className="font-medium">Iscrizione:</span> {collaboratore.collegio} n. {collaboratore.matricola}
-                      </p>
-                      <p className="text-gray-600 dark:text-dark-text-secondary">
-                        <span className="font-medium">Polizza:</span> {collaboratore.polizza}
-                      </p>
-                      <p className="text-gray-500 dark:text-dark-text-muted text-xs">
-                        CF: {collaboratore.codiceFiscale}
-                      </p>
-                    </div>
+                    <p className="mt-2 text-sm text-gray-600 dark:text-dark-text-secondary">
+                      {collaboratore.descrizione}
+                    </p>
                   </div>
                 </div>
               </button>
@@ -99,7 +91,7 @@ function Step3Collaboratore({ incaricoData, setCollaboratore, onNext, onPrev }) 
               Collaboratore selezionato:
             </p>
             <p className="text-sm text-purple-800 dark:text-purple-200">
-              {incaricoData.collaboratore.descrizioneCompleta}
+              <strong>{incaricoData.collaboratore.nome}</strong> - {incaricoData.collaboratore.descrizione}
             </p>
           </div>
         )}
