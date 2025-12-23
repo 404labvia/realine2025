@@ -105,20 +105,25 @@ export const generateIncaricoDocument = async (data) => {
 
       // === DATI ECONOMICI ===
       importo_netto: formatCurrency(data.importo_netto || 0),
-      importo_netto_numero: parseFloat(data.importo_netto || 0).toFixed(2),
-      iva: data.iva || 22,
-      iva_importo: formatCurrency(((data.importo_netto || 0) * (data.iva || 22)) / 100),
       importo_totale: formatCurrency(data.importo_totale || 0),
-      importo_totale_numero: parseFloat(data.importo_totale || 0).toFixed(2),
-      importo_acconto: formatCurrency(data.importo_acconto || 0),
-      importo_acconto_numero: parseFloat(data.importo_acconto || 0).toFixed(2),
-      importo_saldo: formatCurrency(data.importo_saldo || 0),
-      importo_saldo_numero: parseFloat(data.importo_saldo || 0).toFixed(2),
+
+      // Acconto e saldo NETTI (senza IVA)
+      // Per standard: 50% del netto; Per rogito: 0 acconto, 100% saldo
+      importo_acconto: formatCurrency(data.modalita_pagamento === 'rogito' ? 0 : (data.importo_netto || 0) * 0.5),
+      importo_saldo: formatCurrency(data.modalita_pagamento === 'rogito' ? (data.importo_netto || 0) : (data.importo_netto || 0) * 0.5),
+
+      // Acconto e saldo TOTALI (con IVA)
+      acconto_totale: formatCurrency(data.importo_acconto || 0),
+      saldo_totale: formatCurrency(data.importo_saldo || 0),
+
+      // Condizioni per sezioni pagamento nel template Word
+      is_pagamento_standard: data.modalita_pagamento === 'standard',
+      is_pagamento_rogito: data.modalita_pagamento === 'rogito',
 
       // Tre placeholder separati per modalità pagamento
-      modalita_acconto: 'Acconto 50% alla sottoscrizione del presente incarico',
+      modalita_acconto: 'Acconto 50% alla sottoscrizione del presente conferimento dell\'incarico',
       modalita_saldo: 'Saldo alla presentazione della pratica',
-      modalita_rogito: 'Saldo in sede di rogito notarile',
+      modalita_rogito: 'Saldo al rogito notarile',
       // Placeholder legacy (mantiene compatibilità)
       modalita_pagamento: formatModalitaPagamento(data.modalita_pagamento),
 
@@ -262,7 +267,7 @@ const formatInterventiSemplice = (tipologiaIntervento) => {
   }
 
   return tipologiaIntervento
-    .map((id, index) => `${index + 1}. ${interventiMap[id] || id}`)
+    .map((id) => `• ${interventiMap[id] || id}`)
     .join('\n');
 };
 
