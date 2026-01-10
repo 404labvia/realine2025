@@ -5,7 +5,8 @@ import { useApe } from './contexts/ApeContext';
 import NewApeForm from './components/NewApeForm';
 import EditApeForm from './components/EditApeForm';
 import ApeCard from './components/ApeCard';
-import ApeSummaryBox from './components/ApeSummaryBox'; // Importa il nuovo componente
+import ApeSummaryBox from './components/ApeSummaryBox';
+import ApeStatisticsBox from './components/ApeStatisticsBox';
 
 const AGENZIE_CARD_ORDINATE = [
   "Barner VIAREGGIO",
@@ -152,7 +153,7 @@ function ApePage() {
       </div>
 
       {/* BOX RIASSUNTIVI */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <ApeSummaryBox
           icon={<FaMoneyBillWave size={24} />}
           title="Incassato"
@@ -161,24 +162,13 @@ function ApePage() {
           color="green"
         />
         <ApeSummaryBox
-          icon={<FaHandshake size={24} />}
-          title="Importo Studio"
-          value={summaryTotals.incassatoStudio}
-          color="blue"
-        />
-        <ApeSummaryBox
-          icon={<FaChartLine size={24} />}
-          title="Importo Collaboratore"
-          value={summaryTotals.incassatoCollaboratore}
-          color="yellow"
-        />
-        <ApeSummaryBox
           icon={<FaEuroSign size={24} />}
           title="Importo da Avere"
           value={summaryTotals.daAvereTotale}
           subValue={`Studio: ${formatCurrency(summaryTotals.daAvereStudio)} / Collaboratore: ${formatCurrency(summaryTotals.daAvereCollaboratore)}`}
           color="red"
         />
+        <ApeStatisticsBox ape={ape} />
       </div>
 
       <div className="grid grid-cols-1 gap-6">

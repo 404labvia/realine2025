@@ -1,6 +1,7 @@
 // src/pages/ApePage/components/NewApeForm.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaSave, FaTimes } from 'react-icons/fa';
+import { useApe } from '../contexts/ApeContext';
 
 // Definiamo le fasi di progresso anche qui per coerenza e per inizializzare i valori
 const FASI_PROGRESSO_CONFIG = [
@@ -10,21 +11,40 @@ const FASI_PROGRESSO_CONFIG = [
 ];
 
 function NewApeForm({ onClose, onSave, agenzieDisponibili }) {
+  const { generateNextCodice } = useApe();
   const [formData, setFormData] = useState({
     codice: '',
     indirizzo: '',
     proprieta: '',
     agenzia: '',
     note: '',
-    faseRichiestaCompletata: false,
+    faseRichiestaCompletata: true, // Default: flaggato
     faseEsecuzioneCompletata: false,
     fasePagamentoCompletata: false,
     // Nuovi campi per gli importi
-    importoTotale: '',
-    importoStudio: 0,
-    importoBollettino: 0,
+    importoTotale: '160',
+    importoStudio: 40,
+    importoBollettino: 10,
+    conIVA: true, // Nuovo campo per tracciare se con IVA o meno
   });
   const [errors, setErrors] = useState({});
+  const [loadingCodice, setLoadingCodice] = useState(true);
+
+  // Genera automaticamente il codice quando il modal si apre
+  useEffect(() => {
+    const fetchCodice = async () => {
+      try {
+        const nextCodice = await generateNextCodice();
+        setFormData(prev => ({ ...prev, codice: nextCodice }));
+      } catch (error) {
+        console.error("Errore generando codice:", error);
+        alert("Errore nella generazione del codice. Riprova.");
+      } finally {
+        setLoadingCodice(false);
+      }
+    };
+    fetchCodice();
+  }, [generateNextCodice]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -37,17 +57,24 @@ function NewApeForm({ onClose, onSave, agenzieDisponibili }) {
     }
   };
 
+  // Gestione checkbox IVA
+  const handleIVAChange = (e) => {
+    const { checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      conIVA: checked,
+      importoTotale: checked ? '160' : '150',
+    }));
+  };
+
   // Nuova funzione per gestire il cambio dell'importo totale e calcolare gli altri valori
   const handleImportoChange = (e) => {
     const { value } = e.target;
-    const importoTotale = parseFloat(value) || 0;
-    const importoStudio = 40;
-    const importoBollettino = 10;
     setFormData(prev => ({
       ...prev,
       importoTotale: value, // Mantieni il valore come stringa per l'input
-      importoStudio: importoStudio,
-      importoBollettino: importoBollettino,
+      importoStudio: 40,
+      importoBollettino: 10,
     }));
   };
 
@@ -79,14 +106,14 @@ function NewApeForm({ onClose, onSave, agenzieDisponibili }) {
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="codice" className="block text-sm font-medium text-gray-700 mb-1">Codice *</label>
+            <label htmlFor="codice" className="block text-sm font-medium text-gray-700 mb-1">Codice * (Automatico)</label>
             <input
               type="text"
               name="codice"
               id="codice"
-              value={formData.codice}
-              onChange={handleChange}
-              className={`w-full p-2 border rounded-md text-sm ${errors.codice ? 'border-red-500' : 'border-gray-300'}`}
+              value={loadingCodice ? 'Generazione...' : formData.codice}
+              readOnly
+              className="w-full p-2 border rounded-md text-sm border-gray-300 bg-gray-100 cursor-not-allowed"
             />
             {errors.codice && <p className="text-red-500 text-xs mt-1">{errors.codice}</p>}
           </div>
@@ -133,19 +160,33 @@ function NewApeForm({ onClose, onSave, agenzieDisponibili }) {
             </select>
           </div>
 
-          {/* Nuovo campo per l'importo totale */}
+          {/* Nuovo campo per l'importo totale con checkbox IVA */}
           <div>
             <label htmlFor="importoTotale" className="block text-sm font-medium text-gray-700 mb-1">Importo Totale (€)</label>
-            <input
-              type="number"
-              name="importoTotale"
-              id="importoTotale"
-              value={formData.importoTotale}
-              onChange={handleImportoChange}
-              className="w-full p-2 border border-gray-300 rounded-md text-sm"
-              min="0"
-              step="0.01"
-            />
+            <div className="flex items-center space-x-3">
+              <input
+                type="number"
+                name="importoTotale"
+                id="importoTotale"
+                value={formData.importoTotale}
+                onChange={handleImportoChange}
+                className="flex-1 p-2 border border-gray-300 rounded-md text-sm"
+                min="0"
+                step="0.01"
+              />
+              <div className="flex items-center whitespace-nowrap">
+                <input
+                  type="checkbox"
+                  id="ivaCheck"
+                  checked={formData.conIVA}
+                  onChange={handleIVAChange}
+                  className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <label htmlFor="ivaCheck" className="ml-2 text-sm text-gray-900">
+                  IVA 22%
+                </label>
+              </div>
+            </div>
           </div>
 
           <div className="flex space-x-4">
