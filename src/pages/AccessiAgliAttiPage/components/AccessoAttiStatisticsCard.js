@@ -41,10 +41,6 @@ function AccessoAttiStatisticsCard({ accessi, title, icon, color, isCompleted })
 
   return (
     <div className={`p-4 rounded-lg shadow-md relative ${selectedColorClass}`}>
-      <div className="absolute top-4 right-4 opacity-60">
-        {icon}
-      </div>
-
       <div>
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-medium uppercase tracking-wide">{title}</h3>
