@@ -12,6 +12,7 @@ import {
   deleteDoc,
   doc,
   serverTimestamp,
+  getDocs,
 } from 'firebase/firestore';
 
 const AccessoAttiContext = createContext();
@@ -152,6 +153,56 @@ export function AccessoAttiProvider({ children }) {
     }
   };
 
+  const generateNextCodice = async (agenzia) => {
+    if (!auth.currentUser) {
+      throw new Error("Utente non autenticato.");
+    }
+
+    try {
+      const currentYear = new Date().getFullYear();
+      const yearSuffix = currentYear.toString().slice(-2); // Ultime 2 cifre (es. "26")
+
+      // Normalizza l'agenzia: se vuoto o non specificato, usa "ALTRO"
+      const agenziaKey = agenzia && agenzia.trim().length > 0 ? agenzia : 'ALTRO';
+
+      // Query per ottenere tutti gli accessi dell'utente corrente
+      const q = query(
+        collection(db, 'accessi_atti'),
+        where('userId', '==', auth.currentUser.uid)
+      );
+
+      const querySnapshot = await getDocs(q);
+
+      // Filtra gli accessi per agenzia e anno corrente
+      let maxNumber = 0;
+      querySnapshot.forEach((docSnapshot) => {
+        const data = docSnapshot.data();
+        const codice = data.codice || '';
+        const accessoAgenzia = data.agenzia && data.agenzia.trim().length > 0 ? data.agenzia : 'ALTRO';
+
+        // Verifica se appartiene alla stessa agenzia e anno
+        if (accessoAgenzia === agenziaKey && codice.endsWith(`-${yearSuffix}`)) {
+          // Estrai la parte numerica prima del trattino
+          const match = codice.match(/^(\d+)-/);
+          if (match) {
+            const numero = parseInt(match[1], 10);
+            if (numero > maxNumber) {
+              maxNumber = numero;
+            }
+          }
+        }
+      });
+
+      // Incrementa e formatta
+      const nextNumber = maxNumber + 1;
+      const formattedNumber = nextNumber.toString().padStart(3, '0'); // Es. "001"
+      return `${formattedNumber}-${yearSuffix}`;
+    } catch (error) {
+      console.error("Errore generando codice accesso atti: ", error);
+      throw error;
+    }
+  };
+
   const value = {
     accessi,
     loading,
@@ -159,6 +210,7 @@ export function AccessoAttiProvider({ children }) {
     updateAccesso,
     deleteAccesso,
     fetchAccessi,
+    generateNextCodice,
   };
 
   return (

@@ -1,10 +1,11 @@
 // src/pages/AccessiAgliAttiPage/index.js
 import React, { useState, useMemo, useEffect } from 'react';
-import { FaPlus } from 'react-icons/fa';
+import { FaPlus, FaClock, FaCheckCircle } from 'react-icons/fa';
 import { useAccessiAtti } from './contexts/AccessoAttiContext';
 import NewAccessoAttiForm from './components/NewAccessoAttiForm';
 import EditAccessoAttiForm from './components/EditAccessoAttiForm';
 import AccessoAttiCard from './components/AccessoAttiCard';
+import AccessoAttiStatisticsCard from './components/AccessoAttiStatisticsCard';
 
 const AGENZIE_CARD_ORDINATE = [
   "Barner VIAREGGIO",
@@ -95,6 +96,24 @@ function AccessiAgliAttiPage() {
           <FaPlus className="mr-2" />
           + Nuovo accesso atti
         </button>
+      </div>
+
+      {/* BOX RIASSUNTIVI */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
+        <AccessoAttiStatisticsCard
+          accessi={accessi}
+          title="In Corso"
+          icon={<FaClock size={24} />}
+          color="blue"
+          isCompleted={false}
+        />
+        <AccessoAttiStatisticsCard
+          accessi={accessi}
+          title="Completati"
+          icon={<FaCheckCircle size={24} />}
+          color="green"
+          isCompleted={true}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-6">

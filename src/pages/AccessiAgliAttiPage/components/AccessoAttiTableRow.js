@@ -109,6 +109,12 @@ function AccessoAttiTableRow({ accesso, onEdit, onUpdate }) {
         </div>
       </td>
 
+      <td className="px-3 py-4 align-top">
+        <div className="text-sm text-gray-700 max-w-xs truncate" title={accesso.note || ''}>
+          {accesso.note || '-'}
+        </div>
+      </td>
+
       <td className="px-3 py-4 whitespace-nowrap text-center text-sm align-top">
         <div className="flex flex-col items-center">
           <FaCalendarAlt className="text-gray-400 mb-1" />
