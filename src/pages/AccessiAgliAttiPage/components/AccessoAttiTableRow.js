@@ -49,10 +49,8 @@ function AccessoAttiTableRow({ accesso, onEdit, onUpdate }) {
           {accesso.codice}
         </div>
       </td>
-      <td className="px-3 py-4 whitespace-nowrap align-top">
+      <td className="px-3 py-4 align-top">
         <div className="text-sm font-semibold text-gray-900">{accesso.indirizzo}</div>
-      </td>
-      <td className="px-3 py-4 whitespace-nowrap align-top">
         <div className="text-sm text-gray-900">{accesso.proprieta}</div>
       </td>
       <td className="px-3 py-4 whitespace-nowrap align-top">

@@ -10,13 +10,13 @@ const FASI_PROGRESSO_CONFIG = [
   { label: "Documenti ricevuti", field: "faseDocumentiRicevutiCompletata" },
 ];
 
-function NewAccessoAttiForm({ onClose, onSave, agenzieDisponibili }) {
+function NewAccessoAttiForm({ onClose, onSave, agenzieDisponibili, defaultAgenzia = '' }) {
   const { generateNextCodice } = useAccessiAtti();
   const [formData, setFormData] = useState({
     codice: '',
     indirizzo: '',
     proprieta: '',
-    agenzia: '',
+    agenzia: defaultAgenzia,
     note: '',
     // Inizializza i campi booleani per le fasi di progresso
     faseDocumentiDelegaCompletata: false,

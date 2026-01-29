@@ -30,6 +30,7 @@ function AccessiAgliAttiPage() {
 
   const [showNewForm, setShowNewForm] = useState(false);
   const [editingAccesso, setEditingAccesso] = useState(null);
+  const [preselectedAgenzia, setPreselectedAgenzia] = useState('');
 
   const agenzieDisponibiliPerForm = useMemo(() => {
     return AGENZIE_CARD_ORDINATE;
@@ -48,6 +49,12 @@ function AccessiAgliAttiPage() {
   const handleAddNewAccesso = async (nuovoAccesso) => {
     await addAccesso(nuovoAccesso);
     setShowNewForm(false);
+    setPreselectedAgenzia('');
+  };
+
+  const handleOpenNewForm = (agenzia = '') => {
+    setPreselectedAgenzia(agenzia);
+    setShowNewForm(true);
   };
 
   const handleSaveEditedAccesso = async (accessoModificato) => {
@@ -90,7 +97,7 @@ function AccessiAgliAttiPage() {
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Accessi agli Atti</h1>
         <button
-          onClick={() => setShowNewForm(true)}
+          onClick={() => handleOpenNewForm()}
           className="flex items-center bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
         >
           <FaPlus className="mr-2" />
@@ -127,7 +134,7 @@ function AccessiAgliAttiPage() {
               onEdit={handleEditAccesso}
               onDelete={handleDeleteAccesso}
               onUpdate={updateAccesso}
-              onAddNew={() => setShowNewForm(true)}
+              onAddNew={handleOpenNewForm}
             />
           );
         })}
@@ -139,16 +146,20 @@ function AccessiAgliAttiPage() {
               onEdit={handleEditAccesso}
               onDelete={handleDeleteAccesso}
               onUpdate={updateAccesso}
-              onAddNew={() => setShowNewForm(true)}
+              onAddNew={handleOpenNewForm}
             />
         )}
       </div>
 
       {showNewForm && (
         <NewAccessoAttiForm
-          onClose={() => setShowNewForm(false)}
+          onClose={() => {
+            setShowNewForm(false);
+            setPreselectedAgenzia('');
+          }}
           onSave={handleAddNewAccesso}
           agenzieDisponibili={agenzieDisponibiliPerForm}
+          defaultAgenzia={preselectedAgenzia}
         />
       )}
 

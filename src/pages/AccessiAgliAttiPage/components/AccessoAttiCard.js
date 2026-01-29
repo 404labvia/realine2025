@@ -1,7 +1,7 @@
 // src/pages/AccessiAgliAttiPage/components/AccessoAttiCard.js
 import React, { useState } from 'react';
 import AccessoAttiTable from './AccessoAttiTable';
-import { FaPlus, FaFilter, FaChevronDown, FaChevronRight } from 'react-icons/fa';
+import { FaPlus, FaChevronDown, FaChevronRight } from 'react-icons/fa';
 
 function AccessoAttiCard({ titolo, accessi, onEdit, onDelete, onUpdate, onAddNew }) {
   const [filtroStato, setFiltroStato] = useState('in_corso');
@@ -46,23 +46,20 @@ function AccessoAttiCard({ titolo, accessi, onEdit, onDelete, onUpdate, onAddNew
 
           <div className="flex items-center space-x-3" onClick={(e) => e.stopPropagation()}>
             {/* Filtro Stati */}
-            <div className="flex items-center space-x-2">
-              <FaFilter className="text-gray-500 text-sm" />
-              <select
-                value={filtroStato}
-                onChange={(e) => setFiltroStato(e.target.value)}
-                className="text-sm border border-gray-300 rounded px-2 py-1 bg-white"
-              >
-                <option value="in_corso">In corso ({accessiInCorso})</option>
-                <option value="completata">Completati ({accessiCompletati})</option>
-                <option value="tutti">Tutti ({totaleAccessi})</option>
-              </select>
-            </div>
+            <select
+              value={filtroStato}
+              onChange={(e) => setFiltroStato(e.target.value)}
+              className="text-sm border border-gray-300 rounded px-2 py-1 bg-white"
+            >
+              <option value="in_corso">In corso ({accessiInCorso})</option>
+              <option value="completata">Completati ({accessiCompletati})</option>
+              <option value="tutti">Tutti ({totaleAccessi})</option>
+            </select>
 
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                onAddNew();
+                onAddNew(titolo);
               }}
               className="flex items-center bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm"
             >

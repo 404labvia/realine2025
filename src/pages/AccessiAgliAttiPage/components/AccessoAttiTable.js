@@ -23,10 +23,7 @@ function AccessoAttiTable({ accessi, onEdit, onDelete, onUpdate, filtroStato }) 
               Codice
             </th>
             <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Indirizzo
-            </th>
-            <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Proprietà
+              Indirizzo/Proprietà
             </th>
             <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Progresso
