@@ -1,6 +1,7 @@
 // src/pages/AccessiAgliAttiPage/components/NewAccessoAttiForm.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FaSave, FaTimes } from 'react-icons/fa';
+import { useAccessiAtti } from '../contexts/AccessoAttiContext';
 
 // Definiamo le fasi di progresso anche qui per coerenza e per inizializzare i valori
 const FASI_PROGRESSO_CONFIG = [
@@ -9,12 +10,13 @@ const FASI_PROGRESSO_CONFIG = [
   { label: "Documenti ricevuti", field: "faseDocumentiRicevutiCompletata" },
 ];
 
-function NewAccessoAttiForm({ onClose, onSave, agenzieDisponibili }) {
+function NewAccessoAttiForm({ onClose, onSave, agenzieDisponibili, defaultAgenzia = '' }) {
+  const { generateNextCodice } = useAccessiAtti();
   const [formData, setFormData] = useState({
     codice: '',
     indirizzo: '',
     proprieta: '',
-    agenzia: '',
+    agenzia: defaultAgenzia,
     note: '',
     // Inizializza i campi booleani per le fasi di progresso
     faseDocumentiDelegaCompletata: false,
@@ -23,6 +25,24 @@ function NewAccessoAttiForm({ onClose, onSave, agenzieDisponibili }) {
     // Lo stato non è più un input diretto qui, verrà gestito dal context o derivato
   });
   const [errors, setErrors] = useState({});
+  const [loadingCodice, setLoadingCodice] = useState(true);
+
+  // Genera automaticamente il codice quando il modal si apre o quando cambia l'agenzia
+  useEffect(() => {
+    const fetchCodice = async () => {
+      try {
+        setLoadingCodice(true);
+        const nextCodice = await generateNextCodice(formData.agenzia);
+        setFormData(prev => ({ ...prev, codice: nextCodice }));
+      } catch (error) {
+        console.error("Errore generando codice:", error);
+        alert("Errore nella generazione del codice. Riprova.");
+      } finally {
+        setLoadingCodice(false);
+      }
+    };
+    fetchCodice();
+  }, [formData.agenzia, generateNextCodice]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -65,14 +85,14 @@ function NewAccessoAttiForm({ onClose, onSave, agenzieDisponibili }) {
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="codice" className="block text-sm font-medium text-gray-700 mb-1">Codice *</label>
+            <label htmlFor="codice" className="block text-sm font-medium text-gray-700 mb-1">Codice * (Automatico per Agenzia)</label>
             <input
               type="text"
               name="codice"
               id="codice"
-              value={formData.codice}
-              onChange={handleChange}
-              className={`w-full p-2 border rounded-md text-sm ${errors.codice ? 'border-red-500' : 'border-gray-300'}`}
+              value={loadingCodice ? 'Generazione...' : formData.codice}
+              readOnly
+              className="w-full p-2 border rounded-md text-sm border-gray-300 bg-gray-100 cursor-not-allowed"
             />
             {errors.codice && <p className="text-red-500 text-xs mt-1">{errors.codice}</p>}
           </div>

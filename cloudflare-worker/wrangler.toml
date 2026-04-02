@@ -1,0 +1,6 @@
+name = "claude-api-proxy"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# La chiave API viene configurata come secret (non viene mai committata)
+# Usa: npx wrangler secret put CLAUDE_API_KEY

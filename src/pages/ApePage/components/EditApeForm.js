@@ -139,14 +139,14 @@ function EditApeForm({ ape, onClose, onSave, onDelete, agenzieDisponibili }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Campi del form (invariati) */}
           <div>
-            <label htmlFor="edit-codice" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Codice APE</label>
+            <label htmlFor="edit-codice" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Codice APE (Automatico)</label>
             <input
               type="text"
               name="codice"
               id="edit-codice"
               value={formData.codice}
-              onChange={handleChange}
-              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm dark:bg-gray-700 dark:text-white"
+              readOnly
+              className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
               required
             />
           </div>

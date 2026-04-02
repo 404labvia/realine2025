@@ -13,6 +13,7 @@ import { FaCloudUploadAlt, FaFileImage, FaFilePdf, FaTrash, FaCheckCircle } from
  * @param {string} props.description - Descrizione/istruzioni
  * @param {Array<string>} props.acceptedFormats - Formati accettati (es. ['image/jpeg', 'image/png', 'application/pdf'])
  * @param {boolean} props.disabled - Se true, disabilita l'upload
+ * @param {boolean} props.compact - Se true, usa layout compatto
  */
 function FileUploadZone({
   file,
@@ -21,7 +22,8 @@ function FileUploadZone({
   label,
   description,
   acceptedFormats = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'],
-  disabled = false
+  disabled = false,
+  compact = false
 }) {
   const onDrop = useCallback((acceptedFiles) => {
     if (acceptedFiles && acceptedFiles.length > 0) {
@@ -70,7 +72,8 @@ function FileUploadZone({
         <div
           {...getRootProps()}
           className={`
-            border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all
+            border-2 border-dashed rounded-lg text-center cursor-pointer transition-all
+            ${compact ? 'p-4' : 'p-8'}
             ${isDragActive && !isDragReject ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : ''}
             ${isDragReject ? 'border-red-500 bg-red-50 dark:bg-red-900/20' : ''}
             ${!isDragActive && !isDragReject ? 'border-gray-300 dark:border-dark-border hover:border-blue-400 dark:hover:border-blue-500' : ''}
@@ -79,58 +82,64 @@ function FileUploadZone({
         >
           <input {...getInputProps()} />
 
-          <div className="flex flex-col items-center space-y-3">
+          <div className={`flex flex-col items-center ${compact ? 'space-y-2' : 'space-y-3'}`}>
             <FaCloudUploadAlt
-              className={`text-5xl ${
+              className={`${compact ? 'text-3xl' : 'text-5xl'} ${
                 isDragActive ? 'text-blue-500' : 'text-gray-400 dark:text-dark-text-muted'
               }`}
             />
 
             {isDragActive ? (
-              <p className="text-blue-600 dark:text-blue-400 font-medium">
-                Rilascia il file qui...
+              <p className="text-blue-600 dark:text-blue-400 font-medium text-sm">
+                Rilascia qui...
               </p>
             ) : (
               <>
-                <p className="text-gray-700 dark:text-dark-text-primary font-medium">
-                  Trascina e rilascia il file qui
+                <p className={`text-gray-700 dark:text-dark-text-primary font-medium ${compact ? 'text-sm' : ''}`}>
+                  {compact ? 'Trascina o clicca' : 'Trascina e rilascia il file qui'}
                 </p>
-                <p className="text-gray-500 dark:text-dark-text-secondary text-sm">
-                  oppure clicca per selezionare
-                </p>
+                {!compact && (
+                  <p className="text-gray-500 dark:text-dark-text-secondary text-sm">
+                    oppure clicca per selezionare
+                  </p>
+                )}
               </>
             )}
 
             {description && (
-              <p className="text-xs text-gray-500 dark:text-dark-text-muted mt-2">
+              <p className="text-xs text-gray-500 dark:text-dark-text-muted">
                 {description}
               </p>
             )}
 
-            <p className="text-xs text-gray-400 dark:text-dark-text-muted">
-              Formati supportati: JPG, PNG, PDF (max 10MB)
-            </p>
+            {!compact && (
+              <p className="text-xs text-gray-400 dark:text-dark-text-muted">
+                Formati supportati: JPG, PNG, PDF (max 10MB)
+              </p>
+            )}
           </div>
         </div>
       ) : (
         // Card del file caricato
-        <div className="border-2 border-green-500 dark:border-green-600 rounded-lg p-4 bg-green-50 dark:bg-green-900/20">
+        <div className={`border-2 border-green-500 dark:border-green-600 rounded-lg bg-green-50 dark:bg-green-900/20 ${compact ? 'p-3' : 'p-4'}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3 flex-1 min-w-0">
-              <div className="text-green-600 dark:text-green-400 text-3xl flex-shrink-0">
+              <div className={`text-green-600 dark:text-green-400 flex-shrink-0 ${compact ? 'text-2xl' : 'text-3xl'}`}>
                 {getFileIcon(file.name)}
               </div>
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-2">
-                  <p className="text-sm font-medium text-gray-900 dark:text-dark-text-primary truncate">
+                  <p className={`font-medium text-gray-900 dark:text-dark-text-primary truncate ${compact ? 'text-xs' : 'text-sm'}`}>
                     {file.name}
                   </p>
-                  <FaCheckCircle className="text-green-600 dark:text-green-400 flex-shrink-0" />
+                  <FaCheckCircle className="text-green-600 dark:text-green-400 flex-shrink-0" size={compact ? 12 : 14} />
                 </div>
-                <p className="text-xs text-gray-500 dark:text-dark-text-secondary mt-1">
-                  {formatFileSize(file.size)}
-                </p>
+                {file.size && (
+                  <p className="text-xs text-gray-500 dark:text-dark-text-secondary mt-0.5">
+                    {formatFileSize(file.size)}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -140,14 +149,14 @@ function FileUploadZone({
                 onFileRemove();
               }}
               disabled={disabled}
-              className="ml-4 p-2 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+              className={`text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed ${compact ? 'ml-2 p-1.5' : 'ml-4 p-2'}`}
               title="Rimuovi file"
             >
-              <FaTrash size={16} />
+              <FaTrash size={compact ? 14 : 16} />
             </button>
           </div>
 
-          {description && (
+          {description && !compact && (
             <p className="text-xs text-gray-600 dark:text-dark-text-secondary mt-3 italic">
               ✓ {description}
             </p>

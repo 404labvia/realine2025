@@ -12,6 +12,7 @@ import {
   deleteDoc,
   doc,
   serverTimestamp,
+  getDocs,
 } from 'firebase/firestore';
 
 const ApeContext = createContext();
@@ -152,6 +153,52 @@ export function ApeProvider({ children }) {
     }
   };
 
+  const generateNextCodice = async () => {
+    if (!auth.currentUser) {
+      throw new Error("Utente non autenticato.");
+    }
+
+    try {
+      const currentYear = new Date().getFullYear();
+      const yearSuffix = currentYear.toString().slice(-2); // Ultime 2 cifre (es. "26")
+
+      // Query per ottenere tutte le APE dell'utente corrente
+      const q = query(
+        collection(db, 'ape'),
+        where('userId', '==', auth.currentUser.uid)
+      );
+
+      const querySnapshot = await getDocs(q);
+
+      // Filtra le APE dell'anno corrente ed estrai i numeri progressivi
+      let maxNumber = 0;
+      querySnapshot.forEach((docSnapshot) => {
+        const data = docSnapshot.data();
+        const codice = data.codice || '';
+
+        // Verifica se il codice termina con l'anno corrente (es. "-26")
+        if (codice.endsWith(`-${yearSuffix}`)) {
+          // Estrai la parte numerica prima del trattino
+          const match = codice.match(/^(\d+)-/);
+          if (match) {
+            const numero = parseInt(match[1], 10);
+            if (numero > maxNumber) {
+              maxNumber = numero;
+            }
+          }
+        }
+      });
+
+      // Incrementa e formatta
+      const nextNumber = maxNumber + 1;
+      const formattedNumber = nextNumber.toString().padStart(3, '0'); // Es. "001"
+      return `${formattedNumber}-${yearSuffix}`;
+    } catch (error) {
+      console.error("Errore generando codice APE: ", error);
+      throw error;
+    }
+  };
+
   const value = {
     ape,
     loading,
@@ -159,6 +206,7 @@ export function ApeProvider({ children }) {
     updateApe,
     deleteApe,
     fetchApe,
+    generateNextCodice,
   };
 
   return (

@@ -3,9 +3,9 @@ import React from 'react';
 import { FaCheck } from 'react-icons/fa';
 
 const steps = [
-  { number: 1, label: 'Carta Identità' },
-  { number: 2, label: 'Visura' },
-  { number: 3, label: 'Dati' },
+  { number: 1, label: 'Visura' },
+  { number: 2, label: 'Committente' },
+  { number: 3, label: 'Collaboratore' },
   { number: 4, label: 'Intervento' },
   { number: 5, label: 'Pagamento' },
   { number: 6, label: 'Riepilogo' },
