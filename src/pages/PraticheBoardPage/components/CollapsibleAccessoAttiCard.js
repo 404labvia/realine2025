@@ -64,7 +64,7 @@ function CollapsibleAccessoAttiCard({ titolo, accessi, onEdit, onDelete, onUpdat
                 e.stopPropagation();
                 onAddNew();
               }}
-              className="flex items-center bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-3 rounded text-sm"
+              className="flex items-center bg-gray-700 hover:bg-gray-800 text-white font-bold py-1 px-3 rounded text-sm"
             >
               <FaPlus className="mr-2" />
               Nuovo

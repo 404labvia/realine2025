@@ -140,7 +140,6 @@ function AppContent() {
               { to: "/pratiche", label: "Pratiche", icon: MdDescription },
               { to: "/pratiche-board", label: "Pratiche Board", icon: MdViewColumn },
               { to: "/pratiche-privato", label: "Pratiche Privato", icon: MdFolderSpecial },
-              { to: "/genera-incarico", label: "Genera Incarico", icon: MdAssignment },
               { to: "/finanze", label: "Finanze", icon: MdAttachMoney },
               { to: "/calendario", label: "Calendario", icon: FaCalendarAlt },
             ].map((item) => (

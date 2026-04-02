@@ -26,3 +26,6 @@ yarn-error.log*
 # Editor
 .vscode/
 .idea/
+
+# Firebase
+serviceAccountKey.json

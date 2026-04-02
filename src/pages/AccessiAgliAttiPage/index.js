@@ -98,7 +98,7 @@ function AccessiAgliAttiPage() {
         <h1 className="text-3xl font-bold">Accessi agli Atti</h1>
         <button
           onClick={() => handleOpenNewForm()}
-          className="flex items-center bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+          className="flex items-center bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded"
         >
           <FaPlus className="mr-2" />
           + Nuovo accesso atti

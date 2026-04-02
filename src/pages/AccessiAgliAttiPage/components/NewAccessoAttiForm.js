@@ -10,7 +10,7 @@ const FASI_PROGRESSO_CONFIG = [
   { label: "Documenti ricevuti", field: "faseDocumentiRicevutiCompletata" },
 ];
 
-function NewAccessoAttiForm({ onClose, onSave, agenzieDisponibili, defaultAgenzia = '' }) {
+function NewAccessoAttiForm({ onClose, onSave, agenzieDisponibili = [], defaultAgenzia = '' }) {
   const { generateNextCodice } = useAccessiAtti();
   const [formData, setFormData] = useState({
     codice: '',
