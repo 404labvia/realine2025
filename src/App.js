@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, NavLink, useLocation } from 'react-router-dom';
 import {
   MdHome,
-  MdDescription,
   MdAttachMoney,
   MdChevronLeft,
   MdChevronRight,
@@ -31,7 +30,6 @@ import ThemeToggle from './components/ThemeToggle';
 import Dashboard from './pages/Dashboard';
 import AccessiAgliAttiPage from './pages/AccessiAgliAttiPage';
 import ApePage from './pages/ApePage';
-import PratichePage from './pages/PratichePage';
 import PraticheBoardPage from './pages/PraticheBoardPage';
 import PratichePrivatoPage from './pages/PratichePrivatoPage';
 import CalendarTaskPage from './pages/CalendarTaskPage';
@@ -97,8 +95,7 @@ function AppContent() {
       '/': 'Dashboard',
       '/accessi-atti': 'Gestione Accessi agli Atti',
       '/ape': 'Gestione APE - Attestati di Prestazione Energetica',
-      '/pratiche': 'Gestione Pratiche',
-      '/pratiche-board': 'Gestione Pratiche - Vista Board',
+      '/pratiche-board': 'Gestione Pratiche',
       '/pratiche-privato': 'Gestione Pratiche Privato',
       '/calendario': 'Calendario & Task',
       '/finanze': 'Gestione Finanziaria',
@@ -137,8 +134,7 @@ function AppContent() {
               { to: "/", label: "Dashboard", icon: MdHome },
               { to: "/accessi-atti", label: "Accessi Atti", icon: MdFolderOpen },
               { to: "/ape", label: "APE", icon: MdBolt },
-              { to: "/pratiche", label: "Pratiche", icon: MdDescription },
-              { to: "/pratiche-board", label: "Pratiche Board", icon: MdViewColumn },
+              { to: "/pratiche-board", label: "Pratiche", icon: MdViewColumn },
               { to: "/pratiche-privato", label: "Pratiche Privato", icon: MdFolderSpecial },
               { to: "/finanze", label: "Finanze", icon: MdAttachMoney },
               { to: "/calendario", label: "Calendario", icon: FaCalendarAlt },
@@ -260,16 +256,6 @@ function AppContent() {
                 <ApeProvider>
                   <ApePage />
                 </ApeProvider>
-              }
-            />
-            <Route
-              path="/pratiche"
-              element={
-                <PraticheProvider>
-                  <PratichePrivatoProvider>
-                    <PratichePage />
-                  </PratichePrivatoProvider>
-                </PraticheProvider>
               }
             />
             <Route

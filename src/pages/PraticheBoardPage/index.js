@@ -682,7 +682,8 @@ function PraticheBoardPage() {
             setNewAccessoAgenzia('');
           }}
           onSave={handleAddNewAccessoAtti}
-          agenziaPreselezionata={newAccessoAgenzia}
+          agenzieDisponibili={agenzieCollaboratori.map(ac => ac.agenzia).filter(a => a !== 'PRIVATO')}
+          defaultAgenzia={newAccessoAgenzia}
         />
       )}
 
