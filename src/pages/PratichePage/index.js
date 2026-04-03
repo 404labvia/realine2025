@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePratiche } from '../../contexts/PraticheContext';
 import { usePratichePrivato } from '../../contexts/PratichePrivatoContext';
-import { FaPlus, FaFilter, FaFilePdf, FaClock, FaList } from 'react-icons/fa';
+import { FaPlus, FaFilter, FaClock } from 'react-icons/fa';
 
 // Importa hooks personalizzati
 import { useActiveCells, useLocalPratiche } from './hooks';
@@ -22,8 +22,6 @@ import { auth } from '../../firebase';
 import {
   customStyles,
   agenzieCollaboratori,
-  generatePDF,
-  generateListPDF,
 } from './utils';
 import { calendarIds, calendarNameMap } from '../CalendarPage/utils/calendarUtils';
 
@@ -58,7 +56,6 @@ function PratichePage() {
   const [editingPraticaId, setEditingPraticaId] = useState(null);
   const [filtroAgenzia, setFiltroAgenzia] = useState('');
   const [filtroStato, setFiltroStato] = useState('In Corso');
-  const [showExportOptions, setShowExportOptions] = useState(false);
   const [lastTaskEvent, setLastTaskEvent] = useState(null);
   const [showTaskNotification, setShowTaskNotification] = useState(false);
   const [currentStepIdForCalendar, setCurrentStepIdForCalendar] = useState(null);
@@ -422,15 +419,6 @@ function PratichePage() {
     handleChangeStato(praticaId, nuovoStato, updatePratica, localPratiche, setLocalPratiche);
   };
 
-  const handleGeneratePDF = async (filtroAgenziaPerPdf = '') => {
-    await generatePDF(localPratiche, filtroAgenziaPerPdf);
-    setShowExportOptions(false);
-  };
-
-  const handleGenerateListPDF = async () => {
-    await generateListPDF(localPratiche, '');
-  };
-
   const TaskNotification = ({ event, onClose }) => {
     if (!event) return null;
     let message = '';
@@ -513,47 +501,6 @@ function PratichePage() {
                       </select>
                   </div>
 
-                  {/* Pulsante Esporta Lista Pratiche */}
-                  <button
-                      onClick={handleGenerateListPDF}
-                      className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center text-sm"
-                  >
-                      <FaList className="mr-1" size={14} /> Esporta Lista Pratiche
-                  </button>
-
-                  {/* Pulsante Esporta PDF (schede) */}
-                  <div className="relative">
-                      <button
-                          onClick={() => setShowExportOptions(!showExportOptions)}
-                          className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center text-sm"
-                      >
-                          <FaFilePdf className="mr-1" size={14} /> Esporta PDF
-                      </button>
-                      {showExportOptions && (
-                          <div className="absolute right-0 mt-1 bg-white shadow-lg rounded-md z-20 w-48 top-10">
-                              <ul className="py-1">
-                                  <li>
-                                      <button
-                                          onClick={() => handleGeneratePDF()}
-                                          className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                      >
-                                          Tutte le pratiche
-                                      </button>
-                                  </li>
-                                  {agenzieCollaboratori.map(ac => (
-                                      <li key={ac.agenzia}>
-                                          <button
-                                              onClick={() => handleGeneratePDF(ac.agenzia)}
-                                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                                          >
-                                              {ac.agenzia}
-                                          </button>
-                                      </li>
-                                  ))}
-                              </ul>
-                          </div>
-                      )}
-                  </div>
               </div>
           </div>
       </div>

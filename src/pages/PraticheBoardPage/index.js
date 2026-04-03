@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePratiche } from '../../contexts/PraticheContext';
 import { usePratichePrivato } from '../../contexts/PratichePrivatoContext';
 import { useAccessiAtti } from '../AccessiAgliAttiPage/contexts/AccessoAttiContext';
-import { FaPlus, FaSearch, FaFilter, FaSort } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaFilter, FaSort, FaList, FaFilePdf } from 'react-icons/fa';
 import Fuse from 'fuse.js';
 import { addDays } from 'date-fns';
 
@@ -17,7 +17,7 @@ import { NewPraticaForm, EditPraticaForm } from '../PratichePage/components/form
 import NewAccessoAttiForm from '../AccessiAgliAttiPage/components/NewAccessoAttiForm';
 import EditAccessoAttiForm from '../AccessiAgliAttiPage/components/EditAccessoAttiForm';
 
-import { agenzieCollaboratori } from '../PratichePage/utils';
+import { agenzieCollaboratori, generatePDF, generateListPDF } from '../PratichePage/utils';
 import { calendarIds, calendarNameMap } from '../CalendarPage/utils/calendarUtils';
 import { auth } from '../../firebase';
 
@@ -47,6 +47,7 @@ function PraticheBoardPage() {
   const [editingPraticaId, setEditingPraticaId] = useState(null);
   const [showNewPraticaForm, setShowNewPraticaForm] = useState(false);
   const [currentStepIdForCalendar, setCurrentStepIdForCalendar] = useState(null);
+  const [showExportOptions, setShowExportOptions] = useState(false);
 
   // Stati per gestione accessi atti
   const [showNewAccessoForm, setShowNewAccessoForm] = useState(false);
@@ -463,6 +464,15 @@ function PraticheBoardPage() {
     }
   };
 
+  const handleGeneratePDF = async (filtroAgenziaPerPdf = '') => {
+    await generatePDF(localPratiche, filtroAgenziaPerPdf);
+    setShowExportOptions(false);
+  };
+
+  const handleGenerateListPDF = async () => {
+    await generateListPDF(localPratiche, '');
+  };
+
   if (loading || loadingPratichePrivate || loadingAccessiAtti || (isLoadingGapi && !googleApiToken)) {
     return <div className="flex justify-center items-center h-full">Caricamento...</div>;
   }
@@ -532,6 +542,46 @@ function PraticheBoardPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 placeholder-gray-400 dark:placeholder-dark-text-muted"
             />
+          </div>
+
+          <button
+            onClick={handleGenerateListPDF}
+            className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center text-sm whitespace-nowrap transition-colors"
+          >
+            <FaList className="mr-1" size={14} /> Esporta Lista Pratiche
+          </button>
+
+          <div className="relative">
+            <button
+              onClick={() => setShowExportOptions(!showExportOptions)}
+              className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center text-sm whitespace-nowrap transition-colors"
+            >
+              <FaFilePdf className="mr-1" size={14} /> Esporta PDF
+            </button>
+            {showExportOptions && (
+              <div className="absolute right-0 mt-1 bg-white dark:bg-dark-surface shadow-lg rounded-md z-20 w-48 top-10">
+                <ul className="py-1">
+                  <li>
+                    <button
+                      onClick={() => handleGeneratePDF()}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-dark-text-primary hover:bg-gray-100 dark:hover:bg-dark-hover"
+                    >
+                      Tutte le pratiche
+                    </button>
+                  </li>
+                  {agenzieCollaboratori.map(ac => (
+                    <li key={ac.agenzia}>
+                      <button
+                        onClick={() => handleGeneratePDF(ac.agenzia)}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-dark-text-primary hover:bg-gray-100 dark:hover:bg-dark-hover"
+                      >
+                        {ac.agenzia}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
 
           <button

@@ -39,6 +39,9 @@ function ChartAgenzie({ pratiche, filtroStato, setFiltroStato }) {
     'Barner PIETRASANTA': '#EC4899', // Pink
     'Barner PISA': '#06B6D4',        // Cyan
     'Barner MASSA': '#84CC16',       // Lime
+    'Barner LUCCA 2': '#3B82F6',     // Blue
+    'Barner PISTOIA': '#F97316',     // Orange
+    'Barner CARRARA': '#14B8A6',     // Teal
     'BARNER LUCCA': '#3B82F6',       // Blue
   };
   

@@ -10,11 +10,12 @@ export const collaboratoriAggiuntiviPrivato = [
   "Geom. Matteo Antonelli",
   "Geom. Alessandro De Antoni",
   "Geom. Alessandro Castro",
-  "Ing. Marco Moschetti",
   "Geom. Tiziano Martini",
-  "Geom. Giacomo Landi",
   "Per. Ind. Emanuele Donati",
-  "Geom. Andrea Ricci"
+  "Geom. Andrea Ricci",
+  "Geom. Paolo Ballarati",
+  "Arch. Manuel Lagonegro",
+  "Geom. Pagni"
   // Aggiungi altri nomi se necessario
 ];
 

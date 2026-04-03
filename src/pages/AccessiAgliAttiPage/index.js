@@ -12,11 +12,14 @@ const AGENZIE_CARD_ORDINATE = [
   "Barner CAMAIORE",
   "Barner MASSAROSA",
   "Barner LUCCA",
+  "Barner LUCCA 2",
   "Barner ALTOPASCIO",
   "Barner PISA",
   "Barner QUERCETA",
   "Barner PIETRASANTA",
-  "Barner MASSA"
+  "Barner MASSA",
+  "Barner PISTOIA",
+  "Barner CARRARA"
 ];
 
 function AccessiAgliAttiPage() {

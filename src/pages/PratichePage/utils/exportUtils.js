@@ -140,7 +140,10 @@ const agenzieColors = {
   'BARNER PIETRASANTA': '#1ABC9C',
   'BARNER ALTOPASCIO': '#27AE60',
   'BARNER PISA': '#E67E22',
-  'BARNER MASSA': '#8E44AD'
+  'BARNER MASSA': '#8E44AD',
+  'BARNER LUCCA 2': '#3498DB',
+  'BARNER PISTOIA': '#F97316',
+  'BARNER CARRARA': '#14B8A6'
 };
 
 // --- Main Export Functions ---

@@ -37,14 +37,15 @@ function PagamentiCollaboratori({ finanze }) {
 
   // Ordine desiderato per le tabs
   const desiredOrder = [
-    'Geom. Alessandro De Antoni', // Corretto nome
+    'Geom. Alessandro De Antoni',
     'Geom. Alessandro Castro',
     'Geom. Matteo Antonelli',
     'Geom. Tiziano Martini',
-    'Ing. Marco Moschetti',
     'Per. Ind. Emanuele Donati',
     'Geom. Andrea Ricci',
-    'Geom. Giacomo Landi'
+    'Geom. Paolo Ballarati',
+    'Arch. Manuel Lagonegro',
+    'Geom. Pagni'
   ];
 
   // Collaboratori unici presenti nelle pratiche (sia come principale che firmatario)

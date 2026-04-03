@@ -3,24 +3,30 @@
 // Lista delle agenzie e collaboratori associati
 export const agenzieCollaboratori = [
   { agenzia: "Barner VIAREGGIO", collaboratore: "Geom. Alessandro Castro" },
-  { agenzia: "Barner CAMAIORE", collaboratore: "Ing. Marco Moschetti" },
+  { agenzia: "Barner CAMAIORE", collaboratore: "" },
   { agenzia: "Barner LUCCA", collaboratore: "Geom. Tiziano Martini" },
-  { agenzia: "Barner ALTOPASCIO", collaboratore: "Geom. Tiziano Martini" },
+  { agenzia: "Barner LUCCA 2", collaboratore: "Geom. Tiziano Martini" },
+  { agenzia: "Barner ALTOPASCIO", collaboratore: "Geom. Paolo Ballarati" },
   { agenzia: "Barner MASSAROSA", collaboratore: "Geom. Matteo Antonelli" },
   { agenzia: "Barner QUERCETA", collaboratore: "Geom. Giacomo Ferrari" },
-  { agenzia: "Barner PIETRASANTA", collaboratore: "Geom. Giacomo Landi" },
+  { agenzia: "Barner PIETRASANTA", collaboratore: "Geom. Pagni" },
   { agenzia: "Barner PISA", collaboratore: "Per. Ind. Emanuele Donati" },
   { agenzia: "Barner MASSA", collaboratore: "Geom. Andrea Ricci" },
+  { agenzia: "Barner PISTOIA", collaboratore: "" },
+  { agenzia: "Barner CARRARA", collaboratore: "" },
   { agenzia: "PRIVATO", collaboratore: "" }
 ];
 
 // Collaboratori aggiuntivi
 export const collaboratoriAggiuntivi = [
-  "Geom. Alessandro De Antoni", // Virgola aggiunta qui
+  "Geom. Alessandro De Antoni",
   "Arch. Luciano Casprini",
   "Arch. Luca Pitanti",
   "Geom. Dino Inglese",
-  "Geom. Simone Parducci"
+  "Geom. Simone Parducci",
+  "Geom. Paolo Ballarati",
+  "Arch. Manuel Lagonegro",
+  "Geom. Pagni"
   // Aggiungi altri se necessario
 ];
 
