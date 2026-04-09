@@ -273,9 +273,11 @@ function AppContent() {
             <Route
               path="/pratiche-privato"
               element={
-                <PratichePrivatoProvider>
-                  <PratichePrivatoPage />
-                </PratichePrivatoProvider>
+                <PraticheProvider>
+                  <PratichePrivatoProvider>
+                    <PratichePrivatoPage />
+                  </PratichePrivatoProvider>
+                </PraticheProvider>
               }
             />
             <Route path="/finanze" element={
