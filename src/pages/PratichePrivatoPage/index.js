@@ -1,68 +1,135 @@
 // src/pages/PratichePrivatoPage/index.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePratichePrivato } from '../../contexts/PratichePrivatoContext';
-import { FaPlus, FaFilter, FaFilePdf, FaClock } from 'react-icons/fa';
+import { usePratiche } from '../../contexts/PraticheContext';
+import { FaPlus, FaSearch, FaFilter, FaSort, FaFilePdf } from 'react-icons/fa';
+import Fuse from 'fuse.js';
+import { addDays } from 'date-fns';
+
+import { useCalendarState } from '../CalendarPage/hooks/useCalendarState';
+import { useGoogleCalendarApi } from '../CalendarPage/hooks/useGoogleCalendarApi';
+
+import BoardTable from '../PraticheBoardPage/components/BoardTable';
+import EventModal from '../CalendarPage/components/EventModal';
 import { NewPraticaPrivatoForm, EditPraticaPrivatoForm } from './components/forms';
-import WorkflowTable from './components/WorkflowTable';
-import automationService from '../../services/AutomationService';
-import {
-  customStyles, // Assicurati che customStyles sia esportato da ./utils/index.js
-  agenzieCollaboratoriPrivato,
-  generatePDF
-} from './utils'; // Importa dall'index della cartella utils
 
-// Importa tutti gli handlers dalla loro cartella index
-import {
-  handleAddNote,
-  handleDeleteNote,
-  handleUpdateNote,
-  handleToggleTaskItem,
-  handlePaymentChange,
-  handleDateTimeChange,
-  handleDeleteDateTime,
-  handleToggleChecklistItem,
-  handleChangeStato
-} from './handlers'; // Importa dall'index degli handlers
+import { agenzieCollaboratoriPrivato, generatePDF } from './utils';
+import { generateListPDF } from '../PratichePage/utils';
+import { calendarIds, calendarNameMap } from '../CalendarPage/utils/calendarUtils';
+import { auth } from '../../firebase';
 
-import {
-  handleSetTaskDueDate,
-  handleRemoveTaskDueDate,
-  handleSyncTaskWithCalendar
-} from './handlers/taskHandlers'; // Già importato, ma per coerenza con sopra
-
-// Importa gli hooks
-import { useActiveCells, useLocalPratiche } from './hooks';
+const calendarListForModal = [
+  { id: 'primary', name: calendarNameMap['primary'] },
+  { id: calendarIds.ID_DE_ANTONI, name: calendarNameMap[calendarIds.ID_DE_ANTONI] },
+  { id: calendarIds.ID_CASTRO, name: calendarNameMap[calendarIds.ID_CASTRO] },
+  { id: calendarIds.ID_ANTONELLI, name: calendarNameMap[calendarIds.ID_ANTONELLI] },
+].filter(cal => cal.id && cal.name);
 
 function PratichePrivatoPage() {
   const { pratiche, loading, deletePratica, addPratica, updatePratica } = usePratichePrivato();
+  const { pratiche: praticheStandard, loading: loadingStandard } = usePratiche();
 
-  const [showNewPraticaForm, setShowNewPraticaForm] = useState(false);
-  const [editingPraticaId, setEditingPraticaId] = useState(null);
+  const [localPratiche, setLocalPratiche] = useState([]);
   const [filtroAgenzia, setFiltroAgenzia] = useState('');
   const [filtroStato, setFiltroStato] = useState('In Corso');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [ordinaPerScadenza, setOrdinaPerScadenza] = useState(true);
+  const [editingPraticaId, setEditingPraticaId] = useState(null);
+  const [showNewPraticaForm, setShowNewPraticaForm] = useState(false);
   const [showExportOptions, setShowExportOptions] = useState(false);
-  const [lastTaskEvent, setLastTaskEvent] = useState(null);
-  const [showTaskNotification, setShowTaskNotification] = useState(false);
+  const [currentStepIdForCalendar, setCurrentStepIdForCalendar] = useState(null);
+
+  useEffect(() => {
+    if (!loading) {
+      setLocalPratiche(pratiche);
+    }
+  }, [pratiche, loading]);
+
+  // Merge pratiche privato + standard per il modal calendario (associazione eventi)
+  const tutteLePratichePerModal = useMemo(() => {
+    if (loading || loadingStandard) return [];
+    const prv = Array.isArray(pratiche) ? pratiche : [];
+    const std = Array.isArray(praticheStandard) ? praticheStandard : [];
+    return [...prv, ...std];
+  }, [pratiche, praticheStandard, loading, loadingStandard]);
+
+  const praticheInCorsoPerModal = useMemo(() => {
+    return tutteLePratichePerModal.filter(p => p.stato !== 'Completata');
+  }, [tutteLePratichePerModal]);
 
   const {
-    activeCells,
-    handleCellClick,
-    isCellActive
-  } = useActiveCells();
+    googleApiToken,
+    gapiClientInitialized,
+    isLoadingGapi,
+    calendarEvents,
+    isLoadingEvents,
+    loginToGoogle,
+    createGoogleEvent,
+    updateGoogleEvent,
+    deleteGoogleEvent: deleteGoogleCalendarEvent,
+  } = useGoogleCalendarApi();
 
   const {
-    localPratiche,
-    praticheFiltered,
-    setLocalPratiche,
-    updateLocalPratica,
-    addLocalPratica,
-    removeLocalPratica
-  } = useLocalPratiche(pratiche, loading, filtroAgenzia, filtroStato);
+    showEventModal,
+    formState: calendarFormState,
+    handleSelectEvent: handleSelectCalendarEventForModal,
+    resetFormAndCloseModal: resetCalendarFormAndCloseModal,
+    openNewEventModal: openNewCalendarEventModal,
+    handleFormChange: handleCalendarFormChange,
+    handleDateChange: handleCalendarDateChange,
+    handleTimeChange: handleCalendarTimeChange,
+    handleRelatedPraticaChange: handleCalendarRelatedPraticaChange,
+    prepareEventForApi: prepareCalendarEventForApi,
+  } = useCalendarState(tutteLePratichePerModal, praticheStandard);
+
+  const fuse = useMemo(() => {
+    return new Fuse(localPratiche, {
+      keys: ['indirizzo', 'cliente', 'codice'],
+      threshold: 0.3,
+      includeScore: true,
+    });
+  }, [localPratiche]);
+
+  const sortByScadenza = (list) => {
+    return [...list].sort((a, b) => {
+      const scadenzaA = a.workflow?.scadenze?.dataAttoConfermato || a.workflow?.scadenze?.dataCompromesso;
+      const scadenzaB = b.workflow?.scadenze?.dataAttoConfermato || b.workflow?.scadenze?.dataCompromesso;
+      if (!scadenzaA && !scadenzaB) return 0;
+      if (!scadenzaA) return 1;
+      if (!scadenzaB) return -1;
+      return new Date(scadenzaA) - new Date(scadenzaB);
+    });
+  };
+
+  const praticheFiltered = useMemo(() => {
+    let filtered = localPratiche;
+
+    if (filtroAgenzia) {
+      filtered = filtered.filter(p => p.agenzia === filtroAgenzia);
+    }
+    if (filtroStato) {
+      filtered = filtered.filter(p => p.stato === filtroStato);
+    }
+    if (searchQuery.trim()) {
+      const fuseResults = fuse.search(searchQuery);
+      const ids = fuseResults.map(r => r.item.id);
+      filtered = filtered.filter(p => ids.includes(p.id));
+    }
+    if (ordinaPerScadenza) {
+      filtered = sortByScadenza(filtered);
+    }
+
+    return filtered;
+  }, [localPratiche, filtroAgenzia, filtroStato, searchQuery, fuse, ordinaPerScadenza]);
+
+  const handleEditPratica = (praticaId) => {
+    setEditingPraticaId(praticaId);
+  };
 
   const handleAddNewPratica = async (praticaData) => {
     try {
       const newId = await addPratica(praticaData);
-      addLocalPratica({ ...praticaData, id: newId });
+      setLocalPratiche(prev => [...prev, { ...praticaData, id: newId }]);
       setShowNewPraticaForm(false);
     } catch (error) {
       console.error('Errore durante l\'aggiunta della pratica privata:', error);
@@ -70,31 +137,11 @@ function PratichePrivatoPage() {
     }
   };
 
-  const handleEditPratica = (praticaId) => {
-    setEditingPraticaId(praticaId);
-  };
-
   const handleSaveEditedPratica = async (praticaId, updates) => {
     try {
       await updatePratica(praticaId, updates);
-      updateLocalPratica(praticaId, updates);
+      setLocalPratiche(prev => prev.map(p => p.id === praticaId ? { ...p, ...updates } : p));
       setEditingPraticaId(null);
-
-      if (updates.dataFine) {
-        const pratica = localPratiche.find(p => p.id === praticaId);
-        if (pratica) {
-          const tasks = await automationService.processTrigger(
-            pratica,
-            'deadline',
-            { dataFine: updates.dataFine },
-            updatePratica
-          );
-          if (tasks.length > 0) {
-            setLastTaskEvent({ type: 'created', trigger: 'deadline', count: tasks.length });
-            setShowTaskNotification(true);
-          }
-        }
-      }
     } catch (error) {
       console.error('Errore durante l\'aggiornamento della pratica privata:', error);
       alert('Si è verificato un errore durante il salvataggio. Riprova.');
@@ -104,7 +151,7 @@ function PratichePrivatoPage() {
   const handleDeletePratica = async (praticaId) => {
     try {
       await deletePratica(praticaId);
-      removeLocalPratica(praticaId);
+      setLocalPratiche(prev => prev.filter(p => p.id !== praticaId));
       setEditingPraticaId(null);
     } catch (error) {
       console.error('Errore durante l\'eliminazione della pratica privata:', error);
@@ -112,94 +159,210 @@ function PratichePrivatoPage() {
     }
   };
 
-  const handleCellClickWrapper = (praticaId, stepId, stepType, isActive = true) => {
-    handleCellClick(praticaId, stepId, stepType, isActive);
-  };
-
-  // Le funzioni wrapper ora usano gli handler importati
-  const handleAddNoteWrapper = (praticaId, stepId, noteText, type = 'task') => {
-    handleAddNote(praticaId, stepId, noteText, type, updatePratica, localPratiche, setLocalPratiche);
-  };
-
-  const handleDeleteNoteWrapper = (praticaId, stepId, noteIndex) => {
-    handleDeleteNote(praticaId, stepId, noteIndex, updatePratica, localPratiche, setLocalPratiche);
-  };
-
-  const handleUpdateNoteWrapper = (praticaId, stepId, noteIndex, newText, type) => {
-    handleUpdateNote(praticaId, stepId, noteIndex, newText, type, updatePratica, localPratiche, setLocalPratiche);
-  };
-
-  const handleToggleTaskItemWrapper = (praticaId, stepId, taskIndex, completed) => {
-    handleToggleTaskItem(praticaId, stepId, taskIndex, completed, updatePratica, localPratiche, setLocalPratiche);
-  };
-
-  const handleToggleChecklistItemWrapper = (praticaId, stepId, itemId, completed) => {
-    handleToggleChecklistItem(praticaId, stepId, itemId, completed, updatePratica, localPratiche, setLocalPratiche);
-  };
-
-  const handleDateTimeChangeWrapper = async (praticaId, stepId, field, value) => {
-    const pratica = localPratiche.find(p => p.id === praticaId);
-    const oldData = pratica?.workflow?.[stepId] || {};
-    await handleDateTimeChange(praticaId, stepId, field, value, updatePratica, localPratiche, setLocalPratiche);
-    if ((stepId === 'incarico' || stepId === 'accessoAtti') && field === 'dataInvio') {
-      const updatedPratica = localPratiche.find(p => p.id === praticaId);
-      const updatedData = updatedPratica.workflow?.[stepId] || {};
-      if (updatedData.dataInvio && (!oldData.dataInvio || oldData.dataInvio !== updatedData.dataInvio)) {
-        const tasks = await automationService.processTrigger(
-          updatedPratica,
-          stepId,
-          updatedData,
-          updatePratica
-        );
-        if (tasks.length > 0) {
-          setLastTaskEvent({ type: 'created', trigger: stepId, count: tasks.length });
-          setShowTaskNotification(true);
-        }
-      }
+  const handleChangeStato = async (praticaId, nuovoStato) => {
+    try {
+      await updatePratica(praticaId, { stato: nuovoStato, updatedAt: new Date().toISOString() });
+      setLocalPratiche(prev => prev.map(p => p.id === praticaId ? { ...p, stato: nuovoStato } : p));
+    } catch (error) {
+      console.error('Errore durante l\'aggiornamento dello stato:', error);
+      alert('Si è verificato un errore durante la modifica dello stato. Riprova.');
     }
   };
 
-  const handleDeleteDateTimeWrapper = (praticaId, stepId) => {
-    handleDeleteDateTime(praticaId, stepId, updatePratica, localPratiche, setLocalPratiche);
-  };
+  const handleOpenCalendarModalForTask = useCallback((praticaId, stepId) => {
+    setCurrentStepIdForCalendar(stepId);
+    openNewCalendarEventModal(new Date(), praticaId);
+  }, [openNewCalendarEventModal]);
 
-  const handlePaymentChangeWrapper = async (praticaId, stepId, field, value) => {
-    const pratica = localPratiche.find(p => p.id === praticaId);
-    const oldData = pratica?.workflow?.[stepId] || {};
-    await handlePaymentChange(praticaId, stepId, field, value, updatePratica, localPratiche, setLocalPratiche);
-    if (stepId.includes('acconto') || stepId === 'saldo') {
-      const updatedPratica = localPratiche.find(p => p.id === praticaId);
-      const updatedData = updatedPratica.workflow?.[stepId] || {};
-      if (field.includes('importoCommittente') && updatedData.importoCommittente > 0 &&
-          (!oldData.importoCommittente || oldData.importoCommittente !== updatedData.importoCommittente)) {
-        const tasks = await automationService.processTrigger(
-          updatedPratica,
-          'pagamento',
-          updatedData,
-          updatePratica
-        );
-        if (tasks.length > 0) {
-          setLastTaskEvent({ type: 'created', trigger: 'pagamento', count: tasks.length });
-          setShowTaskNotification(true);
-        }
+  const handleEditCalendarTask = useCallback((task, praticaIdOfTask, stepId) => {
+    setCurrentStepIdForCalendar(stepId);
+    const eventToEdit = calendarEvents.find(e => e.id === task.googleCalendarEventId);
+    const praticaIdCollegata = task.relatedPraticaId || praticaIdOfTask;
+
+    if (eventToEdit) {
+      handleSelectCalendarEventForModal(eventToEdit);
+    } else {
+      const isPrivate = localPratiche.some(p => p.id === praticaIdCollegata);
+      let initialTitle = task.text;
+      if (task.text && task.text.includes('(Pratica:')) {
+        initialTitle = task.text.substring(0, task.text.indexOf('(Pratica:')).trim();
       }
+      handleSelectCalendarEventForModal({
+        id: task.googleCalendarEventId,
+        title: initialTitle,
+        start: new Date(task.dueDate),
+        end: task.endDate ? new Date(task.endDate) : new Date(new Date(task.dueDate).getTime() + 3600000),
+        description: task.description || '',
+        relatedPraticaId: praticaIdCollegata,
+        isPrivate: isPrivate,
+        sourceCalendarId: task.sourceCalendarId || 'primary',
+      });
+    }
+  }, [calendarEvents, handleSelectCalendarEventForModal, localPratiche]);
+
+  const handleCreateAutomationTask = async (praticaId, stepId, taskData) => {
+    if (!gapiClientInitialized || !googleApiToken) return;
+
+    try {
+      const pratica = localPratiche.find(p => p.id === praticaId);
+      if (!pratica) return;
+
+      const eventResource = {
+        summary: taskData.title,
+        description: `Task automatica per ${pratica.indirizzo}`,
+        start: { dateTime: taskData.dueDate.toISOString(), timeZone: 'Europe/Rome' },
+        end: { dateTime: addDays(taskData.dueDate, 0).toISOString(), timeZone: 'Europe/Rome' },
+        reminders: { useDefault: false, overrides: [{ method: 'popup', minutes: 60 }] }
+      };
+
+      const savedGoogleEvent = await createGoogleEvent(eventResource, 'primary');
+
+      if (savedGoogleEvent) {
+        const updatedWorkflow = JSON.parse(JSON.stringify(pratica.workflow || {}));
+        if (!updatedWorkflow[stepId]) updatedWorkflow[stepId] = { tasks: [], notes: [] };
+        if (!updatedWorkflow[stepId].tasks) updatedWorkflow[stepId].tasks = [];
+
+        updatedWorkflow[stepId].tasks.push({
+          text: taskData.title,
+          dueDate: taskData.dueDate.toISOString(),
+          endDate: addDays(taskData.dueDate, 0).toISOString(),
+          googleCalendarEventId: savedGoogleEvent.id,
+          sourceCalendarId: 'primary',
+          priority: taskData.priority || 'normal',
+          reminder: 60,
+          completed: false,
+          relatedPraticaId: praticaId,
+          description: 'Task automatica da controllo incarico',
+          createdDate: new Date().toISOString(),
+          stepId: stepId
+        });
+
+        setLocalPratiche(prev => prev.map(p => p.id === praticaId ? { ...p, workflow: updatedWorkflow } : p));
+        await updatePratica(praticaId, { workflow: updatedWorkflow });
+      }
+    } catch (error) {
+      console.error('Errore durante la creazione della task automatica:', error);
     }
   };
 
-  const handleChangeStatoWrapper = (praticaId, nuovoStato) => {
-    handleChangeStato(praticaId, nuovoStato, updatePratica, localPratiche, setLocalPratiche);
+  const handleSaveCalendarEvent = async () => {
+    if (new Date(calendarFormState.end) <= new Date(calendarFormState.start)) {
+      alert("L'ora di fine deve essere successiva all'ora di inizio.");
+      return;
+    }
+    const eventResource = prepareCalendarEventForApi();
+    const targetCalendarForApi = calendarFormState.targetCalendarId;
+    const praticaIdCollegata = calendarFormState.relatedPraticaId;
+
+    try {
+      let savedGoogleEvent;
+      if (calendarFormState.id) {
+        savedGoogleEvent = await updateGoogleEvent(calendarFormState.id, eventResource, targetCalendarForApi);
+      } else {
+        savedGoogleEvent = await createGoogleEvent(eventResource, targetCalendarForApi);
+      }
+
+      if (savedGoogleEvent && praticaIdCollegata && currentStepIdForCalendar) {
+        // Cerca prima nelle pratiche private, poi nelle standard
+        const praticaDaAggiornare = localPratiche.find(p => p.id === praticaIdCollegata);
+        if (praticaDaAggiornare) {
+          const updatedWorkflow = JSON.parse(JSON.stringify(praticaDaAggiornare.workflow || {}));
+          if (!updatedWorkflow[currentStepIdForCalendar]) {
+            updatedWorkflow[currentStepIdForCalendar] = { tasks: [], notes: [] };
+          }
+          if (!updatedWorkflow[currentStepIdForCalendar].tasks) {
+            updatedWorkflow[currentStepIdForCalendar].tasks = [];
+          }
+
+          const taskIndex = updatedWorkflow[currentStepIdForCalendar].tasks.findIndex(
+            t => t.googleCalendarEventId === savedGoogleEvent.id
+          );
+
+          let determinedSourceCalendarId = targetCalendarForApi;
+          if (savedGoogleEvent.organizer && auth.currentUser && savedGoogleEvent.organizer.email === auth.currentUser.email) {
+            determinedSourceCalendarId = 'primary';
+          } else if (savedGoogleEvent.calendarId) {
+            determinedSourceCalendarId = savedGoogleEvent.calendarId;
+          }
+
+          const taskData = {
+            text: savedGoogleEvent.summary || eventResource.summary,
+            dueDate: new Date(savedGoogleEvent.start?.dateTime || savedGoogleEvent.start?.date).toISOString(),
+            endDate: savedGoogleEvent.end?.dateTime
+              ? new Date(savedGoogleEvent.end.dateTime).toISOString()
+              : new Date(new Date(savedGoogleEvent.start?.dateTime || savedGoogleEvent.start?.date).getTime() + 3600000).toISOString(),
+            googleCalendarEventId: savedGoogleEvent.id,
+            sourceCalendarId: determinedSourceCalendarId,
+            priority: calendarFormState.priority || 'normal',
+            reminder: calendarFormState.reminder || 60,
+            completed: calendarFormState.id && taskIndex > -1
+              ? (updatedWorkflow[currentStepIdForCalendar].tasks[taskIndex]?.completed || false)
+              : false,
+            relatedPraticaId: praticaIdCollegata,
+            description: savedGoogleEvent.description || '',
+            location: savedGoogleEvent.location || '',
+            isPrivate: calendarFormState.isPrivate || false,
+            stepId: currentStepIdForCalendar
+          };
+
+          if (taskIndex > -1) {
+            updatedWorkflow[currentStepIdForCalendar].tasks[taskIndex] = {
+              ...updatedWorkflow[currentStepIdForCalendar].tasks[taskIndex],
+              ...taskData,
+              updatedAt: new Date().toISOString(),
+            };
+          } else {
+            updatedWorkflow[currentStepIdForCalendar].tasks.push({
+              ...taskData,
+              createdDate: new Date().toISOString(),
+            });
+          }
+
+          setLocalPratiche(prev => prev.map(p => p.id === praticaIdCollegata ? { ...p, workflow: updatedWorkflow } : p));
+          await updatePratica(praticaIdCollegata, { workflow: updatedWorkflow });
+        }
+      }
+      resetCalendarFormAndCloseModal();
+    } catch (error) {
+      console.error("Errore nel salvare l'evento di calendario:", error);
+      alert("Si è verificato un errore nel salvare l'evento e aggiornare la pratica.");
+    } finally {
+      setCurrentStepIdForCalendar(null);
+    }
   };
 
-  const handleSetTaskDueDateWrapper = (praticaId, stepId, taskIndex, dueDateInfo) => {
-    handleSetTaskDueDate(praticaId, stepId, taskIndex, dueDateInfo, updatePratica, localPratiche, setLocalPratiche);
-  };
+  const handleDeleteCalendarEventAndTask = async () => {
+    if (!calendarFormState.id || !calendarFormState.targetCalendarId) {
+      alert("Impossibile eliminare l'evento: informazioni mancanti.");
+      return;
+    }
+    if (window.confirm("Sei sicuro di voler eliminare questo evento dal calendario e la task associata dalla pratica?")) {
+      try {
+        await deleteGoogleCalendarEvent(calendarFormState.id, calendarFormState.targetCalendarId);
 
-  const handleRemoveTaskDueDateWrapper = (praticaId, stepId, taskIndex) => {
-    handleRemoveTaskDueDate(praticaId, stepId, taskIndex, updatePratica, localPratiche, setLocalPratiche);
-  };
+        const praticaIdCollegata = calendarFormState.relatedPraticaId;
+        const googleEventIdToDelete = calendarFormState.id;
+        const stepIdDaCuiEliminare = currentStepIdForCalendar;
 
-  const handleSyncTaskWithCalendarWrapper = (praticaId, stepId, taskIndex) => {
-    console.log('La funzionalità di sincronizzazione calendario è stata rimossa');
+        if (praticaIdCollegata && stepIdDaCuiEliminare && googleEventIdToDelete) {
+          const praticaDaAggiornare = localPratiche.find(p => p.id === praticaIdCollegata);
+          if (praticaDaAggiornare?.workflow?.[stepIdDaCuiEliminare]?.tasks) {
+            const updatedWorkflow = JSON.parse(JSON.stringify(praticaDaAggiornare.workflow));
+            updatedWorkflow[stepIdDaCuiEliminare].tasks = updatedWorkflow[stepIdDaCuiEliminare].tasks.filter(
+              t => t.googleCalendarEventId !== googleEventIdToDelete
+            );
+            setLocalPratiche(prev => prev.map(p => p.id === praticaIdCollegata ? { ...p, workflow: updatedWorkflow } : p));
+            await updatePratica(praticaIdCollegata, { workflow: updatedWorkflow });
+          }
+        }
+        resetCalendarFormAndCloseModal();
+      } catch (error) {
+        console.error("Errore nell'eliminare l'evento di calendario:", error);
+        alert("Errore nell'eliminare l'evento e/o la task associata.");
+      } finally {
+        setCurrentStepIdForCalendar(null);
+      }
+    }
   };
 
   const handleGeneratePDF = async (filtroAgenziaPerPdf = '') => {
@@ -207,110 +370,160 @@ function PratichePrivatoPage() {
     setShowExportOptions(false);
   };
 
-  const TaskNotification = ({ event, onClose }) => {
-    if (!event) return null;
-    let message = '';
-    switch (event.trigger) {
-      case 'incarico': message = `${event.count} task create automaticamente dopo l'incarico`; break;
-      case 'accessoAtti': message = `${event.count} task create automaticamente dopo l'accesso atti`; break;
-      case 'pagamento': message = `${event.count} task create automaticamente dopo il pagamento`; break;
-      case 'deadline': message = `${event.count} task create automaticamente per scadenza pratica`; break;
-      default: message = `${event.count} task create automaticamente`;
-    }
-    return (
-      <div className="fixed bottom-4 right-4 bg-green-50 border-l-4 border-green-500 p-4 rounded shadow-lg z-50 max-w-md">
-        <div className="flex">
-          <div className="flex-shrink-0"><FaClock className="h-5 w-5 text-green-500" /></div>
-          <div className="ml-3">
-            <p className="text-sm text-green-700">{message}</p>
-            <p className="mt-1 text-xs text-green-700">Le task sono state aggiunte alla lista</p>
-          </div>
-          <button className="ml-auto text-green-500 hover:text-green-700" onClick={onClose}>&times;</button>
-        </div>
-      </div>
-    );
+  const handleGenerateListPDF = async () => {
+    await generateListPDF(localPratiche, '');
   };
 
-  if (loading) {
+  if (loading || loadingStandard || (isLoadingGapi && !googleApiToken)) {
     return <div className="flex justify-center items-center h-full">Caricamento Pratiche Privato...</div>;
   }
 
+  const isGoogleAuthenticated = gapiClientInitialized && !!googleApiToken;
+
   return (
     <div className="container mx-auto">
-      <style>{customStyles}</style>
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-gray-800">Gestione Pratiche Privato</h1>
-        <button
-          onClick={() => setShowNewPraticaForm(true)}
-          className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center text-sm"
-        >
-          <FaPlus className="mr-1" size={12} /> Nuova Pratica Privato
-        </button>
-      </div>
-
-      <div className="bg-white p-3 rounded-lg shadow mb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center mr-4">
-            <FaFilter className="text-gray-500 mr-2" size={14} />
-            <label className="text-sm font-medium text-gray-700 mr-2">Filtra per agenzia (Privato):</label>
+      <div className="bg-white dark:bg-dark-surface p-3 rounded-lg shadow mb-4 transition-colors duration-200">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <FaFilter className="text-gray-500 dark:text-dark-text-secondary" size={14} />
+            <label className="text-sm font-medium text-gray-700 dark:text-dark-text-primary whitespace-nowrap">Filtra per agenzia:</label>
             <select
               value={filtroAgenzia}
               onChange={(e) => setFiltroAgenzia(e.target.value)}
-              className="p-1 text-sm border border-gray-300 rounded-md w-64"
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded-md w-48"
             >
-              <option value="">Tutte le agenzie (Privato)</option>
+              <option value="">Tutte le agenzie</option>
               {agenzieCollaboratoriPrivato.map(ac => (
                 <option key={ac.agenzia} value={ac.agenzia}>{ac.agenzia}</option>
               ))}
             </select>
             {filtroAgenzia && (
-              <button onClick={() => setFiltroAgenzia('')} className="ml-2 text-xs text-blue-600 hover:text-blue-800">
+              <button
+                onClick={() => setFiltroAgenzia('')}
+                className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+              >
                 Rimuovi filtro
               </button>
             )}
           </div>
-          <div className="flex items-center">
-            <div className="mr-4">
-              <label className="text-sm font-medium text-gray-700 mr-2">Stato:</label>
-              <select
-                value={filtroStato}
-                onChange={(e) => setFiltroStato(e.target.value)}
-                className="p-1 text-sm border border-gray-300 rounded-md w-64"
-              >
-                <option value="">Tutti gli stati</option>
-                <option value="In Corso">In Corso</option>
-                <option value="Completata">Completata</option>
-              </select>
-            </div>
-            <div className="relative">
-              <button
-                onClick={() => setShowExportOptions(!showExportOptions)}
-                className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center text-sm"
-              >
-                <FaFilePdf className="mr-1" size={14} /> Esporta PDF (Privato)
-              </button>
-              {showExportOptions && (
-                <div className="absolute right-0 mt-1 bg-white shadow-lg rounded-md z-20 w-48 top-10">
-                  <ul className="py-1">
-                    <li>
-                      <button onClick={() => handleGeneratePDF()} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                        Tutte le pratiche (Privato)
+
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700 dark:text-dark-text-primary whitespace-nowrap">Stato:</label>
+            <select
+              value={filtroStato}
+              onChange={(e) => setFiltroStato(e.target.value)}
+              className="px-3 py-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded-md w-40"
+            >
+              <option value="">Tutti gli stati</option>
+              <option value="In Corso">In Corso</option>
+              <option value="Completata">Completata</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <FaSort className="text-gray-500 dark:text-dark-text-secondary" size={14} />
+            <label className="inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={ordinaPerScadenza}
+                onChange={(e) => setOrdinaPerScadenza(e.target.checked)}
+                className="mr-2"
+              />
+              <span className="text-sm font-medium text-gray-700 dark:text-dark-text-primary">Ordina per scadenza</span>
+            </label>
+          </div>
+
+          <div className="flex-1 relative">
+            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-dark-text-muted" size={14} />
+            <input
+              type="text"
+              placeholder="Cerca pratiche privato..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-3 py-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 placeholder-gray-400 dark:placeholder-dark-text-muted"
+            />
+          </div>
+
+          <button
+            onClick={handleGenerateListPDF}
+            className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center text-sm whitespace-nowrap transition-colors"
+          >
+            <FaFilePdf className="mr-1" size={14} /> Esporta Lista
+          </button>
+
+          <div className="relative">
+            <button
+              onClick={() => setShowExportOptions(!showExportOptions)}
+              className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center text-sm whitespace-nowrap transition-colors"
+            >
+              <FaFilePdf className="mr-1" size={14} /> Esporta PDF
+            </button>
+            {showExportOptions && (
+              <div className="absolute right-0 mt-1 bg-white dark:bg-dark-surface shadow-lg rounded-md z-20 w-48 top-10">
+                <ul className="py-1">
+                  <li>
+                    <button
+                      onClick={() => handleGeneratePDF()}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-dark-text-primary hover:bg-gray-100 dark:hover:bg-dark-hover"
+                    >
+                      Tutte le pratiche
+                    </button>
+                  </li>
+                  {agenzieCollaboratoriPrivato.map(ac => (
+                    <li key={ac.agenzia}>
+                      <button
+                        onClick={() => handleGeneratePDF(ac.agenzia)}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-dark-text-primary hover:bg-gray-100 dark:hover:bg-dark-hover"
+                      >
+                        {ac.agenzia}
                       </button>
                     </li>
-                    {agenzieCollaboratoriPrivato.map(ac => (
-                      <li key={ac.agenzia}>
-                        <button onClick={() => handleGeneratePDF(ac.agenzia)} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                          {ac.agenzia}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
+
+          <button
+            onClick={() => setShowNewPraticaForm(true)}
+            className="px-4 py-2 bg-gray-700 dark:bg-gray-800 text-white rounded-md hover:bg-gray-800 dark:hover:bg-gray-900 flex items-center gap-2 text-sm whitespace-nowrap transition-colors"
+          >
+            <FaPlus size={12} /> Nuova Pratica
+          </button>
         </div>
+
+        {searchQuery && (
+          <p className="text-xs text-gray-500 dark:text-dark-text-muted mt-2">
+            {praticheFiltered.length} {praticheFiltered.length === 1 ? 'risultato trovato' : 'risultati trovati'}
+          </p>
+        )}
       </div>
+
+      {praticheFiltered.length === 0 && searchQuery ? (
+        <div className="bg-white dark:bg-dark-surface rounded-lg shadow-sm p-12 text-center transition-colors duration-200">
+          <FaSearch size={48} className="mx-auto mb-4 text-gray-300 dark:text-dark-text-muted" />
+          <h3 className="text-xl font-semibold text-gray-800 dark:text-dark-text-primary mb-2">Nessuna pratica trovata</h3>
+          <p className="text-gray-600 dark:text-dark-text-secondary">
+            Prova a modificare i termini di ricerca o rimuovi i filtri.
+          </p>
+        </div>
+      ) : (
+        <BoardTable
+          pratiche={praticheFiltered}
+          onEditPratica={handleEditPratica}
+          onChangeStato={handleChangeStato}
+          updatePratica={updatePratica}
+          localPratiche={localPratiche}
+          setLocalPratiche={setLocalPratiche}
+          isGoogleAuthenticated={isGoogleAuthenticated}
+          googleAuthLoading={isLoadingGapi || isLoadingEvents}
+          loginToGoogleCalendar={loginToGoogle}
+          onOpenCalendarModal={handleOpenCalendarModalForTask}
+          onEditCalendarTask={handleEditCalendarTask}
+          deleteGoogleCalendarEvent={deleteGoogleCalendarEvent}
+          onCreateAutomationTask={handleCreateAutomationTask}
+        />
+      )}
 
       {showNewPraticaForm && (
         <NewPraticaPrivatoForm
@@ -318,6 +531,7 @@ function PratichePrivatoPage() {
           onSave={handleAddNewPratica}
         />
       )}
+
       {editingPraticaId && (
         <EditPraticaPrivatoForm
           praticaId={editingPraticaId}
@@ -327,29 +541,28 @@ function PratichePrivatoPage() {
           onDelete={handleDeletePratica}
         />
       )}
-      <WorkflowTable
-        pratiche={praticheFiltered}
-        onEditPratica={handleEditPratica}
-        onAddNote={handleAddNoteWrapper}
-        onDeleteNote={handleDeleteNoteWrapper}
-        onToggleChecklistItem={handleToggleChecklistItemWrapper}
-        onToggleTaskItem={handleToggleTaskItemWrapper}
-        onUpdateNote={handleUpdateNoteWrapper}
-        onDateTimeChange={handleDateTimeChangeWrapper}
-        onDeleteDateTime={handleDeleteDateTimeWrapper}
-        onPaymentChange={handlePaymentChangeWrapper}
-        onChangeStato={handleChangeStatoWrapper}
-        onCellClick={handleCellClickWrapper}
-        onSetTaskDueDate={handleSetTaskDueDateWrapper}
-        onRemoveTaskDueDate={handleRemoveTaskDueDateWrapper}
-        onSyncWithCalendar={handleSyncTaskWithCalendarWrapper}
-        activeCells={activeCells}
-        isGoogleAuthenticated={false}
-      />
-      {showTaskNotification && (
-        <TaskNotification event={lastTaskEvent} onClose={() => setShowTaskNotification(false)} />
+
+      {showEventModal && (
+        <EventModal
+          showEventModal={showEventModal}
+          onClose={() => {
+            resetCalendarFormAndCloseModal();
+            setCurrentStepIdForCalendar(null);
+          }}
+          formState={calendarFormState}
+          onFormChange={handleCalendarFormChange}
+          onDateChange={handleCalendarDateChange}
+          onTimeChange={handleCalendarTimeChange}
+          onRelatedPraticaChange={handleCalendarRelatedPraticaChange}
+          onSave={handleSaveCalendarEvent}
+          onDelete={handleDeleteCalendarEventAndTask}
+          tutteLePratiche={praticheInCorsoPerModal}
+          pratichePrivate={praticheStandard}
+          calendarList={calendarListForModal}
+        />
       )}
     </div>
   );
 }
+
 export default PratichePrivatoPage;

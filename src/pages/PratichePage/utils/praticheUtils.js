@@ -13,8 +13,7 @@ export const agenzieCollaboratori = [
   { agenzia: "Barner PISA", collaboratore: "Per. Ind. Emanuele Donati" },
   { agenzia: "Barner MASSA", collaboratore: "Geom. Andrea Ricci" },
   { agenzia: "Barner PISTOIA", collaboratore: "" },
-  { agenzia: "Barner CARRARA", collaboratore: "" },
-  { agenzia: "PRIVATO", collaboratore: "" }
+  { agenzia: "Barner CARRARA", collaboratore: "" }
 ];
 
 // Collaboratori aggiuntivi
