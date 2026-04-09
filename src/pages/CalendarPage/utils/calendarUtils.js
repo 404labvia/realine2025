@@ -81,7 +81,7 @@ export const messages = {
 
 // Costanti GAPI
 export const GAPI_SCRIPT_URL = 'https://apis.google.com/js/api.js';
-export const API_KEY = process.env.REACT_APP_FIREBASE_API_KEY;
+export const API_KEY = 'AIzaSyAEUgWG9mZ_rPY5vvaT-4D3cMxwTREEv1U';
 export const DISCOVERY_DOCS = ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'];
 
 // Esportiamo anche gli ID per usarli più facilmente
