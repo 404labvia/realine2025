@@ -1,7 +1,8 @@
 // src/pages/AccessiAgliAttiPage/index.js
 import React, { useState, useMemo, useEffect } from 'react';
-import { FaPlus, FaClock, FaCheckCircle } from 'react-icons/fa';
+import { FaPlus, FaClock, FaCheckCircle, FaFilePdf } from 'react-icons/fa';
 import { useAccessiAtti } from './contexts/AccessoAttiContext';
+import { generateAccessiListPDF } from './utils/exportUtils';
 import NewAccessoAttiForm from './components/NewAccessoAttiForm';
 import EditAccessoAttiForm from './components/EditAccessoAttiForm';
 import AccessoAttiCard from './components/AccessoAttiCard';
@@ -99,13 +100,21 @@ function AccessiAgliAttiPage() {
     <div className="container mx-auto p-4">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Accessi agli Atti</h1>
-        <button
-          onClick={() => handleOpenNewForm()}
-          className="flex items-center bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded"
-        >
-          <FaPlus className="mr-2" />
-          + Nuovo accesso atti
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => generateAccessiListPDF(accessi)}
+            className="flex items-center bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+          >
+            <FaFilePdf className="mr-2" /> Esporta Lista PDF
+          </button>
+          <button
+            onClick={() => handleOpenNewForm()}
+            className="flex items-center bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded"
+          >
+            <FaPlus className="mr-2" />
+            + Nuovo accesso atti
+          </button>
+        </div>
       </div>
 
       {/* BOX RIASSUNTIVI */}

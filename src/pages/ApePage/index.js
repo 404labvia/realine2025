@@ -1,7 +1,8 @@
 // src/pages/ApePage/index.js
 import React, { useState, useMemo, useEffect } from 'react';
-import { FaPlus, FaMoneyBillWave, FaEuroSign, FaHandshake, FaChartLine } from 'react-icons/fa';
+import { FaPlus, FaMoneyBillWave, FaEuroSign, FaHandshake, FaChartLine, FaFilePdf } from 'react-icons/fa';
 import { useApe } from './contexts/ApeContext';
+import { generateApeListPDF } from './utils/exportUtils';
 import NewApeForm from './components/NewApeForm';
 import EditApeForm from './components/EditApeForm';
 import ApeCard from './components/ApeCard';
@@ -147,12 +148,20 @@ function ApePage() {
     <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-gray-900">Gestione APE</h1>
-        <button
-          onClick={() => setShowNewForm(true)}
-          className="flex items-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-300"
-        >
-          <FaPlus className="mr-2" /> Nuovo APE
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => generateApeListPDF(ape)}
+            className="flex items-center bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-300"
+          >
+            <FaFilePdf className="mr-2" /> Esporta Lista PDF
+          </button>
+          <button
+            onClick={() => setShowNewForm(true)}
+            className="flex items-center bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md shadow-md transition duration-300"
+          >
+            <FaPlus className="mr-2" /> Nuovo APE
+          </button>
+        </div>
       </div>
 
       {/* BOX RIASSUNTIVI */}

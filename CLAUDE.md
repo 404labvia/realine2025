@@ -57,18 +57,35 @@ Il branch `calendar-task` aggiunge:
 - **Credenziali:** Hardcoded in `src/firebase.js` e `src/index.js` (intenzionale, NON modificare)
 - **Auth:** Google OAuth via `signInWithPopup`, utente identificato da `auth.currentUser.uid`
 
+### Multi-utente / Studio condiviso (allowlist)
+- Lo studio è **condiviso**: tutti gli utenti autorizzati vedono/modificano gli **stessi** dati (pratiche, pratiche_privato, ape, accessi_atti, taskStates).
+- Autorizzazione gestita **a dati**, non nelle regole: collezione `allowedUsers/{email}` — un documento per ogni email abilitata (ID documento = email Google, minuscolo).
+- **Aggiungere un utente** = creare un doc in `allowedUsers` da Console (il data editor bypassa le regole). NON serve toccare/deployare le regole.
+- Le letture nei context NON filtrano più per `userId` (vedi `ApeContext`, `AccessoAttiContext`, `PraticheContext`): leggono l'intera collezione. Si continua comunque a scrivere `userId` (tracciamento creatore).
+
+### Security Rules (versionate)
+- File: `firestore.rules` (referenziato in `firebase.json` → sezione `firestore`).
+- Modello: helper `isAllowed()` = `exists(allowedUsers/{request.auth.token.email})`, applicato a ogni collezione dati.
+- Deploy: `firebase deploy --only firestore` (oppure MCP `firebase` → `firebase_deploy only=firestore`).
+- ⚠️ Le regole bloccano tutto se l'email del richiedente non è in `allowedUsers`: prima di deployare regole nuove, assicurarsi che i doc `allowedUsers` esistano (altrimenti lockout immediato).
+
+### MCP Firebase
+- Configurato in `.mcp.json` (root workspace `REALINE-WEBAPP`, NON nel subdir): `npx -y firebase-tools@latest mcp --dir <realine2025> --only firestore,auth,hosting`.
+- Tool utili: `firebase_get_security_rules`, `firebase_deploy` (firestore/hosting), `firebase_deploy_status`. NON espone scrittura dati Firestore né lista utenti Auth (usare la Console per quelli).
+
 ### Collections Firestore
 
 | Collection | Scopo | Query pattern |
 |---|---|---|
-| `pratiche` | Pratiche standard con workflow multi-step | `where('userId', '==', uid)` |
-| `pratiche_privato` | Pratiche private (stessa struttura) | `where('userId', '==', uid)` |
-| `accessi_atti` | Richieste accesso atti (3 fasi) | `where('userId', '==', uid), orderBy('dataCreazione', 'desc')` |
-| `ape` | Certificati energetici (3 fasi) | `where('userId', '==', uid), orderBy('dataCreazione', 'desc')` |
+| `pratiche` | Pratiche standard con workflow multi-step | Lettura intera collezione (condivisa) |
+| `pratiche_privato` | Pratiche private (stessa struttura) | Lettura intera collezione (condivisa) |
+| `accessi_atti` | Richieste accesso atti (3 fasi) | `orderBy('dataCreazione', 'desc')` (condivisa) |
+| `ape` | Certificati energetici (3 fasi) | `orderBy('dataCreazione', 'desc')` (condivisa) |
 | `collaboratori` | Collaboratori/personale | Lettura globale |
-| `taskStates` | Stato completamento task calendario | Doc ID = userId |
+| `taskStates` | Stato completamento task calendario | Doc ID = UID hardcoded (condiviso) |
+| `allowedUsers` | Email autorizzate (allowlist) | Doc ID = email; gestita da Console |
 
-**REGOLA CRITICA:** Ogni documento scritto DEVE includere `userId: auth.currentUser.uid`.
+**Scrittura:** ogni documento scritto include comunque `userId: auth.currentUser.uid` (tracciamento creatore). Le pratiche includono anche `createdAt` (ISO) per l'export giornaliero.
 
 ## Pattern Architetturali
 
@@ -94,7 +111,13 @@ Le funzioni handler in `handlers/` prendono: `(id, data, updateFn, localState, s
 `taskStateFirebaseService.js` usa approccio ibrido:
 - **Primario:** localStorage per feedback immediato (offline-first)
 - **Secondario:** Firebase sync via collection `taskStates`
-- UID hardcoded `fSjGJAhUlsQwcCGJAzSWgp4Tpxi1` per uso single-user (non modificare)
+- UID hardcoded `fSjGJAhUlsQwcCGJAzSWgp4Tpxi1`: doc `taskStates` condiviso tra gli utenti (non modificare)
+
+### Export PDF
+- Helper condivisi in `src/pages/PratichePage/utils/exportHelpers.js` (`htmlToPdf`, `listStyles`, `agenzieColors`, `formatDate`, `formatCurrency`) — riusati da tutti gli export.
+- `exportUtils.js` (PratichePage): `generatePDF`, `generateListPDF`, `generateDailyPDF` (aggiunte del giorno: note+task+nuove pratiche), `generateMonthlyAttiPDF` (atti fissati nel mese, per `dataFine`). Bottoni in `PraticheBoardPage`.
+- `ApePage/utils/exportUtils.js` → `generateApeListPDF`; `AccessiAgliAttiPage/utils/exportUtils.js` → `generateAccessiListPDF`. Bottoni "Esporta Lista PDF" nelle rispettive pagine.
+- Tecnica: render HTML offscreen → `html2canvas` → `jsPDF` (A4, multipagina automatica in `htmlToPdf`).
 
 ## Comandi Sviluppo
 
@@ -118,7 +141,7 @@ Convenzione commit: `feat:`, `fix:`, `refactor:`, `docs:` (conventional commits)
 
 1. **NON modificare** credenziali hardcoded in `firebase.js` e `index.js`
 2. **NON modificare** l'UID hardcoded in `taskStateFirebaseService.js`
-3. **Sempre includere** `userId: auth.currentUser.uid` in ogni write Firestore
+3. **Includere** `userId: auth.currentUser.uid` in ogni write Firestore (tracciamento creatore; NON usato come filtro di lettura — dati condivisi via allowlist `allowedUsers`)
 4. **UI in italiano** — Tutti i testi interfaccia devono essere in italiano
 5. **Supportare dark mode** — Usare `dark:` classes e token `dark.*` per ogni componente UI
 6. **Nuovi context** → seguire pattern `ApeContext.js` (onSnapshot, where userId, orderBy, serverTimestamp)

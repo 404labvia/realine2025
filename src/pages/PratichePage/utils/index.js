@@ -23,7 +23,9 @@ import {
 
 import {
   generatePDF,
-  generateListPDF
+  generateListPDF,
+  generateDailyPDF,
+  generateMonthlyAttiPDF
 } from './exportUtils';
 
 export {
@@ -41,5 +43,7 @@ export {
   calcolaLordoCollaboratore,
   migratePraticaData,
   generatePDF,
-  generateListPDF
+  generateListPDF,
+  generateDailyPDF,
+  generateMonthlyAttiPDF
 };

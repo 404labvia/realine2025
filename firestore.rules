@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Allowlist gestita a dati: un doc per ogni email autorizzata in /allowedUsers.
+    // Aggiungere un nuovo utente = creare un doc in allowedUsers (id = email),
+    // senza mai modificare queste regole.
+    function isAllowed() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/allowedUsers/$(request.auth.token.email));
+    }
+
+    match /allowedUsers/{email} {
+      allow read: if request.auth != null; // necessario a isAllowed()
+      allow write: if false;               // gestita solo dalla Console (admin bypassa le regole)
+    }
+
+    match /pratiche/{id}         { allow read, write: if isAllowed(); }
+    match /pratiche_privato/{id} { allow read, write: if isAllowed(); }
+    match /collaboratori/{id}    { allow read, write: if isAllowed(); }
+    match /prezziario/{id}       { allow read, write: if isAllowed(); }
+    match /config/{id}           { allow read, write: if isAllowed(); }
+    match /accessi_atti/{id}     { allow read, write: if isAllowed(); }
+    match /ape/{id}              { allow read, write: if isAllowed(); }
+    match /taskStates/{id}       { allow read, write: if isAllowed(); }
+  }
+}

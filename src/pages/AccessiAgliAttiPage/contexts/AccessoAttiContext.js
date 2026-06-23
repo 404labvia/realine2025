@@ -4,7 +4,6 @@ import { db, auth } from '../../../firebase';
 import {
   collection,
   query,
-  where,
   orderBy,
   onSnapshot,
   addDoc,
@@ -46,9 +45,10 @@ export function AccessoAttiProvider({ children }) {
     }
 
     setLoading(true);
+    // Studio condiviso: tutti gli utenti autorizzati vedono tutti gli accessi
+    // (l'accesso è regolato dalle security rules via allowlist allowedUsers).
     const q = query(
       collection(db, 'accessi_atti'),
-      where('userId', '==', currentUserId),
       orderBy('dataCreazione', 'desc')
     );
 
@@ -165,13 +165,8 @@ export function AccessoAttiProvider({ children }) {
       // Normalizza l'agenzia: se vuoto o non specificato, usa "ALTRO"
       const agenziaKey = agenzia && agenzia.trim().length > 0 ? agenzia : 'ALTRO';
 
-      // Query per ottenere tutti gli accessi dell'utente corrente
-      const q = query(
-        collection(db, 'accessi_atti'),
-        where('userId', '==', auth.currentUser.uid)
-      );
-
-      const querySnapshot = await getDocs(q);
+      // Numerazione progressiva a livello studio (tutti gli accessi, non solo dell'utente)
+      const querySnapshot = await getDocs(collection(db, 'accessi_atti'));
 
       // Filtra gli accessi per agenzia e anno corrente
       let maxNumber = 0;

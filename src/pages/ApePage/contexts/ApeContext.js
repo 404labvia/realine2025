@@ -4,7 +4,6 @@ import { db, auth } from '../../../firebase';
 import {
   collection,
   query,
-  where,
   orderBy,
   onSnapshot,
   addDoc,
@@ -46,9 +45,10 @@ export function ApeProvider({ children }) {
     }
 
     setLoading(true);
+    // Studio condiviso: tutti gli utenti autorizzati vedono tutti gli APE
+    // (l'accesso è regolato dalle security rules via allowlist allowedUsers).
     const q = query(
       collection(db, 'ape'),
-      where('userId', '==', currentUserId),
       orderBy('dataCreazione', 'desc')
     );
 
@@ -162,13 +162,8 @@ export function ApeProvider({ children }) {
       const currentYear = new Date().getFullYear();
       const yearSuffix = currentYear.toString().slice(-2); // Ultime 2 cifre (es. "26")
 
-      // Query per ottenere tutte le APE dell'utente corrente
-      const q = query(
-        collection(db, 'ape'),
-        where('userId', '==', auth.currentUser.uid)
-      );
-
-      const querySnapshot = await getDocs(q);
+      // Numerazione progressiva a livello studio (tutte le APE, non solo dell'utente)
+      const querySnapshot = await getDocs(collection(db, 'ape'));
 
       // Filtra le APE dell'anno corrente ed estrai i numeri progressivi
       let maxNumber = 0;

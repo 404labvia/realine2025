@@ -51,7 +51,8 @@ export function PratichePrivatoProvider({ children }) {
       }
       const praticaConUserId = {
         ...praticaData,
-        userId: user.uid // AGGIUNGI L'UID DELL'UTENTE LOGGATO
+        userId: user.uid, // AGGIUNGI L'UID DELL'UTENTE LOGGATO
+        createdAt: new Date().toISOString() // Per export giornaliero delle aggiunte
       };
       const docRef = await addDoc(collection(db, 'pratiche_privato'), praticaConUserId);
       setPratiche(prev => [...prev, { id: docRef.id, ...praticaConUserId }]);

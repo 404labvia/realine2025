@@ -1,8 +1,9 @@
 // src/pages/PratichePage/utils/exportUtils.js
-import { format } from 'date-fns';
+import { format, isSameDay, isSameMonth } from 'date-fns';
 import { it } from 'date-fns/locale';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { htmlToPdf, listStyles } from './exportHelpers';
 
 // --- Helper Functions ---
 
@@ -492,5 +493,150 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
   } catch (error) {
     console.error('Errore durante la generazione delle schede PDF:', error);
     alert('Si è verificato un errore grave durante la generazione del PDF.');
+  }
+};
+
+const safeDate = (value) => {
+  if (!value) return null;
+  // Supporta sia stringhe ISO sia Timestamp Firestore (con .toDate)
+  const d = typeof value?.toDate === 'function' ? value.toDate() : new Date(value);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+/**
+ * Export GIORNALIERO: elenco puntato di tutte le aggiunte del giorno sulle pratiche
+ * (nuove pratiche create, note inserite, task creati). Raggruppato per pratica.
+ * @param {Array} localPratiche - pratiche standard
+ * @param {Array} pratichePrivato - pratiche private
+ * @param {Date} giorno - giorno di riferimento (default: oggi)
+ */
+export const generateDailyPDF = async (localPratiche = [], pratichePrivato = [], giorno = new Date()) => {
+  try {
+    const tutte = [...(localPratiche || []), ...(pratichePrivato || [])];
+    const gruppi = [];
+
+    tutte.forEach(pratica => {
+      const voci = [];
+
+      // Nuova pratica creata oggi
+      const createdAt = safeDate(pratica.createdAt);
+      if (createdAt && isSameDay(createdAt, giorno)) {
+        voci.push('Nuova pratica creata');
+      }
+
+      // Note e task nei vari step del workflow
+      const workflow = pratica.workflow || {};
+      Object.values(workflow).forEach(step => {
+        if (Array.isArray(step?.notes)) {
+          step.notes.forEach(n => {
+            const d = safeDate(n.date);
+            if (d && isSameDay(d, giorno) && n.text) {
+              voci.push(`Nota: ${n.text}`);
+            }
+          });
+        }
+        if (Array.isArray(step?.tasks)) {
+          step.tasks.forEach(t => {
+            const d = safeDate(t.createdDate);
+            if (d && isSameDay(d, giorno) && t.text) {
+              voci.push(`Task: ${t.text}`);
+            }
+          });
+        }
+      });
+
+      if (voci.length > 0) {
+        gruppi.push({
+          titolo: `${pratica.indirizzo || 'Senza indirizzo'} - ${(pratica.cliente || '').toUpperCase()}`,
+          agenzia: pratica.agenzia || '',
+          voci
+        });
+      }
+    });
+
+    if (gruppi.length === 0) {
+      alert('Nessuna aggiunta registrata per il giorno selezionato.');
+      return;
+    }
+
+    gruppi.sort((a, b) => a.titolo.localeCompare(b.titolo));
+    const totaleVoci = gruppi.reduce((s, g) => s + g.voci.length, 0);
+    const dataLabel = format(giorno, "EEEE d MMMM yyyy", { locale: it });
+
+    const blocchiHTML = gruppi.map(g => `
+      <div class="agenzia-box">
+        <div class="agenzia-header" style="background-color:#003366 !important;">
+          ${g.titolo}${g.agenzia ? ` — ${g.agenzia}` : ''}
+          <span class="count">${g.voci.length}</span>
+        </div>
+        <div class="agenzia-content">
+          <ul class="item-list">
+            ${g.voci.map(v => `<li>${v}</li>`).join('')}
+          </ul>
+        </div>
+      </div>
+    `).join('');
+
+    const html = `
+      <style>${listStyles}</style>
+      <div class="header">
+        <div class="title">AGGIUNTE DEL GIORNO</div>
+        <div class="subtitle">${dataLabel} — ${totaleVoci} aggiunte su ${gruppi.length} pratiche</div>
+      </div>
+      ${blocchiHTML}
+    `;
+
+    const pdf = await htmlToPdf(html);
+    pdf.save(`Aggiunte_Giornaliere_${format(giorno, 'dd-MM-yyyy')}.pdf`);
+  } catch (error) {
+    console.error('Errore durante la generazione del PDF giornaliero:', error);
+    alert('Si è verificato un errore durante la generazione del PDF giornaliero.');
+  }
+};
+
+/**
+ * Export MENSILE: elenco cronologico semplice degli atti fissati (campo dataFine) nel mese.
+ * @param {Array} localPratiche - pratiche standard
+ * @param {Date} mese - una data qualsiasi del mese di riferimento (default: mese corrente)
+ */
+export const generateMonthlyAttiPDF = async (localPratiche = [], mese = new Date()) => {
+  try {
+    const conAtto = (localPratiche || [])
+      .map(p => ({ pratica: p, atto: safeDate(p.dataFine) }))
+      .filter(x => x.atto && isSameMonth(x.atto, mese))
+      .sort((a, b) => a.atto - b.atto);
+
+    if (conAtto.length === 0) {
+      alert('Nessun atto fissato nel mese selezionato.');
+      return;
+    }
+
+    const meseLabel = format(mese, 'MMMM yyyy', { locale: it }).toUpperCase();
+
+    const righeHTML = conAtto.map(({ pratica, atto }) => {
+      const ora = pratica.dataFineTime ? ` ${pratica.dataFineTime}` : ` ${format(atto, 'HH:mm')}`;
+      return `<li>
+        <strong>${format(atto, 'dd/MM/yyyy')}${ora}</strong> — ${pratica.indirizzo || ''} — <strong>${(pratica.cliente || '').toUpperCase()}</strong>${pratica.agenzia ? ` <span class="fasi">(${pratica.agenzia})</span>` : ''}
+      </li>`;
+    }).join('');
+
+    const html = `
+      <style>${listStyles}</style>
+      <div class="header">
+        <div class="title">ATTI FISSATI ${meseLabel}</div>
+        <div class="subtitle">${conAtto.length} atti</div>
+      </div>
+      <div class="agenzia-box">
+        <div class="agenzia-content">
+          <ul class="item-list">${righeHTML}</ul>
+        </div>
+      </div>
+    `;
+
+    const pdf = await htmlToPdf(html);
+    pdf.save(`Atti_Fissati_${format(mese, 'MM-yyyy')}.pdf`);
+  } catch (error) {
+    console.error('Errore durante la generazione del PDF mensile atti:', error);
+    alert('Si è verificato un errore durante la generazione del PDF mensile.');
   }
 };

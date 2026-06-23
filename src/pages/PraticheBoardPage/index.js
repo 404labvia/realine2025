@@ -17,7 +17,7 @@ import { NewPraticaForm, EditPraticaForm } from '../PratichePage/components/form
 import NewAccessoAttiForm from '../AccessiAgliAttiPage/components/NewAccessoAttiForm';
 import EditAccessoAttiForm from '../AccessiAgliAttiPage/components/EditAccessoAttiForm';
 
-import { agenzieCollaboratori, generatePDF, generateListPDF } from '../PratichePage/utils';
+import { agenzieCollaboratori, generatePDF, generateListPDF, generateDailyPDF, generateMonthlyAttiPDF } from '../PratichePage/utils';
 import { calendarIds, calendarNameMap } from '../CalendarPage/utils/calendarUtils';
 import { auth } from '../../firebase';
 
@@ -48,6 +48,10 @@ function PraticheBoardPage() {
   const [showNewPraticaForm, setShowNewPraticaForm] = useState(false);
   const [currentStepIdForCalendar, setCurrentStepIdForCalendar] = useState(null);
   const [showExportOptions, setShowExportOptions] = useState(false);
+  const [meseAtti, setMeseAtti] = useState(() => {
+    const oggi = new Date();
+    return `${oggi.getFullYear()}-${String(oggi.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   // Stati per gestione accessi atti
   const [showNewAccessoForm, setShowNewAccessoForm] = useState(false);
@@ -473,6 +477,15 @@ function PraticheBoardPage() {
     await generateListPDF(localPratiche, '');
   };
 
+  const handleGenerateDailyPDF = async () => {
+    await generateDailyPDF(localPratiche, pratichePrivateData, new Date());
+  };
+
+  const handleGenerateMonthlyAttiPDF = async () => {
+    const [anno, mese] = meseAtti.split('-').map(Number);
+    await generateMonthlyAttiPDF(localPratiche, new Date(anno, mese - 1, 1));
+  };
+
   if (loading || loadingPratichePrivate || loadingAccessiAtti || (isLoadingGapi && !googleApiToken)) {
     return <div className="flex justify-center items-center h-full">Caricamento...</div>;
   }
@@ -550,6 +563,30 @@ function PraticheBoardPage() {
           >
             <FaList className="mr-1" size={14} /> Esporta Lista Pratiche
           </button>
+
+          <button
+            onClick={handleGenerateDailyPDF}
+            className="px-3 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 flex items-center text-sm whitespace-nowrap transition-colors"
+            title="Elenco delle aggiunte di oggi (note, task, nuove pratiche)"
+          >
+            <FaList className="mr-1" size={14} /> Esporta Giornaliero
+          </button>
+
+          <div className="flex items-center gap-1">
+            <input
+              type="month"
+              value={meseAtti}
+              onChange={(e) => setMeseAtti(e.target.value)}
+              className="px-2 py-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded-md"
+            />
+            <button
+              onClick={handleGenerateMonthlyAttiPDF}
+              className="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center text-sm whitespace-nowrap transition-colors"
+              title="Elenco cronologico degli atti fissati nel mese"
+            >
+              <FaFilePdf className="mr-1" size={14} /> Atti Mese
+            </button>
+          </div>
 
           <div className="relative">
             <button
