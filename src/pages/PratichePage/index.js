@@ -42,8 +42,6 @@ import {
 const calendarListForModal = [
     { id: 'primary', name: calendarNameMap['primary'] },
     { id: calendarIds.ID_DE_ANTONI, name: calendarNameMap[calendarIds.ID_DE_ANTONI] },
-    { id: calendarIds.ID_CASTRO, name: calendarNameMap[calendarIds.ID_CASTRO] },
-    { id: calendarIds.ID_ANTONELLI, name: calendarNameMap[calendarIds.ID_ANTONELLI] },
 ].filter(cal => cal.id && cal.name);
 
 

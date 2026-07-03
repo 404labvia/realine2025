@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { FaPlus, FaTimes, FaGoogle } from 'react-icons/fa';
+import { FaTimes, FaGoogle } from 'react-icons/fa';
 import TaskSidePeek from '../sidePeek/TaskSidePeek';
 import { getTaskState, setTaskState } from '../../../../services/taskStateFirebaseService';
 
@@ -18,7 +18,6 @@ const TaskCell = ({
   onEditCalendarTask,
   deleteGoogleCalendarEvent
 }) => {
-  const [showAll, setShowAll] = useState(false);
   const [isTaskSidePeekOpen, setIsTaskSidePeekOpen] = useState(false);
 
   // SYNC: Sincronizza stati DA Firebase quando la pratica cambia
@@ -72,6 +71,7 @@ const TaskCell = ({
     };
 
     syncTaskStatesFromFirebase();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pratica.id]); // Esegui solo quando cambia la pratica, non ad ogni render
 
   const getAllTasks = () => {

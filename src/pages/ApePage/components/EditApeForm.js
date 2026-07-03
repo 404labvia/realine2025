@@ -84,7 +84,6 @@ function EditApeForm({ ape, onClose, onSave, onDelete, agenzieDisponibili }) {
 
   const handleImportoChange = (e) => {
     const { value } = e.target;
-    const importoTotale = parseFloat(value) || 0;
     const importoStudio = 40;
     const importoBollettino = 10;
     setFormData(prev => ({

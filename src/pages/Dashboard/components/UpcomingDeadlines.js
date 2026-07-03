@@ -15,9 +15,9 @@ function UpcomingDeadlines() {
   // Questa logica per "Atti/Fine Pratiche Imminenti" è corretta e va mantenuta
   const praticheConScadenze = pratiche
     .filter(pratica =>
-      pratica.stato === 'In Corso' &&
-      pratica.dataFine &&
-      !isPast(new Date(new Date(pratica.dataFine).setHours(23, 59, 59, 999))) ||
+      (pratica.stato === 'In Corso' &&
+        pratica.dataFine &&
+        !isPast(new Date(new Date(pratica.dataFine).setHours(23, 59, 59, 999)))) ||
       isToday(new Date(pratica.dataFine))
     )
     .sort((a, b) => new Date(a.dataFine) - new Date(b.dataFine))

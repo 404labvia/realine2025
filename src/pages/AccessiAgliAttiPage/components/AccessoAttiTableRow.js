@@ -1,6 +1,6 @@
 // src/pages/AccessiAgliAttiPage/components/AccessoAttiTableRow.js
 import React, { useState } from 'react';
-import { FaEdit, FaCalendarAlt } from 'react-icons/fa';
+import { FaCalendarAlt } from 'react-icons/fa';
 import { format, formatDistanceToNow } from 'date-fns';
 import { it } from 'date-fns/locale';
 

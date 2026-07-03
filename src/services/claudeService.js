@@ -357,7 +357,9 @@ export const extractDataFromCartaIdentita = async (imageFile, onProgress = null)
   }
 };
 
-export default {
+const claudeService = {
   extractDataFromVisuraCatastale,
   extractDataFromCartaIdentita,
 };
+
+export default claudeService;

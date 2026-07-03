@@ -2,11 +2,10 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { FaPlus, FaTimes } from 'react-icons/fa';
+import { FaTimes } from 'react-icons/fa';
 import NoteSidePeek from '../sidePeek/NoteSidePeek';
 
 const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) => {
-  const [showAll, setShowAll] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newNoteText, setNewNoteText] = useState('');
   const [editingNote, setEditingNote] = useState(null);

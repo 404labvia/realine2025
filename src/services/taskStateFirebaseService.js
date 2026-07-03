@@ -1,5 +1,5 @@
 // src/services/taskStateFirebaseService.js
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 // UID hardcoded per tutte le operazioni Firebase
@@ -39,18 +39,6 @@ const getFromLocalStorage = (eventId) => {
   } catch (error) {
     console.error('Errore lettura localStorage:', error);
     return { isCompleted: false, lastModified: 0 };
-  }
-};
-
-/**
- * Legge tutti gli stati da localStorage
- */
-const getAllFromLocalStorage = () => {
-  try {
-    return JSON.parse(localStorage.getItem(TASK_STATES_KEY) || '{}');
-  } catch (error) {
-    console.error('Errore lettura tutti gli stati da localStorage:', error);
-    return {};
   }
 };
 

@@ -16,6 +16,11 @@ import {
   MdExpandMore,
   MdExpandLess,
   MdPeople,
+  MdAssessment,
+  MdList,
+  MdToday,
+  MdEvent,
+  MdBusiness,
 } from 'react-icons/md';
 import { FaCalendarAlt } from 'react-icons/fa';
 
@@ -35,6 +40,7 @@ import PratichePrivatoPage from './pages/PratichePrivatoPage';
 import CalendarTaskPage from './pages/CalendarTaskPage';
 import FinanzePage from './pages/FinanzePage';
 import GeneraIncaricoPage from './pages/GeneraIncaricoPage';
+import GeneraReportPage from './pages/GeneraReportPage';
 import LoginPage from './components/Login';
 
 import { auth, onAuthStateChanged, logoutUser as firebaseLogoutUser } from './firebase';
@@ -44,11 +50,14 @@ function AppContent() {
   const [authLoading, setAuthLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [generaDocumentiOpen, setGeneraDocumentiOpen] = useState(false);
+  const [generaReportOpen, setGeneraReportOpen] = useState(false);
   const location = useLocation();
 
-  // Espandi automaticamente il menu se siamo su una pagina di generazione documenti
+  // Espandi automaticamente il menu corretto in base alla pagina
   useEffect(() => {
-    if (location.pathname.startsWith('/genera-')) {
+    if (location.pathname.startsWith('/genera-report-')) {
+      setGeneraReportOpen(true);
+    } else if (location.pathname.startsWith('/genera-')) {
       setGeneraDocumentiOpen(true);
     }
   }, [location.pathname]);
@@ -100,7 +109,11 @@ function AppContent() {
       '/calendario': 'Calendario & Task',
       '/finanze': 'Gestione Finanziaria',
       '/genera-incarico-committente': 'Genera Incarico Committente',
-      '/genera-incarico-collaboratore': 'Genera Incarico Collaboratore'
+      '/genera-incarico-collaboratore': 'Genera Incarico Collaboratore',
+      '/genera-report-giornaliero': 'Genera Report - Esporta Giornaliero',
+      '/genera-report-atti-mese': 'Genera Report - Esporta Atti Mese',
+      '/genera-report-lista': 'Genera Report - Lista Tutte le Pratiche',
+      '/genera-report-agenzia': 'Genera Report - Esporta Singola Agenzia'
     };
     return titles[path] || 'Realine Studio';
   };
@@ -197,6 +210,51 @@ function AppContent() {
                   <MdPeople className="h-4 w-4 mr-2" />
                   Incarico Collaboratore
                 </NavLink>
+              </div>
+            )}
+
+            {/* Separatore e Genera Report (menu espandibile) */}
+            <div className="my-2 mx-4 border-t border-gray-200 dark:border-dark-border"></div>
+
+            <button
+              onClick={() => sidebarOpen && setGeneraReportOpen(!generaReportOpen)}
+              className={`w-full flex items-center py-3 transition-colors duration-150 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${
+                location.pathname.startsWith('/genera-report-')
+                  ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
+                  : 'text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20'
+              }`}
+              title={!sidebarOpen ? "Genera Report" : ""}
+            >
+              <span className={sidebarOpen ? 'mr-3' : ''}><MdAssessment className="h-5 w-5" /></span>
+              {sidebarOpen && (
+                <>
+                  <span className="font-medium flex-1 text-left">Genera Report</span>
+                  {generaReportOpen ? <MdExpandLess className="h-5 w-5" /> : <MdExpandMore className="h-5 w-5" />}
+                </>
+              )}
+            </button>
+
+            {sidebarOpen && generaReportOpen && (
+              <div className="bg-gray-50 dark:bg-dark-hover">
+                {[
+                  { to: '/genera-report-giornaliero', label: 'Esporta Giornaliero', icon: MdToday },
+                  { to: '/genera-report-atti-mese', label: 'Esporta Atti Mese', icon: MdEvent },
+                  { to: '/genera-report-lista', label: 'Esporta Lista tutte pratiche', icon: MdList },
+                  { to: '/genera-report-agenzia', label: 'Esporta singola Agenzia', icon: MdBusiness },
+                ].map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({isActive}) => `flex items-center py-2.5 pl-12 pr-6 text-sm transition-colors duration-150 ${
+                      isActive
+                        ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-r-2 border-indigo-600'
+                        : 'text-gray-600 dark:text-dark-text-secondary hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:text-indigo-600 dark:hover:text-indigo-400'
+                    }`}
+                  >
+                    <item.icon className="h-4 w-4 mr-2" />
+                    {item.label}
+                  </NavLink>
+                ))}
               </div>
             )}
           </nav>
@@ -317,6 +375,46 @@ function AppContent() {
                     </p>
                   </div>
                 </PratichePrivatoProvider>
+              }
+            />
+            <Route
+              path="/genera-report-giornaliero"
+              element={
+                <PraticheProvider>
+                  <PratichePrivatoProvider>
+                    <GeneraReportPage mode="giornaliero" />
+                  </PratichePrivatoProvider>
+                </PraticheProvider>
+              }
+            />
+            <Route
+              path="/genera-report-atti-mese"
+              element={
+                <PraticheProvider>
+                  <PratichePrivatoProvider>
+                    <GeneraReportPage mode="attiMese" />
+                  </PratichePrivatoProvider>
+                </PraticheProvider>
+              }
+            />
+            <Route
+              path="/genera-report-lista"
+              element={
+                <PraticheProvider>
+                  <PratichePrivatoProvider>
+                    <GeneraReportPage mode="lista" />
+                  </PratichePrivatoProvider>
+                </PraticheProvider>
+              }
+            />
+            <Route
+              path="/genera-report-agenzia"
+              element={
+                <PraticheProvider>
+                  <PratichePrivatoProvider>
+                    <GeneraReportPage mode="agenzia" />
+                  </PratichePrivatoProvider>
+                </PraticheProvider>
               }
             />
           </Routes>

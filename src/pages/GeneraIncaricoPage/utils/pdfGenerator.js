@@ -163,7 +163,7 @@ export const generateIncaricoDocument = async (data) => {
  */
 export const downloadDocument = (blob, fileName) => {
   try {
-    const sanitizedFileName = fileName.replace(/[^a-z0-9_\-\.]/gi, '_');
+    const sanitizedFileName = fileName.replace(/[^a-z0-9_.-]/gi, '_');
     saveAs(blob, sanitizedFileName);
   } catch (error) {
     console.error('Errore download documento:', error);

@@ -20,6 +20,10 @@ const ID_DE_ANTONI = 'cd68da211d6247f5a7d70a89942c1c588502d52ac04cae5489d9b87aed
 const ID_CASTRO = '22ffa3657403100cf77f4e1a7162994f232fae6e8c347aff40b88d22301913f5@group.calendar.google.com';
 const ID_ANTONELLI = 'f9e5ceef7b9530ab26064892d7eda1703e13e6168ff21b2893af17b90ff73f05@group.calendar.google.com';
 
+// NB: 'primary' (REALINE Badalucco) resta l'ID logico usato in tutta l'app.
+// Lato server (functions/index.js) 'primary' viene risolto nell'ID reale del calendario
+// Badalucco condiviso con il service account (costante BADALUCCO_CALENDAR_ID).
+
 // Mappa dei colori personalizzata per calendario
 export const calendarColorMap = {
   'primary': '#FF6347',       // Pomodoro (REALINE Badalucco)

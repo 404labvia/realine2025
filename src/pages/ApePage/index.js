@@ -1,6 +1,6 @@
 // src/pages/ApePage/index.js
-import React, { useState, useMemo, useEffect } from 'react';
-import { FaPlus, FaMoneyBillWave, FaEuroSign, FaHandshake, FaChartLine, FaFilePdf } from 'react-icons/fa';
+import React, { useState, useMemo } from 'react';
+import { FaPlus, FaMoneyBillWave, FaEuroSign, FaFilePdf } from 'react-icons/fa';
 import { useApe } from './contexts/ApeContext';
 import { generateApeListPDF } from './utils/exportUtils';
 import NewApeForm from './components/NewApeForm';

@@ -29,3 +29,9 @@ yarn-error.log*
 
 # Firebase
 serviceAccountKey.json
+
+# Claude Code local config
+.claude/
+
+# Functions
+functions/node_modules

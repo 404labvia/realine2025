@@ -24,7 +24,8 @@ function BoardTable({
   onOpenCalendarModal,
   onEditCalendarTask,
   deleteGoogleCalendarEvent,
-  onCreateAutomationTask
+  onCreateAutomationTask,
+  onAttoConfermato
 }) {
   return (
     <div className="bg-white dark:bg-dark-surface shadow-sm rounded-lg overflow-hidden transition-colors duration-200">
@@ -201,6 +202,7 @@ function BoardTable({
                     updatePratica={updatePratica}
                     localPratiche={localPratiche}
                     setLocalPratiche={setLocalPratiche}
+                    onAttoConfermato={onAttoConfermato}
                   />
                 </td>
                 <td className="col-incarico">

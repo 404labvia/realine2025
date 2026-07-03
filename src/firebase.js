@@ -1,6 +1,7 @@
 // src/firebase.js
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import { getFunctions } from "firebase/functions";
 import {
   getAuth,
   signInWithPopup, // Manteniamo solo questo per il login
@@ -22,6 +23,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+// Region deve combaciare con quella delle Cloud Functions (functions/index.js -> us-central1)
+const functions = getFunctions(app, "us-central1");
 const googleProvider = new GoogleAuthProvider();
 
 console.log("Firebase initialized with config:", {
@@ -52,6 +55,7 @@ const logoutUser = async () => {
 export {
   db,
   auth,
+  functions, // Istanza Cloud Functions (per httpsCallable)
   signInWithGoogle,
   logoutUser,
   onAuthStateChanged // ESPORTA DIRETTAMENTE LA FUNZIONE IMPORTATA

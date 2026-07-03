@@ -2,7 +2,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react'; // Import useMemo
 import { usePratiche } from '../../contexts/PraticheContext';
 import { format } from 'date-fns';
-import { it } from 'date-fns/locale';
 import { FaFileDownload } from 'react-icons/fa';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -64,23 +63,6 @@ const calcolaIncassiEffettiviCommittentePratica = (pratica) => {
     return pagamenti;
  };
 
-// Calcola pagamenti collaboratori/firmatari TOTALI PREVISTI (importi inseriti negli step)
-const calcolaPagamentiInseritiCollaboratoriPratica = (pratica) => {
-    let pagamenti = 0;
-    if (pratica?.workflow) { // Aggiunto controllo esistenza workflow
-        const passi = ['acconto1', 'acconto2', 'saldo'];
-        passi.forEach(passo => {
-            if (pratica.workflow[passo]?.importoCollaboratore > 0) {
-                pagamenti += pratica.workflow[passo].importoCollaboratore;
-            }
-            if (pratica.workflow[passo]?.importoFirmatario > 0) {
-                pagamenti += pratica.workflow[passo].importoFirmatario;
-            }
-        });
-    }
-    return pagamenti;
-};
-
 // Logica Calcolo Profitto Pratica per Distribuzione Soci (basata su importo base committente e importi LORDI collaboratori)
 const calcolaProfittoPraticaPerSoci = (pratica) => {
     const baseCommittente = pratica?.importoBaseCommittente || 0; // Aggiunto controllo esistenza pratica
@@ -115,7 +97,7 @@ const initialFinanzeState = {
 
 function FinanzePage() {
   // --- 1. Hooks ---
-  const { pratiche, loading, updatePratica } = usePratiche();
+  const { pratiche, loading } = usePratiche();
   const [filtroMese, setFiltroMese] = useState('');
   const [filtroAnno, setFiltroAnno] = useState(new Date().getFullYear().toString());
   const reportRef = useRef(null);
@@ -286,11 +268,6 @@ function FinanzePage() {
         acc[nome] = { ...data, daPagare: Math.max(0, data.totale - data.pagato) };
         return acc;
     }, {});
-     const totaliGeneraliCollaboratori = {
-         totale: Object.values(totaliCollaboratoriMap).reduce((sum, collab) => sum + collab.totale, 0),
-         pagato: Object.values(totaliCollaboratoriMap).reduce((sum, collab) => sum + collab.pagato, 0),
-         daPagare: Object.values(totaliCollaboratoriMap).reduce((sum, collab) => sum + collab.daPagare, 0),
-     };
 
     pagamentiRecenti.sort((a, b) => b.data - a.data);
 

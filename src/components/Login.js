@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { FaGoogle } from 'react-icons/fa';
 import { useNavigate } from 'react-router-dom';
-import { auth } from '../firebase'; // Importa auth per controllare currentUser iniziale
 import { useAuth } from '../contexts/AuthContext'; // Importa useAuth per signInWithGoogle e loading
 
 function Login() {

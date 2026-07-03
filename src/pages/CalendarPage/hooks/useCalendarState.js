@@ -4,7 +4,7 @@ import { addHours, startOfHour } from 'date-fns';
 
 export const useCalendarState = (tutteLePratiche = [], pratichePrivate = []) => {
   // Modificato per accettare praticaIdToSelect
-  const getInitialFormState = (praticaIdToSelect = '') => ({
+  const getInitialFormState = useCallback((praticaIdToSelect = '') => ({
     id: null,
     title: '', // Titolo sempre vuoto all'inizio
     start: startOfHour(new Date()),
@@ -13,11 +13,11 @@ export const useCalendarState = (tutteLePratiche = [], pratichePrivate = []) => 
     relatedPraticaId: praticaIdToSelect, // Usa l'ID passato
     isPrivate: praticaIdToSelect ? pratichePrivate.some(p => p.id === praticaIdToSelect) : false,
     targetCalendarId: 'primary',
-  });
+  }), [pratichePrivate]);
 
   const [showEventModal, setShowEventModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
-  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [, setSelectedSlot] = useState(null);
   const [formState, setFormState] = useState(getInitialFormState());
 
   const handleSelectSlot = useCallback(({ start, end }) => {
@@ -60,7 +60,7 @@ export const useCalendarState = (tutteLePratiche = [], pratichePrivate = []) => 
     setSelectedEvent(null);
     setSelectedSlot(null);
     setFormState(getInitialFormState());
-  }, []);
+  }, [getInitialFormState]);
 
   const handleFormChange = useCallback((e) => {
     const { name, value, type, checked } = e.target;
@@ -101,21 +101,6 @@ export const useCalendarState = (tutteLePratiche = [], pratichePrivate = []) => 
       // Non modifichiamo il titolo qui per mantenere quello inserito dall'utente
     }));
   }, [pratichePrivate]);
-
-  // Mantenuto per compatibilità con EventModal: aggiunge i dettagli pratica al titolo
-  // SOLO se un titolo è già presente o se non c'è titolo ma c'è pratica.
-  const getEventTitleWithPraticaDetails = useCallback(() => {
-    let eventTitle = formState.title.trim();
-    if (formState.relatedPraticaId) {
-      const praticaSelezionata = tutteLePratiche.find(p => p.id === formState.relatedPraticaId);
-      if (praticaSelezionata) {
-          const baseTitle = eventTitle || "Task"; // Usa "Task" se titolo è vuoto
-          eventTitle = `${baseTitle} (Pratica: ${praticaSelezionata.indirizzo || 'N/D'} - ${praticaSelezionata.cliente || 'N/D'})`;
-      }
-    }
-    return eventTitle || 'Nuovo Evento'; // Fallback se tutto è vuoto
-  }, [formState.title, formState.relatedPraticaId, tutteLePratiche]);
-
 
   const prepareEventForApi = useCallback(() => {
     // Se il titolo è vuoto E c'è una pratica, usa "Task" come base
@@ -163,7 +148,7 @@ export const useCalendarState = (tutteLePratiche = [], pratichePrivate = []) => 
       title: '', // Assicura che il titolo sia vuoto
     });
     setShowEventModal(true);
-  }, [pratichePrivate]); // Aggiunta dipendenza
+  }, [getInitialFormState]);
 
   return {
     showEventModal, formState, selectedEvent,

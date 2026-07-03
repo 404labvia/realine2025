@@ -1,5 +1,4 @@
 // src/pages/PratichePage/utils/migrationUtils.js
-import { format } from 'date-fns';
 import { workflowSteps } from './praticheUtils';
 
 // Utility per migrare e preparare dati

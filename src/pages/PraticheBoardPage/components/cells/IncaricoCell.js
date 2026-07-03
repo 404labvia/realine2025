@@ -1,5 +1,5 @@
 // src/pages/PraticheBoardPage/components/cells/IncaricoCell.js
-import React, { useState } from 'react';
+import React from 'react';
 import { format, addDays } from 'date-fns';
 import { it } from 'date-fns/locale';
 

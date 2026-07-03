@@ -1,5 +1,5 @@
 // src/pages/AccessiAgliAttiPage/index.js
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { FaPlus, FaClock, FaCheckCircle, FaFilePdf } from 'react-icons/fa';
 import { useAccessiAtti } from './contexts/AccessoAttiContext';
 import { generateAccessiListPDF } from './utils/exportUtils';

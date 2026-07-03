@@ -1,5 +1,5 @@
 // src/pages/PraticheBoardPage/components/sidePeek/TaskSidePeek.js
-import React, { useState } from 'react';
+import React from 'react';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { FaTimes, FaPlus, FaGoogle } from 'react-icons/fa';

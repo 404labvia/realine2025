@@ -1,6 +1,6 @@
 // src/pages/PraticheBoardPage/components/cells/StatoCell.js
 import React from 'react';
-import { differenceInDays, differenceInCalendarDays, differenceInMonths } from 'date-fns';
+import { differenceInCalendarDays, differenceInMonths } from 'date-fns';
 import { FaPlay, FaClock } from 'react-icons/fa';
 
 const StatoCell = ({ pratica, onChangeStato }) => {

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePratiche } from '../../contexts/PraticheContext';
 import { usePratichePrivato } from '../../contexts/PratichePrivatoContext';
 import { useAccessiAtti } from '../AccessiAgliAttiPage/contexts/AccessoAttiContext';
-import { FaPlus, FaSearch, FaFilter, FaSort, FaList, FaFilePdf } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaFilter, FaSort } from 'react-icons/fa';
 import Fuse from 'fuse.js';
 import { addDays } from 'date-fns';
 
@@ -17,15 +17,13 @@ import { NewPraticaForm, EditPraticaForm } from '../PratichePage/components/form
 import NewAccessoAttiForm from '../AccessiAgliAttiPage/components/NewAccessoAttiForm';
 import EditAccessoAttiForm from '../AccessiAgliAttiPage/components/EditAccessoAttiForm';
 
-import { agenzieCollaboratori, generatePDF, generateListPDF, generateDailyPDF, generateMonthlyAttiPDF } from '../PratichePage/utils';
+import { agenzieCollaboratori } from '../PratichePage/utils';
 import { calendarIds, calendarNameMap } from '../CalendarPage/utils/calendarUtils';
 import { auth } from '../../firebase';
 
 const calendarListForModal = [
   { id: 'primary', name: calendarNameMap['primary'] },
   { id: calendarIds.ID_DE_ANTONI, name: calendarNameMap[calendarIds.ID_DE_ANTONI] },
-  { id: calendarIds.ID_CASTRO, name: calendarNameMap[calendarIds.ID_CASTRO] },
-  { id: calendarIds.ID_ANTONELLI, name: calendarNameMap[calendarIds.ID_ANTONELLI] },
 ].filter(cal => cal.id && cal.name);
 
 function PraticheBoardPage() {
@@ -47,11 +45,6 @@ function PraticheBoardPage() {
   const [editingPraticaId, setEditingPraticaId] = useState(null);
   const [showNewPraticaForm, setShowNewPraticaForm] = useState(false);
   const [currentStepIdForCalendar, setCurrentStepIdForCalendar] = useState(null);
-  const [showExportOptions, setShowExportOptions] = useState(false);
-  const [meseAtti, setMeseAtti] = useState(() => {
-    const oggi = new Date();
-    return `${oggi.getFullYear()}-${String(oggi.getMonth() + 1).padStart(2, '0')}`;
-  });
 
   // Stati per gestione accessi atti
   const [showNewAccessoForm, setShowNewAccessoForm] = useState(false);
@@ -82,8 +75,6 @@ function PraticheBoardPage() {
     calendarEvents,
     isLoadingEvents,
     loginToGoogle,
-    logoutFromGoogle,
-    fetchGoogleEvents,
     createGoogleEvent,
     updateGoogleEvent,
     deleteGoogleEvent: deleteGoogleCalendarEvent,
@@ -261,7 +252,7 @@ function PraticheBoardPage() {
         sourceCalendarId: task.sourceCalendarId || 'primary',
       });
     }
-  }, [calendarEvents, handleSelectCalendarEventForModal, tutteLePratichePerModal, pratichePrivateData]);
+  }, [calendarEvents, handleSelectCalendarEventForModal, pratichePrivateData]);
 
   // Funzione per creare task automatiche da checkbox incarico
   const handleCreateAutomationTask = async (praticaId, stepId, taskData) => {
@@ -468,22 +459,70 @@ function PraticheBoardPage() {
     }
   };
 
-  const handleGeneratePDF = async (filtroAgenziaPerPdf = '') => {
-    await generatePDF(localPratiche, filtroAgenziaPerPdf);
-    setShowExportOptions(false);
-  };
+  // Automazione: crea/aggiorna/elimina l'evento "Atto" sul calendario Realine De Antoni
+  const handleAttoConfermato = async (pratica, updatedWorkflow, action) => {
+    if (!gapiClientInitialized || !googleApiToken) {
+      alert("Connetti Google Calendar per sincronizzare automaticamente l'atto sul calendario De Antoni.");
+      return;
+    }
 
-  const handleGenerateListPDF = async () => {
-    await generateListPDF(localPratiche, '');
-  };
+    const calendarId = calendarIds.ID_DE_ANTONI;
+    const scadenze = updatedWorkflow?.scadenze || {};
+    const existingEventId = scadenze.attoGoogleEventId;
 
-  const handleGenerateDailyPDF = async () => {
-    await generateDailyPDF(localPratiche, pratichePrivateData, new Date());
-  };
+    try {
+      // Rimozione atto -> elimina l'evento collegato
+      if (action === 'delete') {
+        if (existingEventId) {
+          await deleteGoogleCalendarEvent(existingEventId, calendarId);
+          const nuovoWorkflow = JSON.parse(JSON.stringify(updatedWorkflow));
+          if (nuovoWorkflow.scadenze) delete nuovoWorkflow.scadenze.attoGoogleEventId;
+          setLocalPratiche(prev => prev.map(p => p.id === pratica.id ? { ...p, workflow: nuovoWorkflow } : p));
+          await updatePratica(pratica.id, { workflow: nuovoWorkflow });
+        }
+        return;
+      }
 
-  const handleGenerateMonthlyAttiPDF = async () => {
-    const [anno, mese] = meseAtti.split('-').map(Number);
-    await generateMonthlyAttiPDF(localPratiche, new Date(anno, mese - 1, 1));
+      // Conferma/modifica atto -> crea o aggiorna l'evento
+      const dataAtto = scadenze.dataAttoConfermato; // 'YYYY-MM-DD'
+      const oraAtto = scadenze.oraAttoConfermato || '12:00'; // 'HH:mm'
+      if (!dataAtto) return;
+
+      const start = new Date(`${dataAtto}T${oraAtto}:00`);
+      const end = new Date(start.getTime() + 60 * 60 * 1000);
+
+      const eventResource = {
+        summary: `Atto: ${pratica.indirizzo || ''}${pratica.cliente ? ` — ${pratica.cliente}` : ''}`.trim(),
+        description: `Atto confermato${pratica.agenzia ? ` — Agenzia: ${pratica.agenzia}` : ''}${pratica.codice ? ` — Pratica: ${pratica.codice}` : ''}`,
+        start: { dateTime: start.toISOString(), timeZone: 'Europe/Rome' },
+        end: { dateTime: end.toISOString(), timeZone: 'Europe/Rome' },
+        reminders: {
+          useDefault: false,
+          overrides: [
+            { method: 'popup', minutes: 24 * 60 }, // popup il giorno prima
+          ],
+        },
+      };
+
+      let savedEvent;
+      if (existingEventId) {
+        savedEvent = await updateGoogleEvent(existingEventId, eventResource, calendarId);
+      } else {
+        savedEvent = await createGoogleEvent(eventResource, calendarId);
+      }
+
+      // Salva l'id evento sulla pratica (solo se nuovo) per evitare duplicati
+      if (savedEvent?.id && savedEvent.id !== existingEventId) {
+        const nuovoWorkflow = JSON.parse(JSON.stringify(updatedWorkflow));
+        if (!nuovoWorkflow.scadenze) nuovoWorkflow.scadenze = {};
+        nuovoWorkflow.scadenze.attoGoogleEventId = savedEvent.id;
+        setLocalPratiche(prev => prev.map(p => p.id === pratica.id ? { ...p, workflow: nuovoWorkflow } : p));
+        await updatePratica(pratica.id, { workflow: nuovoWorkflow });
+      }
+    } catch (error) {
+      console.error('Errore sincronizzazione atto su Google Calendar:', error);
+      alert("Errore nella sincronizzazione dell'atto su Google Calendar.");
+    }
   };
 
   if (loading || loadingPratichePrivate || loadingAccessiAtti || (isLoadingGapi && !googleApiToken)) {
@@ -558,70 +597,6 @@ function PraticheBoardPage() {
           </div>
 
           <button
-            onClick={handleGenerateListPDF}
-            className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center text-sm whitespace-nowrap transition-colors"
-          >
-            <FaList className="mr-1" size={14} /> Esporta Lista Pratiche
-          </button>
-
-          <button
-            onClick={handleGenerateDailyPDF}
-            className="px-3 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 flex items-center text-sm whitespace-nowrap transition-colors"
-            title="Elenco delle aggiunte di oggi (note, task, nuove pratiche)"
-          >
-            <FaList className="mr-1" size={14} /> Esporta Giornaliero
-          </button>
-
-          <div className="flex items-center gap-1">
-            <input
-              type="month"
-              value={meseAtti}
-              onChange={(e) => setMeseAtti(e.target.value)}
-              className="px-2 py-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded-md"
-            />
-            <button
-              onClick={handleGenerateMonthlyAttiPDF}
-              className="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 flex items-center text-sm whitespace-nowrap transition-colors"
-              title="Elenco cronologico degli atti fissati nel mese"
-            >
-              <FaFilePdf className="mr-1" size={14} /> Atti Mese
-            </button>
-          </div>
-
-          <div className="relative">
-            <button
-              onClick={() => setShowExportOptions(!showExportOptions)}
-              className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center text-sm whitespace-nowrap transition-colors"
-            >
-              <FaFilePdf className="mr-1" size={14} /> Esporta PDF
-            </button>
-            {showExportOptions && (
-              <div className="absolute right-0 mt-1 bg-white dark:bg-dark-surface shadow-lg rounded-md z-20 w-48 top-10">
-                <ul className="py-1">
-                  <li>
-                    <button
-                      onClick={() => handleGeneratePDF()}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-dark-text-primary hover:bg-gray-100 dark:hover:bg-dark-hover"
-                    >
-                      Tutte le pratiche
-                    </button>
-                  </li>
-                  {agenzieCollaboratori.map(ac => (
-                    <li key={ac.agenzia}>
-                      <button
-                        onClick={() => handleGeneratePDF(ac.agenzia)}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-dark-text-primary hover:bg-gray-100 dark:hover:bg-dark-hover"
-                      >
-                        {ac.agenzia}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-
-          <button
             onClick={() => setShowNewPraticaForm(true)}
             className="px-4 py-2 bg-gray-700 dark:bg-gray-800 text-white rounded-md hover:bg-gray-800 dark:hover:bg-gray-900 flex items-center gap-2 text-sm whitespace-nowrap transition-colors"
           >
@@ -671,6 +646,7 @@ function PraticheBoardPage() {
           onEditCalendarTask={handleEditCalendarTask}
           deleteGoogleCalendarEvent={deleteGoogleCalendarEvent}
           onCreateAutomationTask={handleCreateAutomationTask}
+          onAttoConfermato={handleAttoConfermato}
         />
       )}
 

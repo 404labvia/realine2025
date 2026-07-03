@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePratichePrivato } from '../../contexts/PratichePrivatoContext';
 import { usePratiche } from '../../contexts/PraticheContext';
-import { FaPlus, FaSearch, FaFilter, FaSort, FaFilePdf } from 'react-icons/fa';
+import { FaPlus, FaSearch, FaFilter, FaSort } from 'react-icons/fa';
 import Fuse from 'fuse.js';
 import { addDays } from 'date-fns';
 
@@ -13,16 +13,13 @@ import BoardTable from '../PraticheBoardPage/components/BoardTable';
 import EventModal from '../CalendarPage/components/EventModal';
 import { NewPraticaPrivatoForm, EditPraticaPrivatoForm } from './components/forms';
 
-import { agenzieCollaboratoriPrivato, generatePDF } from './utils';
-import { generateListPDF } from '../PratichePage/utils';
+import { agenzieCollaboratoriPrivato } from './utils';
 import { calendarIds, calendarNameMap } from '../CalendarPage/utils/calendarUtils';
 import { auth } from '../../firebase';
 
 const calendarListForModal = [
   { id: 'primary', name: calendarNameMap['primary'] },
   { id: calendarIds.ID_DE_ANTONI, name: calendarNameMap[calendarIds.ID_DE_ANTONI] },
-  { id: calendarIds.ID_CASTRO, name: calendarNameMap[calendarIds.ID_CASTRO] },
-  { id: calendarIds.ID_ANTONELLI, name: calendarNameMap[calendarIds.ID_ANTONELLI] },
 ].filter(cal => cal.id && cal.name);
 
 function PratichePrivatoPage() {
@@ -36,7 +33,6 @@ function PratichePrivatoPage() {
   const [ordinaPerScadenza, setOrdinaPerScadenza] = useState(true);
   const [editingPraticaId, setEditingPraticaId] = useState(null);
   const [showNewPraticaForm, setShowNewPraticaForm] = useState(false);
-  const [showExportOptions, setShowExportOptions] = useState(false);
   const [currentStepIdForCalendar, setCurrentStepIdForCalendar] = useState(null);
 
   useEffect(() => {
@@ -365,13 +361,70 @@ function PratichePrivatoPage() {
     }
   };
 
-  const handleGeneratePDF = async (filtroAgenziaPerPdf = '') => {
-    await generatePDF(localPratiche, filtroAgenziaPerPdf);
-    setShowExportOptions(false);
-  };
+  // Automazione: crea/aggiorna/elimina l'evento "Atto" sul calendario Realine De Antoni
+  const handleAttoConfermato = async (pratica, updatedWorkflow, action) => {
+    if (!gapiClientInitialized || !googleApiToken) {
+      alert("Connetti Google Calendar per sincronizzare automaticamente l'atto sul calendario De Antoni.");
+      return;
+    }
 
-  const handleGenerateListPDF = async () => {
-    await generateListPDF(localPratiche, '');
+    const calendarId = calendarIds.ID_DE_ANTONI;
+    const scadenze = updatedWorkflow?.scadenze || {};
+    const existingEventId = scadenze.attoGoogleEventId;
+
+    try {
+      // Rimozione atto -> elimina l'evento collegato
+      if (action === 'delete') {
+        if (existingEventId) {
+          await deleteGoogleCalendarEvent(existingEventId, calendarId);
+          const nuovoWorkflow = JSON.parse(JSON.stringify(updatedWorkflow));
+          if (nuovoWorkflow.scadenze) delete nuovoWorkflow.scadenze.attoGoogleEventId;
+          setLocalPratiche(prev => prev.map(p => p.id === pratica.id ? { ...p, workflow: nuovoWorkflow } : p));
+          await updatePratica(pratica.id, { workflow: nuovoWorkflow });
+        }
+        return;
+      }
+
+      // Conferma/modifica atto -> crea o aggiorna l'evento
+      const dataAtto = scadenze.dataAttoConfermato; // 'YYYY-MM-DD'
+      const oraAtto = scadenze.oraAttoConfermato || '12:00'; // 'HH:mm'
+      if (!dataAtto) return;
+
+      const start = new Date(`${dataAtto}T${oraAtto}:00`);
+      const end = new Date(start.getTime() + 60 * 60 * 1000);
+
+      const eventResource = {
+        summary: `Atto: ${pratica.indirizzo || ''}${pratica.cliente ? ` — ${pratica.cliente}` : ''}`.trim(),
+        description: `Atto confermato${pratica.agenzia ? ` — Agenzia: ${pratica.agenzia}` : ''}${pratica.codice ? ` — Pratica: ${pratica.codice}` : ''}`,
+        start: { dateTime: start.toISOString(), timeZone: 'Europe/Rome' },
+        end: { dateTime: end.toISOString(), timeZone: 'Europe/Rome' },
+        reminders: {
+          useDefault: false,
+          overrides: [
+            { method: 'popup', minutes: 24 * 60 }, // popup il giorno prima
+          ],
+        },
+      };
+
+      let savedEvent;
+      if (existingEventId) {
+        savedEvent = await updateGoogleEvent(existingEventId, eventResource, calendarId);
+      } else {
+        savedEvent = await createGoogleEvent(eventResource, calendarId);
+      }
+
+      // Salva l'id evento sulla pratica (solo se nuovo) per evitare duplicati
+      if (savedEvent?.id && savedEvent.id !== existingEventId) {
+        const nuovoWorkflow = JSON.parse(JSON.stringify(updatedWorkflow));
+        if (!nuovoWorkflow.scadenze) nuovoWorkflow.scadenze = {};
+        nuovoWorkflow.scadenze.attoGoogleEventId = savedEvent.id;
+        setLocalPratiche(prev => prev.map(p => p.id === pratica.id ? { ...p, workflow: nuovoWorkflow } : p));
+        await updatePratica(pratica.id, { workflow: nuovoWorkflow });
+      }
+    } catch (error) {
+      console.error('Errore sincronizzazione atto su Google Calendar:', error);
+      alert("Errore nella sincronizzazione dell'atto su Google Calendar.");
+    }
   };
 
   if (loading || loadingStandard || (isLoadingGapi && !googleApiToken)) {
@@ -445,46 +498,6 @@ function PratichePrivatoPage() {
           </div>
 
           <button
-            onClick={handleGenerateListPDF}
-            className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 flex items-center text-sm whitespace-nowrap transition-colors"
-          >
-            <FaFilePdf className="mr-1" size={14} /> Esporta Lista
-          </button>
-
-          <div className="relative">
-            <button
-              onClick={() => setShowExportOptions(!showExportOptions)}
-              className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center text-sm whitespace-nowrap transition-colors"
-            >
-              <FaFilePdf className="mr-1" size={14} /> Esporta PDF
-            </button>
-            {showExportOptions && (
-              <div className="absolute right-0 mt-1 bg-white dark:bg-dark-surface shadow-lg rounded-md z-20 w-48 top-10">
-                <ul className="py-1">
-                  <li>
-                    <button
-                      onClick={() => handleGeneratePDF()}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-dark-text-primary hover:bg-gray-100 dark:hover:bg-dark-hover"
-                    >
-                      Tutte le pratiche
-                    </button>
-                  </li>
-                  {agenzieCollaboratoriPrivato.map(ac => (
-                    <li key={ac.agenzia}>
-                      <button
-                        onClick={() => handleGeneratePDF(ac.agenzia)}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-dark-text-primary hover:bg-gray-100 dark:hover:bg-dark-hover"
-                      >
-                        {ac.agenzia}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-
-          <button
             onClick={() => setShowNewPraticaForm(true)}
             className="px-4 py-2 bg-gray-700 dark:bg-gray-800 text-white rounded-md hover:bg-gray-800 dark:hover:bg-gray-900 flex items-center gap-2 text-sm whitespace-nowrap transition-colors"
           >
@@ -522,6 +535,7 @@ function PratichePrivatoPage() {
           onEditCalendarTask={handleEditCalendarTask}
           deleteGoogleCalendarEvent={deleteGoogleCalendarEvent}
           onCreateAutomationTask={handleCreateAutomationTask}
+          onAttoConfermato={handleAttoConfermato}
         />
       )}
 

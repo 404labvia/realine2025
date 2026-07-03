@@ -18,14 +18,14 @@ function Step1Visura({ incaricoData, setVisuraExtractedData, updateIncaricoData,
   const [progressCI, setProgressCI] = useState(0);
   const [error, setError] = useState(null);
   const [ciError, setCiError] = useState(null);
-  const [validation, setValidation] = useState(null);
+  const [, setValidation] = useState(null);
   const [isEditingImmobile, setIsEditingImmobile] = useState(false);
   const [isSavingToFirebase, setIsSavingToFirebase] = useState(false);
   const [savedToFirebase, setSavedToFirebase] = useState(false);
 
   // Stato per carta d'identità
   const [ciFile, setCiFile] = useState(null);
-  const [ciExtractedData, setCiExtractedData] = useState(null);
+  const [, setCiExtractedData] = useState(null);
 
   // Combina le pratiche come nel Calendario
   const tutteLePratiche = useMemo(() => {

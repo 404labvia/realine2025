@@ -20,15 +20,12 @@ import { useGoogleCalendarApi } from './CalendarPage/hooks/useGoogleCalendarApi'
 
 import CalendarHeader from './CalendarPage/components/CalendarHeader';
 import EventModal from './CalendarPage/components/EventModal'; // Assicurati che sia la versione aggiornata
-import { FaCalendarCheck as FaCalendarCheckIcon } from 'react-icons/fa';
 
 // Creiamo la lista dei calendari per il dropdown nel modale
 // Questa lista ora usa gli ID e i nomi corretti da calendarUtils.js
 const calendarListForModal = [
     { id: 'primary', name: calendarNameMap['primary'] },
     { id: calendarIds.ID_DE_ANTONI, name: calendarNameMap[calendarIds.ID_DE_ANTONI] },
-    { id: calendarIds.ID_CASTRO, name: calendarNameMap[calendarIds.ID_CASTRO] },
-    { id: calendarIds.ID_ANTONELLI, name: calendarNameMap[calendarIds.ID_ANTONELLI] },
 ].filter(cal => cal.id && cal.name); // Filtra per sicurezza se qualche ID/nome non è definito
 
 function CalendarPage() {
@@ -49,13 +46,8 @@ function CalendarPage() {
   }, [tutteLePratiche]);
 
   const {
-    googleApiToken,
-    gapiClientInitialized,
-    isLoadingGapi,
     calendarEvents,
     isLoadingEvents,
-    loginToGoogle,
-    logoutFromGoogle,
     fetchGoogleEvents,
     createGoogleEvent,
     updateGoogleEvent,
@@ -125,9 +117,6 @@ function CalendarPage() {
   };
 
   const handleEventDropOrResize = useCallback(async ({ event, start, end }) => {
-    if (!gapiClientInitialized || !googleApiToken || !window.gapi?.client?.calendar) {
-        fetchGoogleEvents(); return;
-    }
     if (!event.googleEvent && !event.id) {
         alert("Questa funzionalità è solo per eventi Google Calendar salvati.");
         fetchGoogleEvents(); return;
@@ -153,32 +142,17 @@ function CalendarPage() {
       console.error("Errore update drag/resize (CalendarPage):", error);
       fetchGoogleEvents(); // Risincronizza in caso di errore
     }
-  }, [gapiClientInitialized, googleApiToken, updateGoogleEvent, fetchGoogleEvents]);
+  }, [updateGoogleEvent, fetchGoogleEvents]);
 
   return (
     <div className="container mx-auto p-4">
       <CalendarHeader
-        googleApiToken={googleApiToken}
-        gapiClientInitialized={gapiClientInitialized}
-        isLoadingGapi={isLoadingGapi}
         isLoadingEvents={isLoadingEvents}
-        onLogin={() => {
-            if (gapiClientInitialized) loginToGoogle();
-            else alert("L'API di Google Calendar non è ancora pronta. Riprova tra poco.");
-        }}
-        onLogout={logoutFromGoogle}
         onRefreshEvents={fetchGoogleEvents}
         onShowCreationModal={() => openNewEventModal(new Date())}
       />
 
-      {(isLoadingGapi && !googleApiToken && !gapiClientInitialized) && (
-        <div className="text-center py-4 text-gray-600 bg-yellow-50 p-3 rounded-md">
-          Inizializzazione API di Google in corso...
-        </div>
-      )}
-
-      {(googleApiToken && gapiClientInitialized) ? (
-        <div style={{ height: 'calc(100vh - 220px)' }} className="bg-white p-2 sm:p-4 rounded-lg shadow-md">
+      <div style={{ height: 'calc(100vh - 220px)' }} className="bg-white p-2 sm:p-4 rounded-lg shadow-md">
           <Calendar
             localizer={localizer}
             events={calendarEvents}
@@ -209,22 +183,6 @@ function CalendarPage() {
             timeslots={4}
           />
         </div>
-      ) : !googleApiToken && gapiClientInitialized ? (
-        <div className="text-center py-10 text-gray-700 bg-gray-50 p-6 rounded-lg shadow">
-            <FaCalendarCheckIcon className="mx-auto text-4xl text-blue-500 mb-3" />
-            <p className="text-lg">Connetti il tuo Google Calendar per visualizzare e gestire gli eventi.</p>
-            <button
-              onClick={() => {
-                if (gapiClientInitialized) loginToGoogle();
-                else alert("L'API di Google Calendar non è ancora pronta. Riprova tra poco.");
-              }}
-              className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded flex items-center mx-auto"
-              disabled={isLoadingGapi}
-            >
-              Connetti Google Calendar
-            </button>
-        </div>
-      ) : null} {/* Non mostrare nulla se GAPI sta caricando E non c'è token, gestito sopra */}
 
       {showEventModal && (
         <EventModal

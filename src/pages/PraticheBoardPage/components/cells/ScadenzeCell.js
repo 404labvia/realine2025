@@ -4,7 +4,7 @@ import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { FaTimes, FaPlus, FaEdit } from 'react-icons/fa';
 
-const ScadenzeCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) => {
+const ScadenzeCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche, onAttoConfermato }) => {
   const [editingField, setEditingField] = useState(null);
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [noteText, setNoteText] = useState('');
@@ -44,6 +44,12 @@ const ScadenzeCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche 
     ));
 
     await updatePratica(pratica.id, { workflow: updatedWorkflow });
+
+    // Automazione: alla conferma dell'atto crea/aggiorna l'evento su Google Calendar
+    if (dateField === 'dataAttoConfermato' && tempDate && onAttoConfermato) {
+      onAttoConfermato(pratica, updatedWorkflow, 'set');
+    }
+
     setEditingField(null);
     setTempDate(null);
     setTempTime(null);
@@ -69,6 +75,11 @@ const ScadenzeCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche 
     ));
 
     await updatePratica(pratica.id, { workflow: updatedWorkflow });
+
+    // Automazione: alla rimozione dell'atto elimina l'evento su Google Calendar
+    if (field === 'dataAttoConfermato' && onAttoConfermato) {
+      onAttoConfermato(pratica, updatedWorkflow, 'delete');
+    }
   };
 
   const handleAddNote = async () => {

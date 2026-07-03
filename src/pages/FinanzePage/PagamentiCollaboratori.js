@@ -3,9 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { FaUsers, FaFolderOpen } from 'react-icons/fa';
 import { MdAccountBalanceWallet, MdAttachMoney, MdMoneyOff } from 'react-icons/md';
 import { usePratiche } from '../../contexts/PraticheContext';
-import { agenzieCollaboratori, collaboratoriAggiuntivi } from '../../pages/PratichePage/utils/praticheUtils';
-import { format } from 'date-fns';
-import { it } from 'date-fns/locale';
 
 // Componente per la barra di progresso con importo mancante e colori personalizzati
 const ProgressBar = ({ percentage, dovuto, ricevuto }) => {

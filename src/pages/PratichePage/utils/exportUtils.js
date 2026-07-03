@@ -595,14 +595,15 @@ export const generateDailyPDF = async (localPratiche = [], pratichePrivato = [],
 };
 
 /**
- * Export MENSILE: elenco cronologico semplice degli atti fissati (campo dataFine) nel mese.
+ * Export MENSILE: elenco cronologico semplice degli atti fissati nel mese.
+ * Legge la data dell'atto da workflow.scadenze.dataAttoConfermato (board), con fallback a dataFine (form legacy).
  * @param {Array} localPratiche - pratiche standard
  * @param {Date} mese - una data qualsiasi del mese di riferimento (default: mese corrente)
  */
 export const generateMonthlyAttiPDF = async (localPratiche = [], mese = new Date()) => {
   try {
     const conAtto = (localPratiche || [])
-      .map(p => ({ pratica: p, atto: safeDate(p.dataFine) }))
+      .map(p => ({ pratica: p, atto: safeDate(p.workflow?.scadenze?.dataAttoConfermato || p.dataFine) }))
       .filter(x => x.atto && isSameMonth(x.atto, mese))
       .sort((a, b) => a.atto - b.atto);
 
@@ -614,7 +615,9 @@ export const generateMonthlyAttiPDF = async (localPratiche = [], mese = new Date
     const meseLabel = format(mese, 'MMMM yyyy', { locale: it }).toUpperCase();
 
     const righeHTML = conAtto.map(({ pratica, atto }) => {
-      const ora = pratica.dataFineTime ? ` ${pratica.dataFineTime}` : ` ${format(atto, 'HH:mm')}`;
+      const ora = pratica.workflow?.scadenze?.oraAttoConfermato
+        ? ` ${pratica.workflow.scadenze.oraAttoConfermato}`
+        : (pratica.dataFineTime ? ` ${pratica.dataFineTime}` : ` ${format(atto, 'HH:mm')}`);
       return `<li>
         <strong>${format(atto, 'dd/MM/yyyy')}${ora}</strong> — ${pratica.indirizzo || ''} — <strong>${(pratica.cliente || '').toUpperCase()}</strong>${pratica.agenzia ? ` <span class="fasi">(${pratica.agenzia})</span>` : ''}
       </li>`;

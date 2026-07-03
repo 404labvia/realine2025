@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { format, isPast, isToday, isValid } from 'date-fns';
 import { it } from 'date-fns/locale';
-import { FaCalendarAlt, FaExclamationTriangle, FaBuilding, FaFileAlt, FaSync } from 'react-icons/fa';
+import { FaExclamationTriangle, FaSync } from 'react-icons/fa';
 import { MdCheck } from 'react-icons/md';
 
 function EnhancedTaskList({
