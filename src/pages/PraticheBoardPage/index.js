@@ -411,7 +411,8 @@ function PraticheBoardPage() {
       resetCalendarFormAndCloseModal();
     } catch (error) {
       console.error("Errore nel salvare l'evento di calendario e aggiornare la pratica:", error);
-      alert("Si è verificato un errore nel salvare l'evento e aggiornare la pratica.");
+      const dettaglio = error?.message && error.message !== 'INTERNAL' ? `\n\n${error.message}` : '';
+      alert(`Si è verificato un errore nel salvare l'evento e aggiornare la pratica.${dettaglio}`);
     } finally {
       setCurrentStepIdForCalendar(null);
     }

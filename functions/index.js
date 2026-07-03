@@ -31,6 +31,27 @@ function resolveCalendarId(calendarId) {
   return calendarId === "primary" ? BADALUCCO_CALENDAR_ID : calendarId;
 }
 
+// Converte un errore delle Google Calendar API (GaxiosError) in un HttpsError leggibile,
+// così il client riceve un messaggio utile invece del generico "INTERNAL".
+// Il 404 di Google su un calendario tipicamente significa: SA non condiviso su quel calendario.
+function toHttpsError(err, calendarId) {
+  const status = (err && (err.code || (err.response && err.response.status))) || null;
+  const cal = calendarId || "(sconosciuto)";
+  if (status === 404) {
+    return new HttpsError(
+      "not-found",
+      `Calendario "${cal}" non trovato o service account non autorizzato. Condividilo con l'email del service account (permesso "Apportare modifiche agli eventi").`
+    );
+  }
+  if (status === 403) {
+    return new HttpsError(
+      "permission-denied",
+      `Permessi insufficienti sul calendario "${cal}". Il service account deve avere il permesso "Apportare modifiche agli eventi".`
+    );
+  }
+  return new HttpsError("internal", (err && err.message) || "Errore Google Calendar.");
+}
+
 // Opzioni comuni: monta il secret e fissa la region (deve combaciare col client getFunctions).
 const callOpts = { secrets: [SA_SECRET], region: "us-central1" };
 
@@ -107,11 +128,16 @@ exports.createCalendarEvent = onCall(callOpts, async (request) => {
     throw new HttpsError("invalid-argument", "calendarId e resource sono richiesti.");
   }
   const calendar = getCalendarClient();
-  const res = await calendar.events.insert({
-    calendarId: resolveCalendarId(calendarId),
-    requestBody: resource,
-  });
-  return res.data;
+  try {
+    const res = await calendar.events.insert({
+      calendarId: resolveCalendarId(calendarId),
+      requestBody: resource,
+    });
+    return res.data;
+  } catch (err) {
+    console.error(`Errore insert evento ${calendarId}:`, err && err.message);
+    throw toHttpsError(err, calendarId);
+  }
 });
 
 // Aggiorna un evento. Ritorna l'evento aggiornato (res.data).
@@ -122,12 +148,17 @@ exports.updateCalendarEvent = onCall(callOpts, async (request) => {
     throw new HttpsError("invalid-argument", "calendarId, eventId e resource sono richiesti.");
   }
   const calendar = getCalendarClient();
-  const res = await calendar.events.update({
-    calendarId: resolveCalendarId(calendarId),
-    eventId,
-    requestBody: resource,
-  });
-  return res.data;
+  try {
+    const res = await calendar.events.update({
+      calendarId: resolveCalendarId(calendarId),
+      eventId,
+      requestBody: resource,
+    });
+    return res.data;
+  } catch (err) {
+    console.error(`Errore update evento ${calendarId}/${eventId}:`, err && err.message);
+    throw toHttpsError(err, calendarId);
+  }
 });
 
 // Elimina un evento. Ritorna { success: true }.
@@ -138,6 +169,11 @@ exports.deleteCalendarEvent = onCall(callOpts, async (request) => {
     throw new HttpsError("invalid-argument", "calendarId ed eventId sono richiesti.");
   }
   const calendar = getCalendarClient();
-  await calendar.events.delete({ calendarId: resolveCalendarId(calendarId), eventId });
-  return { success: true };
+  try {
+    await calendar.events.delete({ calendarId: resolveCalendarId(calendarId), eventId });
+    return { success: true };
+  } catch (err) {
+    console.error(`Errore delete evento ${calendarId}/${eventId}:`, err && err.message);
+    throw toHttpsError(err, calendarId);
+  }
 });

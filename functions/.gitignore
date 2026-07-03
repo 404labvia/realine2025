@@ -1,0 +1,10 @@
+node_modules/
+# Non committare MAI chiavi service account
+*.json.key
+service-account*.json
+sa-key*.json
+.env
+.env.*
+*.local
+firebase-debug.log
+ui-debug.log
