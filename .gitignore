@@ -34,4 +34,4 @@ serviceAccountKey.json
 .claude/
 
 # Functions
-functions/node_modules
+functions/node_modules.firebase/
