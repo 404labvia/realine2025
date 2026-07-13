@@ -1,0 +1,315 @@
+// functions/digest.js
+// Digest settimanale degli aggiornamenti (SOLO note, mai task) delle pratiche:
+//  - un'email per agenzia con le sole proprie pratiche (standard + private);
+//  - un'email per cliente/committente (campo emailCliente sulla pratica) con la sola sua pratica.
+// Invio tramite Resend (https://resend.com) via fetch nativo — nessuna dipendenza npm.
+// Usato sia dalla funzione schedulata (giovedì 18:00 Europe/Rome) sia dal callable "Invia ora".
+
+const RESEND_ENDPOINT = "https://api.resend.com/emails";
+
+// Mittente: dominio realine.it registrato su Resend (region eu-west-1).
+// Gli invii falliscono con 403 finché i record DNS DKIM/SPF non sono verificati.
+const DIGEST_FROM =
+  process.env.DIGEST_FROM || "Realine Studio <amministrazione@realine.it>";
+
+// Etichette degli step workflow, specchio di `workflowSteps` in
+// src/pages/PratichePage/utils/praticheUtils.js (identiche nella variante privato).
+// Le functions non possono importare da src/: tenere allineato a mano.
+const STEP_LABELS = {
+  intestazione: "Pratica",
+  dettagliPratica: "Dettagli Pratica",
+  inizioPratica: "Inizio Pratica",
+  accessoAtti: "Accesso atti",
+  sopralluogo: "Sopralluogo",
+  incarico: "Incarico",
+  acconto1: "Acconto 30%",
+  espletamentoPratica1: "Completamento Pratica",
+  acconto2: "Secondo Acconto 30%",
+  presentazionePratica: "Presentazione Pratica",
+  saldo: "Saldo 40%",
+};
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+// Pausa tra un invio e l'altro: il rate limit Resend è 2 req/s.
+const SEND_DELAY_MS = 600;
+
+// Specchio di safeDate in src/pages/PratichePage/utils/exportUtils.js:
+// accetta ISO string e Firestore Timestamp.
+function safeDate(value) {
+  if (!value) return null;
+  if (typeof value.toDate === "function") return value.toDate();
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function formatDateIt(date) {
+  return date.toLocaleDateString("it-IT", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "Europe/Rome",
+  });
+}
+
+function esc(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// Raccoglie da ogni pratica le note (mai i task) con data nella finestra.
+// Ritorna [{ praticaId, origine, agenzia, cliente, emailCliente, titolo, note: [{ stepLabel, text, date }] }]
+function collectUpdates(pratiche, windowStart, windowEnd) {
+  const updates = [];
+  for (const pratica of pratiche) {
+    const workflow = pratica.workflow || {};
+    const note = [];
+    for (const stepId of Object.keys(workflow)) {
+      const stepNotes = (workflow[stepId] && workflow[stepId].notes) || [];
+      for (const n of stepNotes) {
+        if (!n || !n.text || !String(n.text).trim()) continue;
+        const d = safeDate(n.date);
+        if (!d || d < windowStart || d >= windowEnd) continue;
+        note.push({ stepLabel: STEP_LABELS[stepId] || stepId, text: n.text, date: d });
+      }
+    }
+    if (note.length === 0) continue;
+    note.sort((a, b) => a.date - b.date);
+    updates.push({
+      praticaId: pratica.id,
+      origine: pratica.origine,
+      agenzia: pratica.agenzia || "",
+      cliente: pratica.cliente || "",
+      emailCliente: (pratica.emailCliente || "").trim(),
+      titolo: `${pratica.indirizzo || "Senza indirizzo"} - ${(pratica.cliente || "N/D").toUpperCase()}`,
+      note,
+    });
+  }
+  return updates;
+}
+
+function formatWeek(windowStart, windowEnd) {
+  return `${formatDateIt(windowStart)} – ${formatDateIt(windowEnd)}`;
+}
+
+function buildAgencySubject(agenzia, windowStart, windowEnd, isTest) {
+  const prefix = isTest ? "[TEST] " : "";
+  return `${prefix}Aggiornamenti pratiche — settimana ${formatWeek(windowStart, windowEnd)} — ${agenzia}`;
+}
+
+function buildClientSubject(titolo, isTest) {
+  const prefix = isTest ? "[TEST] " : "";
+  return `${prefix}Aggiornamenti sulla sua pratica — ${titolo}`;
+}
+
+function renderNoteList(note) {
+  const items = note
+    .map(
+      (n) =>
+        `<li style="margin-bottom:6px"><span style="color:#6b7280">${formatDateIt(n.date)}</span> — <strong>${esc(n.stepLabel)}:</strong> ${esc(n.text)}</li>`
+    )
+    .join("");
+  return `<ul style="margin:8px 0 12px;padding-left:28px;font-size:13px;line-height:1.6;color:#1f2937">${items}</ul>`;
+}
+
+function renderTestBanner(realRecipients) {
+  return `<div style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:10px 16px;font-size:12px">MODALITÀ TEST — destinatari reali: ${esc(realRecipients)}</div>`;
+}
+
+function renderFooter() {
+  return `<p style="font-size:11px;color:#9ca3af;padding:16px 8px">Email generata automaticamente da Realine Studio. Per informazioni rispondere a questa email o contattare lo studio.</p>`;
+}
+
+function renderHeader(title, subtitle) {
+  return `<div style="background:#003366;color:#ffffff;padding:20px 24px;border-radius:6px 6px 0 0">
+    <h1 style="margin:0;font-size:20px">${esc(title)}</h1>
+    <p style="margin:4px 0 0;font-size:13px;opacity:.85">${esc(subtitle)}</p>
+  </div>`;
+}
+
+function renderAgencyDigestHtml({ agenzia, gruppi, windowStart, windowEnd, testRecipients }) {
+  const blocchi = gruppi
+    .map(
+      (g) => `<div style="border:1px solid #e5e7eb;border-top:none">
+      <div style="background:#f3f4f6;padding:10px 16px;font-weight:bold;font-size:14px;color:#111827">${esc(g.titolo)}</div>
+      ${renderNoteList(g.note)}
+    </div>`
+    )
+    .join("");
+  return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto">
+    ${renderHeader("Aggiornamenti pratiche", `${agenzia} — settimana ${formatWeek(windowStart, windowEnd)}`)}
+    ${testRecipients ? renderTestBanner(testRecipients) : ""}
+    ${blocchi}
+    ${renderFooter()}
+  </div>`;
+}
+
+function renderClientDigestHtml({ gruppo, windowStart, windowEnd, testRecipients }) {
+  return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto">
+    ${renderHeader("Aggiornamenti sulla sua pratica", `Settimana ${formatWeek(windowStart, windowEnd)}`)}
+    ${testRecipients ? renderTestBanner(testRecipients) : ""}
+    <div style="border:1px solid #e5e7eb;border-top:none">
+      <p style="padding:12px 16px 0;font-size:13px;color:#1f2937">Gentile ${esc(gruppo.cliente || "Cliente")},<br>di seguito gli aggiornamenti della settimana relativi alla sua pratica.</p>
+      <div style="background:#f3f4f6;padding:10px 16px;font-weight:bold;font-size:14px;color:#111827;margin-top:8px">${esc(gruppo.titolo)}</div>
+      ${renderNoteList(gruppo.note)}
+    </div>
+    ${renderFooter()}
+  </div>`;
+}
+
+async function sendResendEmail({ apiKey, from, to, subject, html }) {
+  const res = await fetch(RESEND_ENDPOINT, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ from, to, subject, html }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Resend ${res.status}: ${body}`);
+  }
+  return res.json(); // { id }
+}
+
+// Orchestratore: raccoglie, raggruppa, invia (agenzie poi clienti), logga su digest_log.
+// testEmail impostata = tutte le email vanno a quell'indirizzo (le config attiva/emails vengono ignorate).
+async function runDigest(db, { trigger, testEmail = null, requestedBy = null, now = new Date() }) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) throw new Error("Secret RESEND_API_KEY mancante.");
+
+  const windowEnd = now;
+  const windowStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  // Pratiche standard + private (le private hanno una propria agenzia selezionata).
+  const [snapStandard, snapPrivato] = await Promise.all([
+    db.collection("pratiche").get(),
+    db.collection("pratiche_privato").get(),
+  ]);
+  const pratiche = [
+    ...snapStandard.docs.map((d) => ({ id: d.id, origine: "standard", ...d.data() })),
+    ...snapPrivato.docs.map((d) => ({ id: d.id, origine: "privato", ...d.data() })),
+  ];
+
+  const updates = collectUpdates(pratiche, windowStart, windowEnd);
+
+  // Config agenzie: doc ID = nome esatto agenzia.
+  const agenzieSnap = await db.collection("agenzie").get();
+  const agenzieConfig = new Map(agenzieSnap.docs.map((d) => [d.id, d.data()]));
+
+  // ---- Fase agenzie: raggruppa per agenzia (escluse falsy e sentinella 'PRIVATO') ----
+  const byAgency = new Map();
+  for (const u of updates) {
+    if (!u.agenzia || u.agenzia === "PRIVATO") continue;
+    if (!byAgency.has(u.agenzia)) byAgency.set(u.agenzia, []);
+    byAgency.get(u.agenzia).push(u);
+  }
+
+  const agencyResults = [];
+  const unknownAgencies = [];
+  for (const [agenzia, gruppi] of byAgency) {
+    const config = agenzieConfig.get(agenzia);
+    if (!config) unknownAgencies.push(agenzia);
+    const noteCount = gruppi.reduce((s, g) => s + g.note.length, 0);
+    const base = { agenzia, praticheCount: gruppi.length, noteCount };
+    try {
+      let to;
+      if (testEmail) {
+        to = [testEmail];
+      } else if (!config || config.attiva !== true) {
+        agencyResults.push({ ...base, status: "skipped_inactive" });
+        continue;
+      } else if (!Array.isArray(config.emails) || config.emails.length === 0) {
+        agencyResults.push({ ...base, status: "skipped_no_email" });
+        continue;
+      } else {
+        to = config.emails;
+      }
+      const realRecipients = testEmail
+        ? (config && Array.isArray(config.emails) && config.emails.join(", ")) || "(non configurati)"
+        : null;
+      const { id } = await sendResendEmail({
+        apiKey,
+        from: DIGEST_FROM,
+        to,
+        subject: buildAgencySubject(agenzia, windowStart, windowEnd, !!testEmail),
+        html: renderAgencyDigestHtml({ agenzia, gruppi, windowStart, windowEnd, testRecipients: realRecipients }),
+      });
+      agencyResults.push({ ...base, to, status: "sent", resendId: id });
+    } catch (err) {
+      console.error(`Digest agenzia "${agenzia}" fallito:`, err.message);
+      agencyResults.push({ ...base, status: "error", error: err.message });
+    }
+    await sleep(SEND_DELAY_MS);
+  }
+
+  // ---- Fase clienti: un invio per pratica con emailCliente valorizzata ----
+  const clientResults = [];
+  for (const gruppo of updates.filter((u) => u.emailCliente)) {
+    const base = {
+      praticaId: gruppo.praticaId,
+      titolo: gruppo.titolo,
+      emailCliente: gruppo.emailCliente,
+      noteCount: gruppo.note.length,
+    };
+    try {
+      if (!EMAIL_REGEX.test(gruppo.emailCliente)) {
+        clientResults.push({ ...base, status: "skipped_invalid_email" });
+        continue;
+      }
+      const to = testEmail ? [testEmail] : [gruppo.emailCliente];
+      const { id } = await sendResendEmail({
+        apiKey,
+        from: DIGEST_FROM,
+        to,
+        subject: buildClientSubject(gruppo.titolo, !!testEmail),
+        html: renderClientDigestHtml({
+          gruppo,
+          windowStart,
+          windowEnd,
+          testRecipients: testEmail ? gruppo.emailCliente : null,
+        }),
+      });
+      clientResults.push({ ...base, to, status: "sent", resendId: id });
+    } catch (err) {
+      console.error(`Digest cliente pratica "${gruppo.praticaId}" fallito:`, err.message);
+      clientResults.push({ ...base, status: "error", error: err.message });
+    }
+    await sleep(SEND_DELAY_MS);
+  }
+
+  const allResults = [...agencyResults, ...clientResults];
+  const totals = {
+    agencies: agencyResults.length,
+    clients: clientResults.length,
+    sent: allResults.filter((r) => r.status === "sent").length,
+    skipped: allResults.filter((r) => r.status.startsWith("skipped")).length,
+    errors: allResults.filter((r) => r.status === "error").length,
+    unknownAgencies,
+  };
+
+  const summary = {
+    runAt: now.toISOString(),
+    trigger,
+    testEmail,
+    requestedBy,
+    windowStart: windowStart.toISOString(),
+    windowEnd: windowEnd.toISOString(),
+    agencyResults,
+    clientResults,
+    totals,
+  };
+  await db.collection("digest_log").add(summary);
+  console.log("Digest completato:", JSON.stringify(totals));
+  return summary;
+}
+
+module.exports = { runDigest };

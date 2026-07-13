@@ -8,12 +8,17 @@
 // sia presente nella collezione `allowedUsers` (stesso modello di firestore.rules).
 
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { defineSecret } = require("firebase-functions/params");
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore } = require("firebase-admin/firestore");
 const { google } = require("googleapis");
+const { runDigest } = require("./digest");
 
 initializeApp();
 const db = getFirestore();
+
+const RESEND_API_KEY = defineSecret("RESEND_API_KEY");
 
 const SCOPES = ["https://www.googleapis.com/auth/calendar.events"];
 const SA_SECRET = "GOOGLE_SA_KEY";
@@ -177,3 +182,37 @@ exports.deleteCalendarEvent = onCall(callOpts, async (request) => {
     throw toHttpsError(err, calendarId);
   }
 });
+
+// ---------------------------------------------------------------------------
+// Digest settimanale aggiornamenti pratiche (solo note) — vedi digest.js.
+// ---------------------------------------------------------------------------
+
+// Ogni giovedì alle 18:00 Europe/Rome. retryCount 0: niente retry automatici,
+// per evitare email duplicate se la run fallisce dopo alcuni invii riusciti.
+exports.weeklyAgencyDigest = onSchedule(
+  {
+    schedule: "0 18 * * 4",
+    timeZone: "Europe/Rome",
+    region: "us-central1",
+    secrets: [RESEND_API_KEY],
+    timeoutSeconds: 540,
+    retryCount: 0,
+  },
+  async () => {
+    await runDigest(db, { trigger: "scheduled" });
+  }
+);
+
+// Invio manuale dalla pagina Agenzie. Con testEmail tutte le email vanno
+// a quell'indirizzo (anteprima) invece che ai destinatari reali.
+exports.sendAgencyDigestNow = onCall(
+  { region: "us-central1", secrets: [RESEND_API_KEY], timeoutSeconds: 540 },
+  async (request) => {
+    const email = await assertAllowed(request);
+    const { testEmail = null } = request.data || {};
+    if (testEmail && typeof testEmail !== "string") {
+      throw new HttpsError("invalid-argument", "testEmail deve essere una stringa.");
+    }
+    return await runDigest(db, { trigger: "manual", testEmail, requestedBy: email });
+  }
+);

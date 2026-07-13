@@ -16,6 +16,7 @@ const NewPraticaPrivatoForm = ({ onClose, onSave }) => {
     codice: '',
     indirizzo: '',
     cliente: '',
+    emailCliente: '',
     agenzia: '',
     collaboratore: '',
     collaboratoreFirmatario: '',
@@ -163,6 +164,11 @@ const NewPraticaPrivatoForm = ({ onClose, onSave }) => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Committente *</label>
             <input type="text" value={newPraticaData.cliente} onChange={(e) => setNewPraticaData({...newPraticaData, cliente: e.target.value})} className="w-full p-1.5 text-sm border border-gray-300 rounded-md" required />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email Committente</label>
+            <input type="email" value={newPraticaData.emailCliente} onChange={(e) => setNewPraticaData({...newPraticaData, emailCliente: e.target.value})} className="w-full p-1.5 text-sm border border-gray-300 rounded-md" placeholder="opzionale" />
+            <p className="mt-0.5 text-xs text-gray-500">Se compilata, il committente riceverà gli aggiornamenti settimanali della pratica.</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Agenzia (Privato)</label>

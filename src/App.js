@@ -41,6 +41,7 @@ import CalendarTaskPage from './pages/CalendarTaskPage';
 import FinanzePage from './pages/FinanzePage';
 import GeneraIncaricoPage from './pages/GeneraIncaricoPage';
 import GeneraReportPage from './pages/GeneraReportPage';
+import AgenziePage from './pages/AgenziePage';
 import LoginPage from './components/Login';
 
 import { auth, onAuthStateChanged, logoutUser as firebaseLogoutUser } from './firebase';
@@ -113,7 +114,8 @@ function AppContent() {
       '/genera-report-giornaliero': 'Genera Report - Esporta Giornaliero',
       '/genera-report-atti-mese': 'Genera Report - Esporta Atti Mese',
       '/genera-report-lista': 'Genera Report - Lista Tutte le Pratiche',
-      '/genera-report-agenzia': 'Genera Report - Esporta Singola Agenzia'
+      '/genera-report-agenzia': 'Genera Report - Esporta Singola Agenzia',
+      '/agenzie': 'Gestione Agenzie e Invio Aggiornamenti'
     };
     return titles[path] || 'Realine Studio';
   };
@@ -151,6 +153,7 @@ function AppContent() {
               { to: "/pratiche-privato", label: "Pratiche Privato", icon: MdFolderSpecial },
               { to: "/finanze", label: "Finanze", icon: MdAttachMoney },
               { to: "/calendario", label: "Calendario", icon: FaCalendarAlt },
+              { to: "/agenzie", label: "Agenzie", icon: MdBusiness },
             ].map((item) => (
               <NavLink
                 key={item.to}
@@ -417,6 +420,7 @@ function AppContent() {
                 </PraticheProvider>
               }
             />
+            <Route path="/agenzie" element={<AgenziePage />} />
           </Routes>
         </main>
       </div>

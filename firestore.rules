@@ -23,5 +23,10 @@ service cloud.firestore {
     match /accessi_atti/{id}     { allow read, write: if isAllowed(); }
     match /ape/{id}              { allow read, write: if isAllowed(); }
     match /taskStates/{id}       { allow read, write: if isAllowed(); }
+
+    // Config email/attivazione digest per agenzia (doc ID = nome agenzia).
+    match /agenzie/{id}          { allow read, write: if isAllowed(); }
+    // Log delle run del digest: scritto solo dall'Admin SDK (Cloud Functions).
+    match /digest_log/{id}       { allow read: if isAllowed(); allow write: if false; }
   }
 }

@@ -16,6 +16,7 @@ const EditPraticaForm = ({ praticaId, pratica, onClose, onSave, onDelete }) => {
     codice: '',
     indirizzo: '',
     cliente: '',
+    emailCliente: '',
     agenzia: '',
     collaboratore: '',
     collaboratoreFirmatario: '',
@@ -53,6 +54,7 @@ const EditPraticaForm = ({ praticaId, pratica, onClose, onSave, onDelete }) => {
         codice: pratica.codice || '',
         indirizzo: pratica.indirizzo || '',
         cliente: pratica.cliente || '',
+        emailCliente: pratica.emailCliente || '',
         agenzia: pratica.agenzia || '',
         collaboratore: pratica.collaboratore || '',
         collaboratoreFirmatario: pratica.collaboratoreFirmatario || '',
@@ -120,6 +122,7 @@ const EditPraticaForm = ({ praticaId, pratica, onClose, onSave, onDelete }) => {
       codice: editPraticaData.codice,
       indirizzo: editPraticaData.indirizzo,
       cliente: editPraticaData.cliente,
+      emailCliente: editPraticaData.emailCliente.trim(),
       agenzia: editPraticaData.agenzia,
       collaboratore: editPraticaData.collaboratore,
       collaboratoreFirmatario: editPraticaData.collaboratoreFirmatario,
@@ -194,6 +197,17 @@ const EditPraticaForm = ({ praticaId, pratica, onClose, onSave, onDelete }) => {
               className="w-full p-1.5 text-sm border border-gray-300 rounded-md"
               required
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email Committente</label>
+            <input
+              type="email"
+              value={editPraticaData.emailCliente}
+              onChange={(e) => setEditPraticaData({...editPraticaData, emailCliente: e.target.value})}
+              className="w-full p-1.5 text-sm border border-gray-300 rounded-md"
+              placeholder="opzionale"
+            />
+            <p className="mt-0.5 text-xs text-gray-500">Se compilata, il committente riceverà gli aggiornamenti settimanali della pratica.</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Agenzia Immobiliare</label>
