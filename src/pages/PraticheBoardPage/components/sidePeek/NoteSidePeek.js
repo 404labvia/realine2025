@@ -5,13 +5,17 @@ import { it } from 'date-fns/locale';
 import { FaTimes, FaEdit, FaPlus } from 'react-icons/fa';
 import SidePeek from '../../../../components/SidePeek';
 
+// arrayKey: 'notes' (note ufficiali, incluse nelle email digest) oppure
+// 'noteInterne' (note interne, mai inviate via email).
 const NoteSidePeek = ({
   isOpen,
   onClose,
   pratica,
   updatePratica,
   localPratiche,
-  setLocalPratiche
+  setLocalPratiche,
+  arrayKey = 'notes',
+  title = 'NOTE'
 }) => {
   const [editingNote, setEditingNote] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -23,8 +27,8 @@ const NoteSidePeek = ({
     const workflow = pratica.workflow || {};
 
     Object.entries(workflow).forEach(([stepId, stepData]) => {
-      if (stepData.notes && Array.isArray(stepData.notes)) {
-        stepData.notes.forEach((note, index) => {
+      if (stepData[arrayKey] && Array.isArray(stepData[arrayKey])) {
+        stepData[arrayKey].forEach((note, index) => {
           allNotes.push({
             ...note,
             stepId,
@@ -48,11 +52,11 @@ const NoteSidePeek = ({
     if (!updatedWorkflow[targetStep]) {
       updatedWorkflow[targetStep] = { notes: [], tasks: [] };
     }
-    if (!updatedWorkflow[targetStep].notes) {
-      updatedWorkflow[targetStep].notes = [];
+    if (!updatedWorkflow[targetStep][arrayKey]) {
+      updatedWorkflow[targetStep][arrayKey] = [];
     }
 
-    updatedWorkflow[targetStep].notes.push({
+    updatedWorkflow[targetStep][arrayKey].push({
       text: newNoteText,
       date: new Date().toISOString()
     });
@@ -74,9 +78,9 @@ const NoteSidePeek = ({
 
     const updatedWorkflow = { ...pratica.workflow };
 
-    if (updatedWorkflow[stepId] && updatedWorkflow[stepId].notes && updatedWorkflow[stepId].notes[noteIndex]) {
-      updatedWorkflow[stepId].notes[noteIndex] = {
-        ...updatedWorkflow[stepId].notes[noteIndex],
+    if (updatedWorkflow[stepId] && updatedWorkflow[stepId][arrayKey] && updatedWorkflow[stepId][arrayKey][noteIndex]) {
+      updatedWorkflow[stepId][arrayKey][noteIndex] = {
+        ...updatedWorkflow[stepId][arrayKey][noteIndex],
         text: editNoteText,
         date: new Date().toISOString()
       };
@@ -97,8 +101,8 @@ const NoteSidePeek = ({
 
     const updatedWorkflow = { ...pratica.workflow };
 
-    if (updatedWorkflow[stepId] && updatedWorkflow[stepId].notes) {
-      updatedWorkflow[stepId].notes.splice(noteIndex, 1);
+    if (updatedWorkflow[stepId] && updatedWorkflow[stepId][arrayKey]) {
+      updatedWorkflow[stepId][arrayKey].splice(noteIndex, 1);
     }
 
     setLocalPratiche(prev => prev.map(p =>
@@ -114,7 +118,7 @@ const NoteSidePeek = ({
   };
 
   return (
-    <SidePeek isOpen={isOpen} onClose={onClose} title="NOTE">
+    <SidePeek isOpen={isOpen} onClose={onClose} title={title}>
       <div className="space-y-3">
         {allNotes.length === 0 && !showAddForm ? (
           <div className="text-center py-12">

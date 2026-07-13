@@ -5,7 +5,10 @@ import { it } from 'date-fns/locale';
 import { FaTimes } from 'react-icons/fa';
 import NoteSidePeek from '../sidePeek/NoteSidePeek';
 
-const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) => {
+// arrayKey seleziona quale array del workflow gestire:
+// 'notes' = note ufficiali (incluse nelle email di aggiornamento del digest),
+// 'noteInterne' = note interne (mai inviate via email).
+const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche, arrayKey = 'notes', sidePeekTitle = 'NOTE' }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newNoteText, setNewNoteText] = useState('');
   const [editingNote, setEditingNote] = useState(null);
@@ -16,8 +19,8 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
     const workflow = pratica.workflow || {};
 
     Object.entries(workflow).forEach(([stepId, stepData]) => {
-      if (stepData.notes && Array.isArray(stepData.notes)) {
-        stepData.notes.forEach((note, index) => {
+      if (stepData[arrayKey] && Array.isArray(stepData[arrayKey])) {
+        stepData[arrayKey].forEach((note, index) => {
           allNotes.push({
             ...note,
             stepId,
@@ -43,11 +46,11 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
     if (!updatedWorkflow[targetStep]) {
       updatedWorkflow[targetStep] = { notes: [], tasks: [] };
     }
-    if (!updatedWorkflow[targetStep].notes) {
-      updatedWorkflow[targetStep].notes = [];
+    if (!updatedWorkflow[targetStep][arrayKey]) {
+      updatedWorkflow[targetStep][arrayKey] = [];
     }
 
-    updatedWorkflow[targetStep].notes.push({
+    updatedWorkflow[targetStep][arrayKey].push({
       text: newNoteText,
       date: new Date().toISOString()
     });
@@ -64,9 +67,9 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
   const handleUpdateNote = async (stepId, noteIndex, newText) => {
     const updatedWorkflow = { ...pratica.workflow };
 
-    if (updatedWorkflow[stepId] && updatedWorkflow[stepId].notes && updatedWorkflow[stepId].notes[noteIndex]) {
-      updatedWorkflow[stepId].notes[noteIndex] = {
-        ...updatedWorkflow[stepId].notes[noteIndex],
+    if (updatedWorkflow[stepId] && updatedWorkflow[stepId][arrayKey] && updatedWorkflow[stepId][arrayKey][noteIndex]) {
+      updatedWorkflow[stepId][arrayKey][noteIndex] = {
+        ...updatedWorkflow[stepId][arrayKey][noteIndex],
         text: newText,
         date: new Date().toISOString()
       };
@@ -84,8 +87,8 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
   const handleDeleteNote = async (stepId, noteIndex) => {
     const updatedWorkflow = { ...pratica.workflow };
 
-    if (updatedWorkflow[stepId] && updatedWorkflow[stepId].notes) {
-      updatedWorkflow[stepId].notes.splice(noteIndex, 1);
+    if (updatedWorkflow[stepId] && updatedWorkflow[stepId][arrayKey]) {
+      updatedWorkflow[stepId][arrayKey].splice(noteIndex, 1);
     }
 
     setLocalPratiche(prev => prev.map(p =>
@@ -256,6 +259,8 @@ const NoteCell = ({ pratica, updatePratica, localPratiche, setLocalPratiche }) =
         updatePratica={updatePratica}
         localPratiche={localPratiche}
         setLocalPratiche={setLocalPratiche}
+        arrayKey={arrayKey}
+        title={sidePeekTitle}
       />
     </div>
   );

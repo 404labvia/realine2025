@@ -436,6 +436,9 @@ export const generatePDF = async (localPratiche, filtroAgenzia = '') => {
               if (stepData.notes && stepData.notes.length > 0) {
                 contentHTML += `<div class="detail"><span class="detail-label">Note:</span><ul>${stepData.notes.map(n => `<li>${n.text}</li>`).join('')}</ul></div>`;
               }
+              if (stepData.noteInterne && stepData.noteInterne.length > 0) {
+                contentHTML += `<div class="detail"><span class="detail-label">Note interne:</span><ul>${stepData.noteInterne.map(n => `<li>${n.text}</li>`).join('')}</ul></div>`;
+              }
               if (stepData.tasks && stepData.tasks.length > 0) {
                 contentHTML += `<div class="detail"><span class="detail-label">Task:</span><ul>${stepData.tasks.map(t => `<li>${t.text}</li>`).join('')}</ul></div>`;
               }
@@ -532,6 +535,14 @@ export const generateDailyPDF = async (localPratiche = [], pratichePrivato = [],
             const d = safeDate(n.date);
             if (d && isSameDay(d, giorno) && n.text) {
               voci.push(`Nota: ${n.text}`);
+            }
+          });
+        }
+        if (Array.isArray(step?.noteInterne)) {
+          step.noteInterne.forEach(n => {
+            const d = safeDate(n.date);
+            if (d && isSameDay(d, giorno) && n.text) {
+              voci.push(`Nota interna: ${n.text}`);
             }
           });
         }

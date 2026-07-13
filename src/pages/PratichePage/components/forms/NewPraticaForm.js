@@ -96,7 +96,8 @@ const NewPraticaForm = ({ onClose, onSave }) => {
       workflow[step.id] = {
         completed: false,
         completedDate: null,
-        notes: []
+        notes: [],       // note ufficiali (incluse nelle email di aggiornamento)
+        noteInterne: []  // note interne (mai inviate via email)
       };
       
       if (step.type === 'checklist') {

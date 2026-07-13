@@ -99,6 +99,7 @@ function BoardTable({
         .col-incarico { min-width: 150px; max-width: 150px; }
         .col-importo { min-width: 120px; max-width: 120px; }
         .col-note { min-width: 200px; max-width: 200px; }
+        .col-note-interne { min-width: 200px; max-width: 200px; }
         .col-task { min-width: 200px; max-width: 200px; }
         .col-pagamenti { min-width: 150px; max-width: 150px; }
         .col-stato { min-width: 150px; max-width: 150px; }
@@ -184,7 +185,8 @@ function BoardTable({
               <th className="col-scadenze">Scadenze</th>
               <th className="col-incarico">Incarico</th>
               <th className="col-importo">Importo</th>
-              <th className="col-note">Note</th>
+              <th className="col-note">Note Ufficiali</th>
+              <th className="col-note-interne">Note Interne</th>
               <th className="col-task">Task</th>
               <th className="col-pagamenti">Pagamenti</th>
               <th className="col-stato">Stato</th>
@@ -217,12 +219,26 @@ function BoardTable({
                 <td className="col-importo">
                   <ImportoCell pratica={pratica} onEditPratica={onEditPratica} />
                 </td>
+                {/* Note ufficiali: incluse nelle email di aggiornamento settimanali */}
                 <td className="col-note">
                   <NoteCell
                     pratica={pratica}
                     updatePratica={updatePratica}
                     localPratiche={localPratiche}
                     setLocalPratiche={setLocalPratiche}
+                    arrayKey="notes"
+                    sidePeekTitle="NOTE UFFICIALI"
+                  />
+                </td>
+                {/* Note interne: mai inviate via email */}
+                <td className="col-note-interne">
+                  <NoteCell
+                    pratica={pratica}
+                    updatePratica={updatePratica}
+                    localPratiche={localPratiche}
+                    setLocalPratiche={setLocalPratiche}
+                    arrayKey="noteInterne"
+                    sidePeekTitle="NOTE INTERNE"
                   />
                 </td>
                 <td className="col-task">

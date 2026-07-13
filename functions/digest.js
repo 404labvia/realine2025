@@ -64,7 +64,9 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Raccoglie da ogni pratica le note (mai i task) con data nella finestra.
+// Raccoglie da ogni pratica le note UFFICIALI (mai i task, mai le noteInterne —
+// workflow[stepId].noteInterne è l'array delle note interne, escluso per design)
+// con data nella finestra.
 // Ritorna [{ praticaId, origine, agenzia, cliente, emailCliente, titolo, note: [{ stepLabel, text, date }] }]
 function collectUpdates(pratiche, windowStart, windowEnd) {
   const updates = [];

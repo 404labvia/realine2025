@@ -76,7 +76,7 @@ const NewPraticaPrivatoForm = ({ onClose, onSave }) => {
     const workflow = {};
     workflowSteps.forEach(step => {
       if (step.id === 'intestazione') return;
-      workflow[step.id] = { completed: false, completedDate: null, notes: [] };
+      workflow[step.id] = { completed: false, completedDate: null, notes: [], noteInterne: [] };
       if (step.type === 'checklist') {
         workflow[step.id].checklist = {};
         (step.checklistItems || []).forEach(item => { // Aggiunto fallback per checklistItems
