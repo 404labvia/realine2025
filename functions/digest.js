@@ -16,6 +16,11 @@ const DIGEST_FROM =
 // arriva nella casella dello studio come registro delle email inviate.
 const DIGEST_BCC = process.env.DIGEST_BCC || "amministrazione@realine.it";
 
+// Logo bianco su sfondo trasparente, servito da Firebase Hosting
+// (file realine2025/public/logo-email.png).
+const LOGO_URL =
+  process.env.DIGEST_LOGO_URL || "https://studio-a07a4.web.app/logo-email.png";
+
 // Etichette degli step workflow, specchio di `workflowSteps` in
 // src/pages/PratichePage/utils/praticheUtils.js (identiche nella variante privato).
 // Le functions non possono importare da src/: tenere allineato a mano.
@@ -54,6 +59,17 @@ function formatDateIt(date) {
     year: "numeric",
     timeZone: "Europe/Rome",
   });
+}
+
+// "15 Luglio 2026" — data estesa con mese maiuscolo, usata in oggetto e intestazione.
+function formatDateLong(date) {
+  const s = date.toLocaleDateString("it-IT", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Europe/Rome",
+  });
+  return s.replace(/ ([a-zà-ù])/i, (m, c) => ` ${c.toUpperCase()}`);
 }
 
 function esc(text) {
@@ -101,72 +117,58 @@ function collectUpdates(pratiche, windowStart, windowEnd) {
   return updates;
 }
 
-function formatWeek(windowStart, windowEnd) {
-  return `${formatDateIt(windowStart)} – ${formatDateIt(windowEnd)}`;
-}
-
-function buildAgencySubject(agenzia, windowStart, windowEnd, isTest) {
+// Oggetto unico per agenzie e committenti: "Aggiornamenti pratiche al 15 Luglio 2026 - Realine Studio"
+function buildSubject(now, isTest) {
   const prefix = isTest ? "[TEST] " : "";
-  return `${prefix}Aggiornamenti pratiche — settimana ${formatWeek(windowStart, windowEnd)} — ${agenzia}`;
+  return `${prefix}Aggiornamenti pratiche al ${formatDateLong(now)} - Realine Studio`;
 }
 
-function buildClientSubject(titolo, isTest) {
-  const prefix = isTest ? "[TEST] " : "";
-  return `${prefix}Aggiornamenti sulla sua pratica — ${titolo}`;
-}
-
+// Note: righe semplici "data — testo", senza elenco puntato né etichetta step.
 function renderNoteList(note) {
-  const items = note
+  const righe = note
     .map(
       (n) =>
-        `<li style="margin-bottom:6px"><span style="color:#6b7280">${formatDateIt(n.date)}</span> — <strong>${esc(n.stepLabel)}:</strong> ${esc(n.text)}</li>`
+        `<p style="margin:0 0 6px;font-size:13px;line-height:1.6;color:#1f2937"><span style="color:#6b7280">${formatDateIt(n.date)}</span> — ${esc(n.text)}</p>`
     )
     .join("");
-  return `<ul style="margin:8px 0 12px;padding-left:28px;font-size:13px;line-height:1.6;color:#1f2937">${items}</ul>`;
+  return `<div style="padding:10px 16px 12px">${righe}</div>`;
 }
 
 function renderTestBanner(realRecipients) {
-  return `<div style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:10px 16px;font-size:12px">MODALITÀ TEST — destinatari reali: ${esc(realRecipients)}</div>`;
+  return `<div style="background:#fef3c7;border:1px solid #f59e0b;color:#92400e;padding:10px 16px;font-size:12px;border-radius:6px;margin-bottom:16px">MODALITÀ TEST — destinatari reali: ${esc(realRecipients)}</div>`;
 }
 
-function renderFooter() {
-  return `<p style="font-size:11px;color:#9ca3af;padding:16px 8px">Email generata automaticamente da Realine Studio. Per informazioni rispondere a questa email o contattare lo studio.</p>`;
-}
-
+// Intestazione nera con logo bianco (max 150px), titolo e sottotitolo opzionale.
 function renderHeader(title, subtitle) {
-  return `<div style="background:#003366;color:#ffffff;padding:20px 24px;border-radius:6px 6px 0 0">
-    <h1 style="margin:0;font-size:20px">${esc(title)}</h1>
-    <p style="margin:4px 0 0;font-size:13px;opacity:.85">${esc(subtitle)}</p>
+  return `<div style="background:#000000;color:#ffffff;padding:24px;border-radius:8px;text-align:center;margin-bottom:16px">
+    <img src="${LOGO_URL}" alt="Realine Studio" width="134" height="150" style="display:block;width:134px;height:150px;margin:0 auto 12px">
+    <h1 style="margin:0;font-size:20px;font-weight:bold">${esc(title)}</h1>
+    ${subtitle ? `<p style="margin:6px 0 0;font-size:13px;color:#d1d5db">${esc(subtitle)}</p>` : ""}
   </div>`;
 }
 
-function renderAgencyDigestHtml({ agenzia, gruppi, windowStart, windowEnd, testRecipients }) {
-  const blocchi = gruppi
-    .map(
-      (g) => `<div style="border:1px solid #e5e7eb;border-top:none">
-      <div style="background:#f3f4f6;padding:10px 16px;font-weight:bold;font-size:14px;color:#111827">${esc(g.titolo)}</div>
-      ${renderNoteList(g.note)}
-    </div>`
-    )
-    .join("");
-  return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto">
-    ${renderHeader("Aggiornamenti pratiche", `${agenzia} — settimana ${formatWeek(windowStart, windowEnd)}`)}
-    ${testRecipients ? renderTestBanner(testRecipients) : ""}
-    ${blocchi}
-    ${renderFooter()}
+// Card di una pratica: intestazione grigia + elenco note.
+function renderPraticaCard(gruppo) {
+  return `<div style="border:1px solid #e5e7eb;border-radius:8px;margin-bottom:28px;overflow:hidden">
+    <div style="background:#f3f4f6;padding:16px;font-weight:bold;font-size:14px;color:#111827">${esc(gruppo.titolo)}</div>
+    ${renderNoteList(gruppo.note)}
   </div>`;
 }
 
-function renderClientDigestHtml({ gruppo, windowStart, windowEnd, testRecipients }) {
-  return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto">
-    ${renderHeader("Aggiornamenti sulla sua pratica", `Settimana ${formatWeek(windowStart, windowEnd)}`)}
+function renderAgencyDigestHtml({ agenzia, gruppi, now, testRecipients }) {
+  return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;padding:8px">
+    ${renderHeader(`Aggiornamenti pratiche al ${formatDateLong(now)}`, agenzia)}
     ${testRecipients ? renderTestBanner(testRecipients) : ""}
-    <div style="border:1px solid #e5e7eb;border-top:none">
-      <p style="padding:12px 16px 0;font-size:13px;color:#1f2937">Gentile ${esc(gruppo.cliente || "Cliente")},<br>di seguito gli aggiornamenti della settimana relativi alla sua pratica.</p>
-      <div style="background:#f3f4f6;padding:10px 16px;font-weight:bold;font-size:14px;color:#111827;margin-top:8px">${esc(gruppo.titolo)}</div>
-      ${renderNoteList(gruppo.note)}
-    </div>
-    ${renderFooter()}
+    ${gruppi.map(renderPraticaCard).join("")}
+  </div>`;
+}
+
+function renderClientDigestHtml({ gruppo, now, testRecipients }) {
+  return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;padding:8px">
+    ${renderHeader(`Aggiornamenti pratica al ${formatDateLong(now)}`, null)}
+    ${testRecipients ? renderTestBanner(testRecipients) : ""}
+    <p style="margin:0 0 12px;font-size:13px;color:#1f2937">Gentile ${esc(gruppo.cliente || "Cliente")},<br>di seguito gli aggiornamenti relativi alla sua pratica.</p>
+    ${renderPraticaCard(gruppo)}
   </div>`;
 }
 
@@ -247,8 +249,8 @@ async function runDigest(db, { trigger, testEmail = null, requestedBy = null, no
         from: DIGEST_FROM,
         to,
         bcc: testEmail ? null : [DIGEST_BCC],
-        subject: buildAgencySubject(agenzia, windowStart, windowEnd, !!testEmail),
-        html: renderAgencyDigestHtml({ agenzia, gruppi, windowStart, windowEnd, testRecipients: realRecipients }),
+        subject: buildSubject(now, !!testEmail),
+        html: renderAgencyDigestHtml({ agenzia, gruppi, now, testRecipients: realRecipients }),
       });
       agencyResults.push({ ...base, to, status: "sent", resendId: id });
     } catch (err) {
@@ -278,11 +280,10 @@ async function runDigest(db, { trigger, testEmail = null, requestedBy = null, no
         from: DIGEST_FROM,
         to,
         bcc: testEmail ? null : [DIGEST_BCC],
-        subject: buildClientSubject(gruppo.titolo, !!testEmail),
+        subject: buildSubject(now, !!testEmail),
         html: renderClientDigestHtml({
           gruppo,
-          windowStart,
-          windowEnd,
+          now,
           testRecipients: testEmail ? gruppo.emailCliente : null,
         }),
       });
@@ -320,4 +321,8 @@ async function runDigest(db, { trigger, testEmail = null, requestedBy = null, no
   return summary;
 }
 
-module.exports = { runDigest };
+module.exports = {
+  runDigest,
+  // Esportati solo per generare anteprime/test del layout, non usati dalle functions.
+  _preview: { buildSubject, renderAgencyDigestHtml, renderClientDigestHtml },
+};
