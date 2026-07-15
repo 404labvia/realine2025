@@ -12,6 +12,10 @@ const RESEND_ENDPOINT = "https://api.resend.com/emails";
 const DIGEST_FROM =
   process.env.DIGEST_FROM || "Realine Studio <amministrazione@realine.it>";
 
+// Copia nascosta di archivio su ogni invio reale (non in modalità test):
+// arriva nella casella dello studio come registro delle email inviate.
+const DIGEST_BCC = process.env.DIGEST_BCC || "amministrazione@realine.it";
+
 // Etichette degli step workflow, specchio di `workflowSteps` in
 // src/pages/PratichePage/utils/praticheUtils.js (identiche nella variante privato).
 // Le functions non possono importare da src/: tenere allineato a mano.
@@ -166,14 +170,14 @@ function renderClientDigestHtml({ gruppo, windowStart, windowEnd, testRecipients
   </div>`;
 }
 
-async function sendResendEmail({ apiKey, from, to, subject, html }) {
+async function sendResendEmail({ apiKey, from, to, subject, html, bcc }) {
   const res = await fetch(RESEND_ENDPOINT, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from, to, subject, html }),
+    body: JSON.stringify({ from, to, subject, html, ...(bcc ? { bcc } : {}) }),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
@@ -242,6 +246,7 @@ async function runDigest(db, { trigger, testEmail = null, requestedBy = null, no
         apiKey,
         from: DIGEST_FROM,
         to,
+        bcc: testEmail ? null : [DIGEST_BCC],
         subject: buildAgencySubject(agenzia, windowStart, windowEnd, !!testEmail),
         html: renderAgencyDigestHtml({ agenzia, gruppi, windowStart, windowEnd, testRecipients: realRecipients }),
       });
@@ -272,6 +277,7 @@ async function runDigest(db, { trigger, testEmail = null, requestedBy = null, no
         apiKey,
         from: DIGEST_FROM,
         to,
+        bcc: testEmail ? null : [DIGEST_BCC],
         subject: buildClientSubject(gruppo.titolo, !!testEmail),
         html: renderClientDigestHtml({
           gruppo,
