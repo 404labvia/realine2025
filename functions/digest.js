@@ -146,7 +146,7 @@ function renderTestBanner(realRecipients) {
 // Intestazione nera con logo bianco (max 150px), titolo e sottotitolo opzionale.
 function renderHeader(title, subtitle) {
   return `<div style="background:#000000;color:#ffffff;padding:24px;border-radius:8px;text-align:center;margin-bottom:16px">
-    <img src="${LOGO_URL}" alt="Realine Studio" width="90" height="90" style="display:block;width:90px;height:90px;margin:0 auto 12px">
+    <img src="${LOGO_URL}" alt="Realine Studio" width="90" height="101" style="display:block;width:90px;height:101px;margin:0 auto 12px">
     <h1 style="margin:0;font-size:20px;font-weight:bold">${esc(title)}</h1>
     ${subtitle ? `<p style="margin:6px 0 0;font-size:13px;color:#d1d5db">${esc(subtitle)}</p>` : ""}
   </div>`;
