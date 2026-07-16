@@ -55,8 +55,7 @@ const InviaOraPanel = () => {
     <div className="bg-white dark:bg-dark-surface rounded-lg shadow p-4">
       <h2 className="text-base font-semibold text-gray-800 dark:text-dark-text-primary mb-1">Invia ora</h2>
       <p className="text-xs text-gray-500 dark:text-dark-text-muted mb-3">
-        Invia subito il riepilogo delle note degli ultimi 7 giorni. L'invio automatico avviene ogni giovedì alle 18:00.
-        Nota: le note modificate di recente vengono re-inviate (fa fede la data di modifica).
+        Invia subito il riepilogo di tutte le note ufficiali di ogni pratica. L'invio automatico avviene ogni giovedì alle 18:00.
       </p>
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
         <label className="inline-flex items-center gap-1.5 text-sm text-gray-700 dark:text-dark-text-secondary">
@@ -91,7 +90,6 @@ const InviaOraPanel = () => {
       {result && (
         <div className="space-y-4">
           <p className="text-sm text-gray-700 dark:text-dark-text-secondary">
-            Periodo {new Date(result.windowStart).toLocaleDateString('it-IT')} – {new Date(result.windowEnd).toLocaleDateString('it-IT')}:{' '}
             <strong>{result.totals.sent}</strong> inviate, {result.totals.skipped} saltate, {result.totals.errors} errori.
             {result.totals.unknownAgencies?.length > 0 && (
               <span className="block text-amber-600 dark:text-amber-400">
@@ -153,7 +151,7 @@ const InviaOraPanel = () => {
           )}
 
           {result.agencyResults.length === 0 && result.clientResults.length === 0 && (
-            <p className="text-sm text-gray-500 dark:text-dark-text-muted">Nessuna nota negli ultimi 7 giorni: nessuna email da inviare.</p>
+            <p className="text-sm text-gray-500 dark:text-dark-text-muted">Nessuna nota ufficiale presente: nessuna email da inviare.</p>
           )}
         </div>
       )}

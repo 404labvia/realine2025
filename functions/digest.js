@@ -1,7 +1,8 @@
 // functions/digest.js
-// Digest settimanale degli aggiornamenti (SOLO note, mai task) delle pratiche:
+// Digest degli aggiornamenti (SOLO note ufficiali, mai task) delle pratiche:
 //  - un'email per agenzia con le sole proprie pratiche (standard + private);
 //  - un'email per cliente/committente (campo emailCliente sulla pratica) con la sola sua pratica.
+// Ogni email riporta TUTTE le note ufficiali della pratica (nessun filtro settimanale).
 // Invio tramite Resend (https://resend.com) via fetch nativo — nessuna dipendenza npm.
 // Usato sia dalla funzione schedulata (giovedì 18:00 Europe/Rome) sia dal callable "Invia ora".
 
@@ -84,13 +85,15 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-// Raccoglie da ogni pratica le note UFFICIALI (mai i task, mai le noteInterne —
-// workflow[stepId].noteInterne è l'array delle note interne, escluso per design)
-// con data nella finestra.
+// Raccoglie da ogni pratica TUTTE le note UFFICIALI (mai i task, mai le noteInterne —
+// workflow[stepId].noteInterne è l'array delle note interne, escluso per design).
+// Nessun filtro temporale: si scartano solo le note vuote o senza data valida.
 // Ritorna [{ praticaId, origine, agenzia, cliente, emailCliente, titolo, note: [{ stepLabel, text, date }] }]
-function collectUpdates(pratiche, windowStart, windowEnd) {
+function collectUpdates(pratiche) {
   const updates = [];
   for (const pratica of pratiche) {
+    // Solo pratiche in corso: le pratiche chiuse (stato 'Completata') non entrano nel digest.
+    if (pratica.stato === "Completata") continue;
     const workflow = pratica.workflow || {};
     const note = [];
     for (const stepId of Object.keys(workflow)) {
@@ -98,7 +101,9 @@ function collectUpdates(pratiche, windowStart, windowEnd) {
       for (const n of stepNotes) {
         if (!n || !n.text || !String(n.text).trim()) continue;
         const d = safeDate(n.date);
-        if (!d || d < windowStart || d >= windowEnd) continue;
+        // Nessun filtro sulla finestra: si includono TUTTE le note ufficiali della pratica.
+        // Si scarta solo la nota senza data valida (renderNoteList formatta n.date).
+        if (!d) continue;
         note.push({ stepLabel: STEP_LABELS[stepId] || stepId, text: n.text, date: d });
       }
     }
@@ -141,7 +146,7 @@ function renderTestBanner(realRecipients) {
 // Intestazione nera con logo bianco (max 150px), titolo e sottotitolo opzionale.
 function renderHeader(title, subtitle) {
   return `<div style="background:#000000;color:#ffffff;padding:24px;border-radius:8px;text-align:center;margin-bottom:16px">
-    <img src="${LOGO_URL}" alt="Realine Studio" width="134" height="150" style="display:block;width:134px;height:150px;margin:0 auto 12px">
+    <img src="${LOGO_URL}" alt="Realine Studio" width="90" height="90" style="display:block;width:90px;height:90px;margin:0 auto 12px">
     <h1 style="margin:0;font-size:20px;font-weight:bold">${esc(title)}</h1>
     ${subtitle ? `<p style="margin:6px 0 0;font-size:13px;color:#d1d5db">${esc(subtitle)}</p>` : ""}
   </div>`;
@@ -194,9 +199,6 @@ async function runDigest(db, { trigger, testEmail = null, requestedBy = null, no
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error("Secret RESEND_API_KEY mancante.");
 
-  const windowEnd = now;
-  const windowStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
   // Pratiche standard + private (le private hanno una propria agenzia selezionata).
   const [snapStandard, snapPrivato] = await Promise.all([
     db.collection("pratiche").get(),
@@ -207,7 +209,7 @@ async function runDigest(db, { trigger, testEmail = null, requestedBy = null, no
     ...snapPrivato.docs.map((d) => ({ id: d.id, origine: "privato", ...d.data() })),
   ];
 
-  const updates = collectUpdates(pratiche, windowStart, windowEnd);
+  const updates = collectUpdates(pratiche);
 
   // Config agenzie: doc ID = nome esatto agenzia.
   const agenzieSnap = await db.collection("agenzie").get();
@@ -310,8 +312,6 @@ async function runDigest(db, { trigger, testEmail = null, requestedBy = null, no
     trigger,
     testEmail,
     requestedBy,
-    windowStart: windowStart.toISOString(),
-    windowEnd: windowEnd.toISOString(),
     agencyResults,
     clientResults,
     totals,
