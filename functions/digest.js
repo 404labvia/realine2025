@@ -207,7 +207,9 @@ async function runDigest(db, { trigger, testEmail = null, requestedBy = null, no
   const pratiche = [
     ...snapStandard.docs.map((d) => ({ id: d.id, origine: "standard", ...d.data() })),
     ...snapPrivato.docs.map((d) => ({ id: d.id, origine: "privato", ...d.data() })),
-  ];
+  ]
+    // Solo la nuova gestione (da Settembre): le pratiche storiche non generano digest.
+    .filter((p) => p.gestione === "nuova");
 
   const updates = collectUpdates(pratiche);
 

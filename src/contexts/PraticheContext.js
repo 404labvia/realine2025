@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db, auth } from '../firebase'; // Importa auth da firebase
 import { collection, getDocs, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { getSiglaAgenzia } from '../pages/PratichePage/utils/agenzieCodici';
 
 const PraticheContext = createContext();
 
@@ -9,7 +10,12 @@ export function usePratiche() {
   return useContext(PraticheContext);
 }
 
-export function PraticheProvider({ children }) {
+// gestione: "nuova" | "vecchia" | "all"
+//   - "nuova"   -> vista/scrittura sulle pratiche della nuova gestione (da Settembre)
+//   - "vecchia" -> vista/scrittura sulle pratiche storiche ("da completare")
+//   - "all"     -> nessun filtro (calendario, genera incarico)
+// autoCodice: true attiva la generazione automatica del codice per agenzia nel form.
+export function PraticheProvider({ children, gestione = 'all', autoCodice = false }) {
   const [pratiche, setPratiche] = useState([]);
   const [collaboratori, setCollaboratori] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,6 +51,15 @@ export function PraticheProvider({ children }) {
     fetchData();
   }, []);
 
+  // Vista filtrata in base alla gestione. Le pratiche senza campo `gestione`
+  // (pre-esistenti) sono considerate "vecchie".
+  const praticheView =
+    gestione === 'all'
+      ? pratiche
+      : gestione === 'nuova'
+        ? pratiche.filter(p => p.gestione === 'nuova')
+        : pratiche.filter(p => p.gestione !== 'nuova');
+
   // Add a new pratica
   async function addPratica(praticaData) {
     try {
@@ -56,6 +71,9 @@ export function PraticheProvider({ children }) {
 
       const praticaConUserId = {
         ...praticaData,
+        // Contrassegno gestione: le nuove pagine creano pratiche "nuove",
+        // le pagine "da completare" (o all) restano "vecchie".
+        gestione: gestione === 'nuova' ? 'nuova' : 'vecchia',
         userId: user.uid, // AGGIUNGI L'UID DELL'UTENTE LOGGATO
         createdAt: new Date().toISOString() // Per export giornaliero delle aggiunte
       };
@@ -97,16 +115,46 @@ export function PraticheProvider({ children }) {
     }
   }
 
-  // Calculate financial stats
+  // Genera il prossimo codice progressivo per agenzia: formato NNN-SIGLA-AA
+  // (es. 001-VIA-26). Progressivo per agenzia, azzerato ogni anno.
+  // Ritorna null se l'agenzia non ha una sigla (in tal caso il codice resta manuale).
+  async function generateNextCodice(agenzia) {
+    const sigla = getSiglaAgenzia(agenzia);
+    if (!sigla) return null;
+
+    const yearSuffix = new Date().getFullYear().toString().slice(-2); // es. "26"
+    const suffix = `-${sigla}-${yearSuffix}`;
+
+    // Numerazione a livello studio: scan dell'intera collezione (coerente con
+    // AccessoAttiContext.generateNextCodice). Le vecchie pratiche con codice
+    // libero non conforme non terminano con `-SIGLA-AA` e vengono ignorate.
+    const snapshot = await getDocs(collection(db, 'pratiche'));
+    let maxNumber = 0;
+    snapshot.forEach((docSnapshot) => {
+      const codice = docSnapshot.data().codice || '';
+      if (codice.endsWith(suffix)) {
+        const match = codice.match(/^(\d+)-/);
+        if (match) {
+          const numero = parseInt(match[1], 10);
+          if (numero > maxNumber) maxNumber = numero;
+        }
+      }
+    });
+
+    const formattedNumber = (maxNumber + 1).toString().padStart(3, '0'); // "001"
+    return `${formattedNumber}${suffix}`;
+  }
+
+  // Calculate financial stats (sulla vista corrente)
   function calculateFinancialStats() {
     const stats = {
       totaleValore: 0,
       totaleDaAvere: 0,
-      praticheTotali: pratiche.length,
+      praticheTotali: praticheView.length,
       praticheAttive: 0
     };
 
-    pratiche.forEach(pratica => {
+    praticheView.forEach(pratica => {
       stats.totaleValore += pratica.importoTotale || 0;
 
       let importoRicevuto = 0;
@@ -134,12 +182,15 @@ export function PraticheProvider({ children }) {
   }
 
   const value = {
-    pratiche,
+    pratiche: praticheView,
     collaboratori,
     loading,
+    gestione,
+    autoCodice,
     addPratica,
     updatePratica,
     deletePratica,
+    generateNextCodice,
     calculateFinancialStats
   };
 

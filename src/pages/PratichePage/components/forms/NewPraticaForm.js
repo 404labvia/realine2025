@@ -1,5 +1,5 @@
 // src/pages/PratichePage/components/forms/NewPraticaForm.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { 
   agenzieCollaboratori, 
@@ -11,7 +11,8 @@ import {
   calcolaTotaleCollaboratore
 } from '../../utils/calculationUtils';
 
-const NewPraticaForm = ({ onClose, onSave }) => {
+const NewPraticaForm = ({ onClose, onSave, autoCodice = false, generateNextCodice }) => {
+  const [loadingCodice, setLoadingCodice] = useState(false);
   const [newPraticaData, setNewPraticaData] = useState({
     codice: '',
     indirizzo: '',
@@ -36,6 +37,30 @@ const NewPraticaForm = ({ onClose, onSave }) => {
     dataFineTime: '12:00',
     stato: 'In Corso'
   });
+
+  // Genera automaticamente il codice quando cambia l'agenzia (solo pagine nuove).
+  // Se l'agenzia non ha sigla (es. privati / nessuna agenzia), generateNextCodice
+  // ritorna null e il codice resta modificabile a mano.
+  useEffect(() => {
+    if (!autoCodice || typeof generateNextCodice !== 'function') return;
+    let annullato = false;
+    const fetchCodice = async () => {
+      try {
+        setLoadingCodice(true);
+        const nextCodice = await generateNextCodice(newPraticaData.agenzia);
+        if (!annullato && nextCodice) {
+          setNewPraticaData(prev => ({ ...prev, codice: nextCodice }));
+        }
+      } catch (error) {
+        console.error('Errore generando codice pratica:', error);
+      } finally {
+        if (!annullato) setLoadingCodice(false);
+      }
+    };
+    fetchCodice();
+    return () => { annullato = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newPraticaData.agenzia, autoCodice]);
 
   // Funzione per l'aggiornamento automatico del collaboratore in base all'agenzia
   const handleAgenziaChange = (agenzia) => {
@@ -218,12 +243,16 @@ const NewPraticaForm = ({ onClose, onSave }) => {
         <h2 className="text-lg font-semibold mb-3">Aggiungi Nuova Pratica</h2>
         <div className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Codice *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Codice *{autoCodice ? ' (automatico per agenzia)' : ''}
+            </label>
             <input
               type="text"
-              value={newPraticaData.codice}
+              value={autoCodice && loadingCodice ? 'Generazione...' : newPraticaData.codice}
               onChange={(e) => setNewPraticaData({...newPraticaData, codice: e.target.value})}
-              className="w-full p-1.5 text-sm border border-gray-300 rounded-md"
+              readOnly={autoCodice}
+              placeholder={autoCodice ? 'Seleziona un\'agenzia per generare il codice' : ''}
+              className={`w-full p-1.5 text-sm border border-gray-300 rounded-md ${autoCodice ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               required
             />
           </div>

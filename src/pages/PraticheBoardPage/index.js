@@ -27,7 +27,7 @@ const calendarListForModal = [
 ].filter(cal => cal.id && cal.name);
 
 function PraticheBoardPage() {
-  const { pratiche, loading, deletePratica, addPratica, updatePratica } = usePratiche();
+  const { pratiche, loading, deletePratica, addPratica, updatePratica, autoCodice, generateNextCodice } = usePratiche();
   const { pratiche: pratichePrivateData, loading: loadingPratichePrivate } = usePratichePrivato();
   const {
     accessi,
@@ -655,6 +655,8 @@ function PraticheBoardPage() {
         <NewPraticaForm
           onClose={() => setShowNewPraticaForm(false)}
           onSave={handleAddNewPratica}
+          autoCodice={autoCodice}
+          generateNextCodice={generateNextCodice}
         />
       )}
 

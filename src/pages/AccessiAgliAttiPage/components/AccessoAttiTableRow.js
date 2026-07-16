@@ -10,7 +10,7 @@ const FASI_PROGRESSO_CONFIG = [
   { label: "Documenti ricevuti", field: "faseDocumentiRicevutiCompletata", dateField: "dataFaseDocumentiRicevuti", color: "bg-teal-200 hover:bg-teal-300", textColor: "text-teal-800", borderColor: "border-teal-400" },
 ];
 
-function AccessoAttiTableRow({ accesso, onEdit, onUpdate }) {
+function AccessoAttiTableRow({ accesso, onEdit, onUpdate, onSpostaInPratica }) {
   const [editingDate, setEditingDate] = useState(null);
 
   const handleProgressoChange = (faseField, currentValue) => {
@@ -131,6 +131,27 @@ function AccessoAttiTableRow({ accesso, onEdit, onUpdate }) {
           title="Segna come completata"
         />
       </td>
+
+      {onSpostaInPratica && (
+        <td className="px-3 py-4 whitespace-nowrap text-center align-top">
+          {accesso.spostatoInPratica ? (
+            <span
+              className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800"
+              title="Questo accesso è già stato spostato in una pratica"
+            >
+              In pratica
+            </span>
+          ) : (
+            <input
+              type="checkbox"
+              checked={false}
+              onChange={() => onSpostaInPratica(accesso)}
+              className="h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
+              title="Sposta in pratica (nuova gestione)"
+            />
+          )}
+        </td>
+      )}
     </tr>
   );
 }

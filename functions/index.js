@@ -1,4 +1,5 @@
 // functions/index.js
+// Runtime: Node.js 22 (impostato in firebase.json → functions.runtime).
 // Cloud Functions callable per Google Calendar tramite Service Account.
 // Nessun OAuth utente: il service account ha accesso permanente ai calendari
 // condivisi con la sua email. La chiave JSON sta SOLO in Secret Manager (GOOGLE_SA_KEY),

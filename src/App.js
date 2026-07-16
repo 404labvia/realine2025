@@ -105,8 +105,10 @@ function AppContent() {
       '/': 'Dashboard',
       '/accessi-atti': 'Gestione Accessi agli Atti',
       '/ape': 'Gestione APE - Attestati di Prestazione Energetica',
-      '/pratiche-board': 'Gestione Pratiche',
-      '/pratiche-privato': 'Gestione Pratiche Privato',
+      '/pratiche-nuove': 'Gestione Pratiche',
+      '/pratiche-privato-nuove': 'Gestione Pratiche Privato',
+      '/pratiche-board': 'Gestione Pratiche da completare',
+      '/pratiche-privato': 'Gestione Pratiche Privato da completare',
       '/calendario': 'Calendario & Task',
       '/finanze': 'Gestione Finanziaria',
       '/genera-incarico-committente': 'Genera Incarico Committente',
@@ -149,8 +151,10 @@ function AppContent() {
               { to: "/", label: "Dashboard", icon: MdHome },
               { to: "/accessi-atti", label: "Accessi Atti", icon: MdFolderOpen },
               { to: "/ape", label: "APE", icon: MdBolt },
-              { to: "/pratiche-board", label: "Pratiche", icon: MdViewColumn },
-              { to: "/pratiche-privato", label: "Pratiche Privato", icon: MdFolderSpecial },
+              { to: "/pratiche-nuove", label: "Pratiche", icon: MdViewColumn },
+              { to: "/pratiche-privato-nuove", label: "Pratiche Privato", icon: MdFolderSpecial },
+              { to: "/pratiche-board", label: "Pratiche da completare", icon: MdViewColumn },
+              { to: "/pratiche-privato", label: "Pratiche Privato da completare", icon: MdFolderSpecial },
               { to: "/finanze", label: "Finanze", icon: MdAttachMoney },
               { to: "/calendario", label: "Calendario", icon: FaCalendarAlt },
               { to: "/agenzie", label: "Agenzie", icon: MdBusiness },
@@ -296,8 +300,8 @@ function AppContent() {
             <Route
               path="/"
               element={
-                <PraticheProvider>
-                  <PratichePrivatoProvider>
+                <PraticheProvider gestione="nuova">
+                  <PratichePrivatoProvider gestione="nuova">
                     <Dashboard />
                   </PratichePrivatoProvider>
                 </PraticheProvider>
@@ -319,11 +323,35 @@ function AppContent() {
                 </ApeProvider>
               }
             />
+            {/* Pratiche NUOVE (nuova gestione da Settembre) */}
+            <Route
+              path="/pratiche-nuove"
+              element={
+                <PraticheProvider gestione="nuova" autoCodice>
+                  <PratichePrivatoProvider gestione="nuova">
+                    <AccessoAttiProvider>
+                      <PraticheBoardPage />
+                    </AccessoAttiProvider>
+                  </PratichePrivatoProvider>
+                </PraticheProvider>
+              }
+            />
+            <Route
+              path="/pratiche-privato-nuove"
+              element={
+                <PraticheProvider gestione="nuova">
+                  <PratichePrivatoProvider gestione="nuova">
+                    <PratichePrivatoPage />
+                  </PratichePrivatoProvider>
+                </PraticheProvider>
+              }
+            />
+            {/* Pratiche DA COMPLETARE (storiche) */}
             <Route
               path="/pratiche-board"
               element={
-                <PraticheProvider>
-                  <PratichePrivatoProvider>
+                <PraticheProvider gestione="vecchia">
+                  <PratichePrivatoProvider gestione="vecchia">
                     <AccessoAttiProvider>
                       <PraticheBoardPage />
                     </AccessoAttiProvider>
@@ -334,16 +362,16 @@ function AppContent() {
             <Route
               path="/pratiche-privato"
               element={
-                <PraticheProvider>
-                  <PratichePrivatoProvider>
+                <PraticheProvider gestione="vecchia">
+                  <PratichePrivatoProvider gestione="vecchia">
                     <PratichePrivatoPage />
                   </PratichePrivatoProvider>
                 </PraticheProvider>
               }
             />
             <Route path="/finanze" element={
-              <PraticheProvider>
-                <PratichePrivatoProvider>
+              <PraticheProvider gestione="nuova">
+                <PratichePrivatoProvider gestione="nuova">
                   <FinanzePage />
                 </PratichePrivatoProvider>
               </PraticheProvider>
@@ -351,8 +379,8 @@ function AppContent() {
             <Route
               path="/calendario"
               element={
-                <PraticheProvider>
-                  <PratichePrivatoProvider>
+                <PraticheProvider gestione="all">
+                  <PratichePrivatoProvider gestione="all">
                     <CalendarTaskPage />
                   </PratichePrivatoProvider>
                 </PraticheProvider>
@@ -361,8 +389,8 @@ function AppContent() {
             <Route
               path="/genera-incarico-committente"
               element={
-                <PraticheProvider>
-                  <PratichePrivatoProvider>
+                <PraticheProvider gestione="all">
+                  <PratichePrivatoProvider gestione="all">
                     <GeneraIncaricoPage />
                   </PratichePrivatoProvider>
                 </PraticheProvider>
@@ -371,7 +399,7 @@ function AppContent() {
             <Route
               path="/genera-incarico-collaboratore"
               element={
-                <PratichePrivatoProvider>
+                <PratichePrivatoProvider gestione="all">
                   <div className="flex items-center justify-center h-64">
                     <p className="text-gray-500 dark:text-dark-text-secondary">
                       Incarico Collaboratore - In sviluppo
@@ -383,8 +411,8 @@ function AppContent() {
             <Route
               path="/genera-report-giornaliero"
               element={
-                <PraticheProvider>
-                  <PratichePrivatoProvider>
+                <PraticheProvider gestione="nuova">
+                  <PratichePrivatoProvider gestione="nuova">
                     <GeneraReportPage mode="giornaliero" />
                   </PratichePrivatoProvider>
                 </PraticheProvider>
@@ -393,8 +421,8 @@ function AppContent() {
             <Route
               path="/genera-report-atti-mese"
               element={
-                <PraticheProvider>
-                  <PratichePrivatoProvider>
+                <PraticheProvider gestione="nuova">
+                  <PratichePrivatoProvider gestione="nuova">
                     <GeneraReportPage mode="attiMese" />
                   </PratichePrivatoProvider>
                 </PraticheProvider>
@@ -403,8 +431,8 @@ function AppContent() {
             <Route
               path="/genera-report-lista"
               element={
-                <PraticheProvider>
-                  <PratichePrivatoProvider>
+                <PraticheProvider gestione="nuova">
+                  <PratichePrivatoProvider gestione="nuova">
                     <GeneraReportPage mode="lista" />
                   </PratichePrivatoProvider>
                 </PraticheProvider>
@@ -413,8 +441,8 @@ function AppContent() {
             <Route
               path="/genera-report-agenzia"
               element={
-                <PraticheProvider>
-                  <PratichePrivatoProvider>
+                <PraticheProvider gestione="nuova">
+                  <PratichePrivatoProvider gestione="nuova">
                     <GeneraReportPage mode="agenzia" />
                   </PratichePrivatoProvider>
                 </PraticheProvider>

@@ -34,4 +34,7 @@ serviceAccountKey.json
 .claude/
 
 # Functions
-functions/node_modules.firebase/
+functions/node_modules
+
+# Firebase deploy cache
+.firebase/

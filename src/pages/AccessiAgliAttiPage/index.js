@@ -30,6 +30,7 @@ function AccessiAgliAttiPage() {
     addAccesso,
     updateAccesso,
     deleteAccesso,
+    spostaInPratica,
   } = useAccessiAtti();
 
   const [showNewForm, setShowNewForm] = useState(false);
@@ -64,6 +65,21 @@ function AccessiAgliAttiPage() {
   const handleSaveEditedAccesso = async (accessoModificato) => {
     await updateAccesso(accessoModificato.id, accessoModificato);
     setEditingAccesso(null);
+  };
+
+  const handleSpostaInPratica = async (accesso) => {
+    if (accesso.spostatoInPratica) return;
+    if (!window.confirm(`Spostare "${accesso.indirizzo || 'questo accesso'}" nelle Pratiche (nuova gestione)?`)) {
+      return;
+    }
+    try {
+      const nuovoId = await spostaInPratica(accesso);
+      if (nuovoId) {
+        alert('Accesso spostato in pratica. Lo trovi nelle nuove Pratiche.');
+      }
+    } catch (error) {
+      alert("Errore durante lo spostamento in pratica.");
+    }
   };
 
   const accessiPerAgenzia = useMemo(() => {
@@ -146,6 +162,7 @@ function AccessiAgliAttiPage() {
               onEdit={handleEditAccesso}
               onDelete={handleDeleteAccesso}
               onUpdate={updateAccesso}
+              onSpostaInPratica={handleSpostaInPratica}
               onAddNew={handleOpenNewForm}
             />
           );
@@ -158,6 +175,7 @@ function AccessiAgliAttiPage() {
               onEdit={handleEditAccesso}
               onDelete={handleDeleteAccesso}
               onUpdate={updateAccesso}
+              onSpostaInPratica={handleSpostaInPratica}
               onAddNew={handleOpenNewForm}
             />
         )}

@@ -2,7 +2,7 @@
 import React from 'react';
 import AccessoAttiTableRow from './AccessoAttiTableRow';
 
-function AccessoAttiTable({ accessi, onEdit, onDelete, onUpdate, filtroStato }) {
+function AccessoAttiTable({ accessi, onEdit, onDelete, onUpdate, onSpostaInPratica, filtroStato }) {
   // Filtra accessi in base al filtro stato
   const accessiFiltrati = accessi.filter(accesso => {
     if (filtroStato === 'completata') return accesso.completata;
@@ -37,6 +37,11 @@ function AccessoAttiTable({ accessi, onEdit, onDelete, onUpdate, filtroStato }) 
             <th scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
               Completata
             </th>
+            {onSpostaInPratica && (
+              <th scope="col" className="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Sposta in pratica
+              </th>
+            )}
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
@@ -47,6 +52,7 @@ function AccessoAttiTable({ accessi, onEdit, onDelete, onUpdate, filtroStato }) 
               onEdit={onEdit}
               onDelete={onDelete}
               onUpdate={onUpdate}
+              onSpostaInPratica={onSpostaInPratica}
             />
           ))}
         </tbody>

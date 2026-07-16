@@ -13,6 +13,8 @@ import {
   serverTimestamp,
   getDocs,
 } from 'firebase/firestore';
+import { getSiglaAgenzia } from '../../PratichePage/utils/agenzieCodici';
+import { migratePraticaData } from '../../PratichePage/utils/migrationUtils';
 
 const AccessoAttiContext = createContext();
 
@@ -198,6 +200,89 @@ export function AccessoAttiProvider({ children }) {
     }
   };
 
+  // Genera il prossimo codice progressivo per una pratica della nuova gestione.
+  // Formato NNN-SIGLA-AA per le agenzie Barner; fallback NNN-AA se l'agenzia non ha sigla.
+  const generateNextCodicePratica = async (agenzia) => {
+    const sigla = getSiglaAgenzia(agenzia);
+    const yearSuffix = new Date().getFullYear().toString().slice(-2);
+    const suffix = sigla ? `-${sigla}-${yearSuffix}` : `-${yearSuffix}`;
+
+    const snapshot = await getDocs(collection(db, 'pratiche'));
+    let maxNumber = 0;
+    snapshot.forEach((docSnapshot) => {
+      const codice = docSnapshot.data().codice || '';
+      if (codice.endsWith(suffix)) {
+        const match = codice.match(/^(\d+)-/);
+        if (match) {
+          const numero = parseInt(match[1], 10);
+          if (numero > maxNumber) maxNumber = numero;
+        }
+      }
+    });
+
+    const formattedNumber = (maxNumber + 1).toString().padStart(3, '0');
+    return `${formattedNumber}${suffix}`;
+  };
+
+  // Trasforma un accesso agli atti in una pratica della NUOVA gestione:
+  // crea la pratica (con codice progressivo dell'agenzia, indirizzo e committente)
+  // e contrassegna l'accesso come spostato (badge, no duplicati).
+  const spostaInPratica = async (accesso) => {
+    if (!auth.currentUser) {
+      throw new Error("Utente non autenticato.");
+    }
+    if (!accesso || accesso.spostatoInPratica) {
+      return null;
+    }
+    try {
+      const codice = await generateNextCodicePratica(accesso.agenzia);
+      const nowIso = new Date().toISOString();
+
+      // Pratica minima; migratePraticaData costruisce lo `workflow` valido per la board.
+      const praticaBase = migratePraticaData({
+        codice,
+        indirizzo: accesso.indirizzo || '',
+        cliente: accesso.proprieta || '',
+        emailCliente: '',
+        agenzia: accesso.agenzia || '',
+        collaboratore: '',
+        collaboratoreFirmatario: '',
+        importoBaseCommittente: 0,
+        applyCassaCommittente: false,
+        applyIVACommittente: true,
+        importoTotale: 0,
+        importoBaseCollaboratore: 0,
+        applyCassaCollaboratore: false,
+        importoCollaboratore: 0,
+        importoBaseFirmatario: 0,
+        applyCassaFirmatario: false,
+        importoFirmatario: 0,
+        stato: 'In Corso',
+        dataInizio: nowIso,
+        dataFine: null,
+        updatedAt: nowIso,
+        gestione: 'nuova',
+      });
+
+      const docRef = await addDoc(collection(db, 'pratiche'), {
+        ...praticaBase,
+        userId: auth.currentUser.uid,
+        createdAt: nowIso,
+      });
+
+      await updateAccesso(accesso.id, {
+        spostatoInPratica: true,
+        praticaId: docRef.id,
+        dataSpostamento: serverTimestamp(),
+      });
+
+      return docRef.id;
+    } catch (error) {
+      console.error("Errore spostando l'accesso in pratica: ", error);
+      throw error;
+    }
+  };
+
   const value = {
     accessi,
     loading,
@@ -206,6 +291,7 @@ export function AccessoAttiProvider({ children }) {
     deleteAccesso,
     fetchAccessi,
     generateNextCodice,
+    spostaInPratica,
   };
 
   return (

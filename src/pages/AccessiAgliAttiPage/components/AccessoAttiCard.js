@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import AccessoAttiTable from './AccessoAttiTable';
 import { FaPlus, FaChevronDown, FaChevronRight } from 'react-icons/fa';
 
-function AccessoAttiCard({ titolo, accessi, onEdit, onDelete, onUpdate, onAddNew }) {
+function AccessoAttiCard({ titolo, accessi, onEdit, onDelete, onUpdate, onSpostaInPratica, onAddNew }) {
   const [filtroStato, setFiltroStato] = useState('in_corso');
   const [isExpanded, setIsExpanded] = useState(false); // Chiuso di default
 
@@ -79,6 +79,7 @@ function AccessoAttiCard({ titolo, accessi, onEdit, onDelete, onUpdate, onAddNew
               onEdit={onEdit}
               onDelete={onDelete}
               onUpdate={onUpdate}
+              onSpostaInPratica={onSpostaInPratica}
               filtroStato={filtroStato}
             />
           ) : (

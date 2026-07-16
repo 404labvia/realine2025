@@ -9,7 +9,8 @@ export function usePratichePrivato() {
   return useContext(PratichePrivatoContext);
 }
 
-export function PratichePrivatoProvider({ children }) {
+// gestione: "nuova" | "vecchia" | "all" (vedi PraticheContext).
+export function PratichePrivatoProvider({ children, gestione = 'all' }) {
   const [pratiche, setPratiche] = useState([]);
   const [collaboratori, setCollaboratori] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +43,14 @@ export function PratichePrivatoProvider({ children }) {
     fetchData();
   }, []);
 
+  // Vista filtrata in base alla gestione (pratiche senza campo `gestione` = "vecchie").
+  const praticheView =
+    gestione === 'all'
+      ? pratiche
+      : gestione === 'nuova'
+        ? pratiche.filter(p => p.gestione === 'nuova')
+        : pratiche.filter(p => p.gestione !== 'nuova');
+
   async function addPraticaPrivato(praticaData) {
     try {
       const user = auth.currentUser; // Prendi l'utente corrente da Firebase Auth
@@ -51,6 +60,7 @@ export function PratichePrivatoProvider({ children }) {
       }
       const praticaConUserId = {
         ...praticaData,
+        gestione: gestione === 'nuova' ? 'nuova' : 'vecchia',
         userId: user.uid, // AGGIUNGI L'UID DELL'UTENTE LOGGATO
         createdAt: new Date().toISOString() // Per export giornaliero delle aggiunte
       };
@@ -91,9 +101,10 @@ export function PratichePrivatoProvider({ children }) {
   }
 
   const value = {
-    pratiche,
+    pratiche: praticheView,
     collaboratori,
     loading,
+    gestione,
     addPratica: addPraticaPrivato,
     updatePratica: updatePraticaPrivato,
     deletePratica: deletePraticaPrivato
