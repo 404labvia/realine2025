@@ -85,12 +85,20 @@ Il branch `calendar-task` aggiunge:
 | `taskStates` | Stato completamento task calendario | Doc ID = UID hardcoded (condiviso) |
 | `allowedUsers` | Email autorizzate (allowlist) | Doc ID = email; gestita da Console |
 
-**Scrittura:** ogni documento scritto include comunque `userId: auth.currentUser.uid` (tracciamento creatore). Le pratiche includono anche `createdAt` (ISO) per l'export giornaliero.
+**Scrittura:** ogni documento scritto include comunque `userId: auth.currentUser.uid` (tracciamento creatore). Le pratiche includono anche `createdAt` (ISO) per l'export giornaliero e `gestione` (`"nuova"` | `"vecchia"`) per la divisione vecchie/nuove (vedi sotto). Le pratiche pre-esistenti senza il campo sono trattate come `"vecchia"`.
 
 ## Pattern Architetturali
 
 ### Context Providers
-Wrappati per-route in `App.js` (righe 177-255), NON a livello root. Ogni route riceve solo i context necessari.
+Wrappati per-route in `App.js` (dentro `<Routes>`), NON a livello root. Ogni route riceve solo i context necessari.
+`PraticheProvider` / `PratichePrivatoProvider` sono parametrizzati con prop `gestione` (`"nuova"` | `"vecchia"` | `"all"`); `PraticheProvider` accetta anche `autoCodice`. Il collection name resta hardcoded (`pratiche` / `pratiche_privato`) — la prop cambia solo la vista/scrittura, non la collezione.
+
+### Gestione pratiche (vecchie/nuove) — filtro logico
+Da Settembre 2026 le pratiche sono divise tra "da completare" (storiche) e "nuova gestione", **senza collezioni separate**: discriminante = campo `gestione` sul doc. La prop `gestione` del provider (a) filtra `praticheView` esposta come `pratiche`, (b) stampa il contrassegno in `addPratica`.
+- **Rotte**: `/pratiche-nuove` (`gestione="nuova"` + `autoCodice`) e `/pratiche-privato-nuove` riusano `PraticheBoardPage`/`PratichePrivatoPage`; `/pratiche-board` e `/pratiche-privato` sono ora "... da completare" (`gestione="vecchia"`). Dashboard/Finanze/Report → `"nuova"`; Calendario/Genera Incarico → `"all"` (vedono tutto).
+- **Codice auto `NNN-SIGLA-AA`** (es. `001-VIA-26`): solo agenzie Barner. Sigle in `src/pages/PratichePage/utils/agenzieCodici.js` (`getSiglaAgenzia`, case-insensitive; private → null → codice manuale). `generateNextCodice(agenzia)` nel `PraticheContext` scansiona `pratiche` filtrando `codice.endsWith('-SIGLA-AA')`, max+1, pad3; reset annuale automatico. Auto-fill in `NewPraticaForm` via `useEffect` su `agenzia`, attivo solo con prop `autoCodice`.
+- **Accesso agli atti → pratica**: `spostaInPratica(accesso)` in `AccessoAttiContext` (self-contained: scrive su `pratiche` con `gestione:"nuova"`, riusa `migratePraticaData` per il workflow). Checkbox in `AccessoAttiTableRow` reso condizionale a `onSpostaInPratica` (non compare nel `CollapsibleAccessoAttiCard` del board). Badge "In pratica" + `spostatoInPratica:true` anti-duplicato. Mappatura `proprieta→cliente`.
+- **Digest** (`functions/digest.js`): filtra `gestione === "nuova"` — solo le pratiche nuove generano email alle agenzie.
 
 ### Pattern Context di riferimento
 Usare `src/pages/ApePage/contexts/ApeContext.js` come template per nuovi context:
@@ -125,8 +133,11 @@ Le funzioni handler in `handlers/` prendono: `(id, data, updateFn, localState, s
 npm start              # Dev server (localhost:3000)
 npm run build          # Build produzione → /build
 npm test               # Jest (copertura minima, solo App.test.js)
-firebase deploy --only hosting  # Deploy su Firebase Hosting
+firebase deploy --only hosting     # Deploy su Firebase Hosting
+firebase deploy --only functions   # Deploy Cloud Functions (digest + calendar)
 ```
+
+**Functions runtime:** `nodejs22` (in `firebase.json` → `functions.runtime`; `engines.node` in `functions/package.json`). Il deploy functions SALTA i cambi di sola config (es. runtime) se il source è invariato ("No changes detected") — per forzarlo modificare il source (anche solo un commento).
 
 ## Branches
 
