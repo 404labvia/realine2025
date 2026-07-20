@@ -55,7 +55,8 @@ const InviaOraPanel = () => {
     <div className="bg-white dark:bg-dark-surface rounded-lg shadow p-4">
       <h2 className="text-base font-semibold text-gray-800 dark:text-dark-text-primary mb-1">Invia ora</h2>
       <p className="text-xs text-gray-500 dark:text-dark-text-muted mb-3">
-        Invia subito il riepilogo di tutte le note ufficiali di ogni pratica. L'invio automatico avviene ogni giovedì alle 18:00.
+        Invia subito il riepilogo di tutte le note ufficiali di ogni pratica, più gli aggiornamenti
+        degli accessi agli atti ancora aperti. L'invio automatico avviene ogni giovedì alle 17:00.
       </p>
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
         <label className="inline-flex items-center gap-1.5 text-sm text-gray-700 dark:text-dark-text-secondary">
@@ -107,6 +108,7 @@ const InviaOraPanel = () => {
                     <th className="py-1 pr-3">Agenzia</th>
                     <th className="py-1 pr-3">Pratiche</th>
                     <th className="py-1 pr-3">Note</th>
+                    <th className="py-1 pr-3">Accessi</th>
                     <th className="py-1">Stato</th>
                   </tr>
                 </thead>
@@ -116,6 +118,7 @@ const InviaOraPanel = () => {
                       <td className="py-1 pr-3 text-gray-800 dark:text-dark-text-primary">{r.agenzia}</td>
                       <td className="py-1 pr-3 text-gray-600 dark:text-dark-text-secondary">{r.praticheCount}</td>
                       <td className="py-1 pr-3 text-gray-600 dark:text-dark-text-secondary">{r.noteCount}</td>
+                      <td className="py-1 pr-3 text-gray-600 dark:text-dark-text-secondary">{r.accessiCount ?? 0}</td>
                       <td className="py-1"><StatusBadge status={r.status} /></td>
                     </tr>
                   ))}

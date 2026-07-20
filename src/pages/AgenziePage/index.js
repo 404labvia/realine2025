@@ -1,7 +1,7 @@
 // src/pages/AgenziePage/index.js
 // Gestione invio aggiornamenti settimanali: email per agenzia (standard + privato),
 // invio manuale/test e storico delle run. L'invio automatico è la Cloud Function
-// schedulata weeklyAgencyDigest (giovedì 18:00 Europe/Rome) — vedi functions/digest.js.
+// schedulata weeklyAgencyDigest (giovedì 17:00 Europe/Rome) — vedi functions/digest.js.
 import React from 'react';
 import { MdBusiness } from 'react-icons/md';
 import { useAgenzie } from './hooks/useAgenzie';
@@ -20,9 +20,10 @@ const AgenziePage = () => {
           <h2 className="text-base font-semibold text-gray-800 dark:text-dark-text-primary">Email agenzie</h2>
         </div>
         <p className="text-xs text-gray-500 dark:text-dark-text-muted mb-3">
-          Ogni giovedì alle 18:00 le agenzie <strong>attive</strong> ricevono via email le note della settimana
-          delle proprie pratiche (mai i task, che restano interni). I committenti con email compilata sulla
-          pratica ricevono gli aggiornamenti della sola propria pratica.
+          Ogni giovedì alle 17:00 le agenzie <strong>attive</strong> ricevono via email le note ufficiali
+          delle proprie pratiche (mai i task, che restano interni) e, in coda, gli aggiornamenti dei propri
+          accessi agli atti ancora aperti. I committenti con email compilata sulla pratica ricevono gli
+          aggiornamenti della sola propria pratica.
         </p>
         {loading ? (
           <p className="text-sm text-gray-500 dark:text-dark-text-muted py-4">Caricamento…</p>

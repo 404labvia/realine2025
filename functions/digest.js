@@ -1,10 +1,12 @@
 // functions/digest.js
 // Digest degli aggiornamenti (SOLO note ufficiali, mai task) delle pratiche:
-//  - un'email per agenzia con le sole proprie pratiche (standard + private);
-//  - un'email per cliente/committente (campo emailCliente sulla pratica) con la sola sua pratica.
+//  - un'email per agenzia con le sole proprie pratiche (standard + private) e, in coda,
+//    gli aggiornamenti dei propri accessi agli atti ancora aperti;
+//  - un'email per cliente/committente (campo emailCliente sulla pratica) con la sola sua
+//    pratica (gli accessi agli atti NON entrano: non hanno un'email committente).
 // Ogni email riporta TUTTE le note ufficiali della pratica (nessun filtro settimanale).
 // Invio tramite Resend (https://resend.com) via fetch nativo — nessuna dipendenza npm.
-// Usato sia dalla funzione schedulata (giovedì 18:00 Europe/Rome) sia dal callable "Invia ora".
+// Usato sia dalla funzione schedulata (giovedì 17:00 Europe/Rome) sia dal callable "Invia ora".
 
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
@@ -38,6 +40,27 @@ const STEP_LABELS = {
   presentazionePratica: "Presentazione Pratica",
   saldo: "Saldo 40%",
 };
+
+// Fasi degli accessi agli atti, specchio di FASI_PROGRESSO_CONFIG in
+// src/pages/AccessiAgliAttiPage/components/NewAccessoAttiForm.js (stesso ordine).
+// Le functions non possono importare da src/: tenere allineato a mano.
+const FASI_ACCESSO = [
+  {
+    label: "Documenti/Delega",
+    flag: "faseDocumentiDelegaCompletata",
+    data: "dataFaseDocumentiDelega",
+  },
+  {
+    label: "Richiesta inviata",
+    flag: "faseRichiestaInviataCompletata",
+    data: "dataFaseRichiestaInviata",
+  },
+  {
+    label: "Documenti ricevuti",
+    flag: "faseDocumentiRicevutiCompletata",
+    data: "dataFaseDocumentiRicevuti",
+  },
+];
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -122,6 +145,35 @@ function collectUpdates(pratiche) {
   return updates;
 }
 
+// Raccoglie gli aggiornamenti degli accessi agli atti ancora in lavorazione.
+// Scarta: accessi completati, accessi già trasformati in pratica (i loro aggiornamenti
+// proseguono sulla pratica) e accessi senza nessuna fase completata.
+// Ritorna [{ accessoId, agenzia, titolo, fasi: [{ stepLabel, date }], note }]
+function collectAccessiUpdates(accessi) {
+  const updates = [];
+  for (const accesso of accessi) {
+    if (accesso.completata || accesso.spostatoInPratica) continue;
+
+    const fasi = [];
+    for (const fase of FASI_ACCESSO) {
+      if (!accesso[fase.flag]) continue;
+      const d = safeDate(accesso[fase.data]);
+      if (!d) continue; // senza data valida la riga non è formattabile
+      fasi.push({ stepLabel: fase.label, date: d });
+    }
+    if (fasi.length === 0) continue;
+
+    updates.push({
+      accessoId: accesso.id,
+      agenzia: accesso.agenzia || "",
+      titolo: `${accesso.indirizzo || "Senza indirizzo"} - ${(accesso.proprieta || "N/D").toUpperCase()}`,
+      fasi,
+      note: (accesso.note || "").trim(),
+    });
+  }
+  return updates;
+}
+
 // Oggetto unico per agenzie e committenti: "Aggiornamenti pratiche al 15 Luglio 2026 - Realine Studio"
 function buildSubject(now, isTest) {
   const prefix = isTest ? "[TEST] " : "";
@@ -160,11 +212,38 @@ function renderPraticaCard(gruppo) {
   </div>`;
 }
 
-function renderAgencyDigestHtml({ agenzia, gruppi, now, testRecipients }) {
+// Card di un accesso agli atti: stesso layout della card pratica ma intestazione VERDE
+// CHIARO invece che grigia, così a colpo d'occhio non si confonde con le pratiche.
+// Righe "data — nome step" e, in coda, il campo note.
+function renderAccessoCard(gruppo) {
+  const righe = gruppo.fasi
+    .map(
+      (f) =>
+        `<p style="margin:0 0 6px;font-size:13px;line-height:1.6;color:#1f2937"><span style="color:#6b7280">${formatDateIt(f.date)}</span> — ${esc(f.stepLabel)}</p>`
+    )
+    .join("");
+  const note = gruppo.note
+    ? `<p style="margin:8px 0 0;font-size:13px;line-height:1.6;color:#1f2937"><span style="color:#6b7280">Note:</span> ${esc(gruppo.note)}</p>`
+    : "";
+  return `<div style="border:1px solid #bbf7d0;border-radius:8px;margin-bottom:28px;overflow:hidden">
+    <div style="background:#dcfce7;padding:16px;font-weight:bold;font-size:14px;color:#14532d">${esc(gruppo.titolo)}</div>
+    <div style="padding:10px 16px 12px">${righe}${note}</div>
+  </div>`;
+}
+
+// Sezione accessi agli atti, sotto il blocco delle pratiche. Omessa se vuota.
+function renderAccessiSection(gruppiAccessi) {
+  if (!gruppiAccessi || gruppiAccessi.length === 0) return "";
+  return `<h2 style="margin:8px 0 16px;font-size:16px;font-weight:bold;color:#14532d;border-top:1px solid #e5e7eb;padding-top:20px">Aggiornamenti accessi agli atti</h2>
+    ${gruppiAccessi.map(renderAccessoCard).join("")}`;
+}
+
+function renderAgencyDigestHtml({ agenzia, gruppi, gruppiAccessi, now, testRecipients }) {
   return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;padding:8px">
     ${renderHeader(`Aggiornamenti pratiche al ${formatDateLong(now)}`, agenzia)}
     ${testRecipients ? renderTestBanner(testRecipients) : ""}
     ${gruppi.map(renderPraticaCard).join("")}
+    ${renderAccessiSection(gruppiAccessi)}
   </div>`;
 }
 
@@ -199,10 +278,12 @@ async function runDigest(db, { trigger, testEmail = null, requestedBy = null, no
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error("Secret RESEND_API_KEY mancante.");
 
-  // Pratiche standard + private (le private hanno una propria agenzia selezionata).
-  const [snapStandard, snapPrivato] = await Promise.all([
+  // Pratiche standard + private (le private hanno una propria agenzia selezionata)
+  // e accessi agli atti (blocco in coda all'email di agenzia).
+  const [snapStandard, snapPrivato, snapAccessi] = await Promise.all([
     db.collection("pratiche").get(),
     db.collection("pratiche_privato").get(),
+    db.collection("accessi_atti").get(),
   ]);
   const pratiche = [
     ...snapStandard.docs.map((d) => ({ id: d.id, origine: "standard", ...d.data() })),
@@ -212,6 +293,9 @@ async function runDigest(db, { trigger, testEmail = null, requestedBy = null, no
     .filter((p) => p.gestione === "nuova");
 
   const updates = collectUpdates(pratiche);
+
+  const accessi = snapAccessi.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const accessiUpdates = collectAccessiUpdates(accessi);
 
   // Config agenzie: doc ID = nome esatto agenzia.
   const agenzieSnap = await db.collection("agenzie").get();
@@ -225,13 +309,32 @@ async function runDigest(db, { trigger, testEmail = null, requestedBy = null, no
     byAgency.get(u.agenzia).push(u);
   }
 
+  // Stesso raggruppamento per gli accessi agli atti.
+  const accessiByAgency = new Map();
+  for (const a of accessiUpdates) {
+    if (!a.agenzia || a.agenzia === "PRIVATO") continue;
+    if (!accessiByAgency.has(a.agenzia)) accessiByAgency.set(a.agenzia, []);
+    accessiByAgency.get(a.agenzia).push(a);
+  }
+
+  // Destinatari = unione delle agenzie: un'agenzia con soli accessi (nessuna nota
+  // pratica) deve comunque ricevere la sua email.
+  const agenzieDaInviare = new Set([...byAgency.keys(), ...accessiByAgency.keys()]);
+
   const agencyResults = [];
   const unknownAgencies = [];
-  for (const [agenzia, gruppi] of byAgency) {
+  for (const agenzia of agenzieDaInviare) {
+    const gruppi = byAgency.get(agenzia) || [];
+    const gruppiAccessi = accessiByAgency.get(agenzia) || [];
     const config = agenzieConfig.get(agenzia);
     if (!config) unknownAgencies.push(agenzia);
     const noteCount = gruppi.reduce((s, g) => s + g.note.length, 0);
-    const base = { agenzia, praticheCount: gruppi.length, noteCount };
+    const base = {
+      agenzia,
+      praticheCount: gruppi.length,
+      noteCount,
+      accessiCount: gruppiAccessi.length,
+    };
     try {
       let to;
       if (testEmail) {
@@ -254,7 +357,13 @@ async function runDigest(db, { trigger, testEmail = null, requestedBy = null, no
         to,
         bcc: testEmail ? null : [DIGEST_BCC],
         subject: buildSubject(now, !!testEmail),
-        html: renderAgencyDigestHtml({ agenzia, gruppi, now, testRecipients: realRecipients }),
+        html: renderAgencyDigestHtml({
+          agenzia,
+          gruppi,
+          gruppiAccessi,
+          now,
+          testRecipients: realRecipients,
+        }),
       });
       agencyResults.push({ ...base, to, status: "sent", resendId: id });
     } catch (err) {
@@ -303,6 +412,7 @@ async function runDigest(db, { trigger, testEmail = null, requestedBy = null, no
   const totals = {
     agencies: agencyResults.length,
     clients: clientResults.length,
+    accessi: accessiUpdates.length,
     sent: allResults.filter((r) => r.status === "sent").length,
     skipped: allResults.filter((r) => r.status.startsWith("skipped")).length,
     errors: allResults.filter((r) => r.status === "error").length,

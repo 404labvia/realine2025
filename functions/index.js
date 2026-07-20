@@ -188,11 +188,11 @@ exports.deleteCalendarEvent = onCall(callOpts, async (request) => {
 // Digest settimanale aggiornamenti pratiche (solo note) — vedi digest.js.
 // ---------------------------------------------------------------------------
 
-// Ogni giovedì alle 18:00 Europe/Rome. retryCount 0: niente retry automatici,
+// Ogni giovedì alle 17:00 Europe/Rome. retryCount 0: niente retry automatici,
 // per evitare email duplicate se la run fallisce dopo alcuni invii riusciti.
 exports.weeklyAgencyDigest = onSchedule(
   {
-    schedule: "0 18 * * 4",
+    schedule: "0 17 * * 4",
     timeZone: "Europe/Rome",
     region: "us-central1",
     secrets: [RESEND_API_KEY],
