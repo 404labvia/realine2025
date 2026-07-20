@@ -125,13 +125,15 @@ export function PraticheProvider({ children, gestione = 'all', autoCodice = fals
     const yearSuffix = new Date().getFullYear().toString().slice(-2); // es. "26"
     const suffix = `-${sigla}-${yearSuffix}`;
 
-    // Numerazione a livello studio: scan dell'intera collezione (coerente con
-    // AccessoAttiContext.generateNextCodice). Le vecchie pratiche con codice
-    // libero non conforme non terminano con `-SIGLA-AA` e vengono ignorate.
+    // Numerazione della SOLA nuova gestione: le pratiche storiche ("da completare")
+    // non contano, così la serie nuova riparte da 001 per ogni sigla/anno anche se
+    // lo stesso numero esiste già tra le vecchie (le due numerazioni sono indipendenti).
     const snapshot = await getDocs(collection(db, 'pratiche'));
     let maxNumber = 0;
     snapshot.forEach((docSnapshot) => {
-      const codice = docSnapshot.data().codice || '';
+      const data = docSnapshot.data();
+      if (data.gestione !== 'nuova') return;
+      const codice = data.codice || '';
       if (codice.endsWith(suffix)) {
         const match = codice.match(/^(\d+)-/);
         if (match) {

@@ -23,7 +23,7 @@ const calendarListForModal = [
 ].filter(cal => cal.id && cal.name);
 
 function PratichePrivatoPage() {
-  const { pratiche, loading, deletePratica, addPratica, updatePratica } = usePratichePrivato();
+  const { pratiche, loading, deletePratica, addPratica, updatePratica, autoCodice, generateNextCodice, gestione } = usePratichePrivato();
   const { pratiche: praticheStandard, loading: loadingStandard } = usePratiche();
 
   const [localPratiche, setLocalPratiche] = useState([]);
@@ -141,6 +141,26 @@ function PratichePrivatoPage() {
     } catch (error) {
       console.error('Errore durante l\'aggiornamento della pratica privata:', error);
       alert('Si è verificato un errore durante il salvataggio. Riprova.');
+    }
+  };
+
+  // Sposta una pratica privata storica nella nuova gestione (vedi gemella in
+  // PraticheBoardPage): da lì in poi entra nel digest settimanale.
+  const handleSpostaInNuovaGestione = async (praticaId) => {
+    const pratica = localPratiche.find(p => p.id === praticaId);
+    const etichetta = pratica ? `${pratica.codice || ''} ${pratica.indirizzo || ''}`.trim() : '';
+    if (!window.confirm(
+      `Spostare la pratica ${etichetta} nella nuova gestione?\n\n` +
+      'Sparirà da "Da Completare", comparirà in "Pratiche Privato" e i suoi aggiornamenti ' +
+      '(note ufficiali) entreranno nelle email settimanali alle agenzie.'
+    )) return;
+
+    try {
+      await updatePratica(praticaId, { gestione: 'nuova', updatedAt: new Date().toISOString() });
+      setLocalPratiche(prev => prev.filter(p => p.id !== praticaId));
+    } catch (error) {
+      console.error('Errore spostando la pratica privata nella nuova gestione:', error);
+      alert('Si è verificato un errore durante lo spostamento. Riprova.');
     }
   };
 
@@ -536,6 +556,7 @@ function PratichePrivatoPage() {
           deleteGoogleCalendarEvent={deleteGoogleCalendarEvent}
           onCreateAutomationTask={handleCreateAutomationTask}
           onAttoConfermato={handleAttoConfermato}
+          onSpostaInNuovaGestione={gestione === 'vecchia' ? handleSpostaInNuovaGestione : undefined}
         />
       )}
 
@@ -543,6 +564,8 @@ function PratichePrivatoPage() {
         <NewPraticaPrivatoForm
           onClose={() => setShowNewPraticaForm(false)}
           onSave={handleAddNewPratica}
+          autoCodice={autoCodice}
+          generateNextCodice={generateNextCodice}
         />
       )}
 

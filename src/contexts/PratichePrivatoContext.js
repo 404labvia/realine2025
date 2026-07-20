@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { db, auth } from '../firebase'; // Importa auth da firebase
 import { collection, getDocs, addDoc, updateDoc, doc, deleteDoc } from 'firebase/firestore';
+import { getSiglaAgenzia } from '../pages/PratichePage/utils/agenzieCodici';
 
 const PratichePrivatoContext = createContext();
 
@@ -10,7 +11,8 @@ export function usePratichePrivato() {
 }
 
 // gestione: "nuova" | "vecchia" | "all" (vedi PraticheContext).
-export function PratichePrivatoProvider({ children, gestione = 'all' }) {
+// autoCodice: true attiva la generazione automatica del codice per agenzia nel form.
+export function PratichePrivatoProvider({ children, gestione = 'all', autoCodice = false }) {
   const [pratiche, setPratiche] = useState([]);
   const [collaboratori, setCollaboratori] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -100,11 +102,46 @@ export function PratichePrivatoProvider({ children, gestione = 'all' }) {
     }
   }
 
+  // Genera il prossimo codice progressivo per agenzia: formato NNN-SIGLA-AA
+  // (es. 001-ICO-26). Stessa logica di PraticheContext.generateNextCodice, ma sulla
+  // collezione pratiche_privato. Ritorna null se l'agenzia non ha una sigla
+  // (in tal caso il codice resta manuale).
+  async function generateNextCodice(agenzia) {
+    const sigla = getSiglaAgenzia(agenzia);
+    if (!sigla) return null;
+
+    const yearSuffix = new Date().getFullYear().toString().slice(-2); // es. "26"
+    const suffix = `-${sigla}-${yearSuffix}`;
+
+    // Solo la nuova gestione: le pratiche storiche ("da completare") non contano, così
+    // la serie nuova riparte da 001 per ogni sigla/anno. Tra le pratiche nuove si prende
+    // il numero più alto salvato, quindi una modifica manuale sposta in avanti la serie.
+    const snapshot = await getDocs(collection(db, 'pratiche_privato'));
+    let maxNumber = 0;
+    snapshot.forEach((docSnapshot) => {
+      const data = docSnapshot.data();
+      if (data.gestione !== 'nuova') return;
+      const codice = data.codice || '';
+      if (codice.endsWith(suffix)) {
+        const match = codice.match(/^(\d+)-/);
+        if (match) {
+          const numero = parseInt(match[1], 10);
+          if (numero > maxNumber) maxNumber = numero;
+        }
+      }
+    });
+
+    const formattedNumber = (maxNumber + 1).toString().padStart(3, '0'); // "001"
+    return `${formattedNumber}${suffix}`;
+  }
+
   const value = {
     pratiche: praticheView,
     collaboratori,
     loading,
     gestione,
+    autoCodice,
+    generateNextCodice,
     addPratica: addPraticaPrivato,
     updatePratica: updatePraticaPrivato,
     deletePratica: deletePraticaPrivato

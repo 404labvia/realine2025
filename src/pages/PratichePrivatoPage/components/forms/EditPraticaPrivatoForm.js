@@ -10,6 +10,7 @@ import {
   calcolaTotaleCommittente,
   calcolaTotaleCollaboratore
 } from '../../utils/calculationUtils';
+import CurrencyInput from '../../../../components/CurrencyInput';
 
 const EditPraticaPrivatoForm = ({ praticaId, pratica, onClose, onSave, onDelete }) => {
   const [editPraticaData, setEditPraticaData] = useState({
@@ -111,7 +112,6 @@ const EditPraticaPrivatoForm = ({ praticaId, pratica, onClose, onSave, onDelete 
     setEditPraticaData(prev => ({ ...prev, [field]: value }));
   };
 
-  const formatImporto = (importo) => parseFloat(importo).toFixed(2);
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -188,7 +188,7 @@ const EditPraticaPrivatoForm = ({ praticaId, pratica, onClose, onSave, onDelete 
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <span className="text-gray-500 sm:text-sm">€</span>
                   </div>
-                  <input type="number" value={formatImporto(editPraticaData.importoBaseCommittente)} onChange={(e) => handleEditPraticaImportoChange('importoBaseCommittente', parseFloat(e.target.value) || 0)} className="pl-7 w-full p-1.5 text-sm border border-gray-300 rounded-md" step="0.01"/>
+                  <CurrencyInput value={editPraticaData.importoBaseCommittente} onChange={(valore) => handleEditPraticaImportoChange('importoBaseCommittente', valore)} className="w-full p-1.5 text-sm border border-gray-300 rounded-md"/>
                 </div>
               </div>
               <div className="ml-3 flex items-center space-x-3">
@@ -214,7 +214,7 @@ const EditPraticaPrivatoForm = ({ praticaId, pratica, onClose, onSave, onDelete 
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <span className="text-gray-500 sm:text-sm">€</span>
                   </div>
-                  <input type="number" value={formatImporto(editPraticaData.importoBaseCollaboratore)} onChange={(e) => handleEditPraticaImportoChange('importoBaseCollaboratore', parseFloat(e.target.value) || 0)} className="pl-7 w-full p-1.5 text-sm border border-gray-300 rounded-md" step="0.01"/>
+                  <CurrencyInput value={editPraticaData.importoBaseCollaboratore} onChange={(valore) => handleEditPraticaImportoChange('importoBaseCollaboratore', valore)} className="w-full p-1.5 text-sm border border-gray-300 rounded-md"/>
                 </div>
               </div>
               <div className="ml-3 flex items-center">
@@ -236,7 +236,7 @@ const EditPraticaPrivatoForm = ({ praticaId, pratica, onClose, onSave, onDelete 
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <span className="text-gray-500 sm:text-sm">€</span>
                   </div>
-                  <input type="number" value={formatImporto(editPraticaData.importoBaseFirmatario)} onChange={(e) => handleEditPraticaImportoChange('importoBaseFirmatario', parseFloat(e.target.value) || 0)} className="pl-7 w-full p-1.5 text-sm border border-gray-300 rounded-md" step="0.01"/>
+                  <CurrencyInput value={editPraticaData.importoBaseFirmatario} onChange={(valore) => handleEditPraticaImportoChange('importoBaseFirmatario', valore)} className="w-full p-1.5 text-sm border border-gray-300 rounded-md"/>
                 </div>
               </div>
               <div className="ml-3 flex items-center">

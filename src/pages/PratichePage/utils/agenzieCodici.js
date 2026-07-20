@@ -1,9 +1,9 @@
 // src/pages/PratichePage/utils/agenzieCodici.js
 // Sigle agenzia per la numerazione automatica delle pratiche (formato NNN-SIGLA-AA).
-// Solo le agenzie Barner (standard) hanno una sigla: le agenzie private restano a
-// codice manuale. Le chiavi combaciano con le stringhe salvate su pratica.agenzia
-// (vedi agenzieCollaboratori in praticheUtils.js e AGENZIE_CARD_ORDINATE in
-// AccessiAgliAttiPage/index.js). Il match è comunque case-insensitive.
+// Le chiavi combaciano con le stringhe salvate su pratica.agenzia (vedi
+// agenzieCollaboratori in praticheUtils.js, agenzieCollaboratoriPrivato in
+// pratichePrivatoUtils.js e AGENZIE_CARD_ORDINATE in AccessiAgliAttiPage/index.js).
+// Il match è comunque case-insensitive. Un'agenzia senza sigla resta a codice manuale.
 
 export const agenzieSigle = {
   'BARNER VIAREGGIO': 'VIA',
@@ -18,6 +18,9 @@ export const agenzieSigle = {
   'BARNER MASSA': 'MAS',
   'BARNER PISTOIA': 'PST',
   'BARNER CARRARA': 'CAR',
+  // Agenzie private (pratiche_privato)
+  'ICONA CASA': 'ICO',
+  'LIVING IMMOBILIARE': 'LIV',
 };
 
 /**

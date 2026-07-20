@@ -21,6 +21,7 @@ import {
   MdToday,
   MdEvent,
   MdBusiness,
+  MdPendingActions,
 } from 'react-icons/md';
 import { FaCalendarAlt } from 'react-icons/fa';
 
@@ -52,7 +53,11 @@ function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [generaDocumentiOpen, setGeneraDocumentiOpen] = useState(false);
   const [generaReportOpen, setGeneraReportOpen] = useState(false);
+  const [daCompletareOpen, setDaCompletareOpen] = useState(false);
   const location = useLocation();
+
+  // Rotte delle pratiche storiche, raggruppate nel menu "Da Completare"
+  const DA_COMPLETARE_PATHS = ['/pratiche-board', '/pratiche-privato'];
 
   // Espandi automaticamente il menu corretto in base alla pagina
   useEffect(() => {
@@ -60,7 +65,10 @@ function AppContent() {
       setGeneraReportOpen(true);
     } else if (location.pathname.startsWith('/genera-')) {
       setGeneraDocumentiOpen(true);
+    } else if (DA_COMPLETARE_PATHS.includes(location.pathname)) {
+      setDaCompletareOpen(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
   useEffect(() => {
@@ -153,8 +161,6 @@ function AppContent() {
               { to: "/ape", label: "APE", icon: MdBolt },
               { to: "/pratiche-nuove", label: "Pratiche", icon: MdViewColumn },
               { to: "/pratiche-privato-nuove", label: "Pratiche Privato", icon: MdFolderSpecial },
-              { to: "/pratiche-board", label: "Pratiche da completare", icon: MdViewColumn },
-              { to: "/pratiche-privato", label: "Pratiche Privato da completare", icon: MdFolderSpecial },
               { to: "/finanze", label: "Finanze", icon: MdAttachMoney },
               { to: "/calendario", label: "Calendario", icon: FaCalendarAlt },
               { to: "/agenzie", label: "Agenzie", icon: MdBusiness },
@@ -169,6 +175,49 @@ function AppContent() {
                 {sidebarOpen && <span>{item.label}</span>}
               </NavLink>
             ))}
+
+            {/* Separatore e Da Completare (pratiche storiche, menu espandibile) */}
+            <div className="my-2 mx-4 border-t border-gray-200 dark:border-dark-border"></div>
+
+            <button
+              onClick={() => sidebarOpen && setDaCompletareOpen(!daCompletareOpen)}
+              className={`w-full flex items-center py-3 transition-colors duration-150 ${sidebarOpen ? 'px-6' : 'px-0 justify-center'} ${
+                DA_COMPLETARE_PATHS.includes(location.pathname)
+                  ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
+                  : 'text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+              }`}
+              title={!sidebarOpen ? "Da Completare" : ""}
+            >
+              <span className={sidebarOpen ? 'mr-3' : ''}><MdPendingActions className="h-5 w-5" /></span>
+              {sidebarOpen && (
+                <>
+                  <span className="font-medium flex-1 text-left">Da Completare</span>
+                  {daCompletareOpen ? <MdExpandLess className="h-5 w-5" /> : <MdExpandMore className="h-5 w-5" />}
+                </>
+              )}
+            </button>
+
+            {sidebarOpen && daCompletareOpen && (
+              <div className="bg-gray-50 dark:bg-dark-hover">
+                {[
+                  { to: '/pratiche-board', label: 'Pratiche', icon: MdViewColumn },
+                  { to: '/pratiche-privato', label: 'Pratiche Privato', icon: MdFolderSpecial },
+                ].map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({isActive}) => `flex items-center py-2.5 pl-12 pr-6 text-sm transition-colors duration-150 ${
+                      isActive
+                        ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-r-2 border-amber-600'
+                        : 'text-gray-600 dark:text-dark-text-secondary hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:text-amber-600 dark:hover:text-amber-400'
+                    }`}
+                  >
+                    <item.icon className="h-4 w-4 mr-2" />
+                    {item.label}
+                  </NavLink>
+                ))}
+              </div>
+            )}
 
             {/* Separatore e Genera Documenti (menu espandibile) */}
             <div className="my-2 mx-4 border-t border-gray-200 dark:border-dark-border"></div>
@@ -340,7 +389,7 @@ function AppContent() {
               path="/pratiche-privato-nuove"
               element={
                 <PraticheProvider gestione="nuova">
-                  <PratichePrivatoProvider gestione="nuova">
+                  <PratichePrivatoProvider gestione="nuova" autoCodice>
                     <PratichePrivatoPage />
                   </PratichePrivatoProvider>
                 </PraticheProvider>

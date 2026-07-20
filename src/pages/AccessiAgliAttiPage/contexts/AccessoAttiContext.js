@@ -202,6 +202,7 @@ export function AccessoAttiProvider({ children }) {
 
   // Genera il prossimo codice progressivo per una pratica della nuova gestione.
   // Formato NNN-SIGLA-AA per le agenzie Barner; fallback NNN-AA se l'agenzia non ha sigla.
+  // Conta solo le pratiche della nuova gestione: la serie è svincolata da quelle storiche.
   const generateNextCodicePratica = async (agenzia) => {
     const sigla = getSiglaAgenzia(agenzia);
     const yearSuffix = new Date().getFullYear().toString().slice(-2);
@@ -210,7 +211,9 @@ export function AccessoAttiProvider({ children }) {
     const snapshot = await getDocs(collection(db, 'pratiche'));
     let maxNumber = 0;
     snapshot.forEach((docSnapshot) => {
-      const codice = docSnapshot.data().codice || '';
+      const data = docSnapshot.data();
+      if (data.gestione !== 'nuova') return;
+      const codice = data.codice || '';
       if (codice.endsWith(suffix)) {
         const match = codice.match(/^(\d+)-/);
         if (match) {

@@ -1,5 +1,6 @@
 // src/pages/PraticheBoardPage/components/cells/PaymentModal.js
 import React, { useState } from 'react';
+import CurrencyInput from '../../../../components/CurrencyInput';
 import {
   calcolaBaseCommittente,
   calcolaBaseCollaboratore
@@ -30,9 +31,6 @@ const PaymentModal = ({ pratica, onClose, updatePratica, localPratiche, setLocal
   const [saldoFirmatario, setSaldoFirmatario] = useState(saldoData.importoFirmatario || 0);
   const [saldoCassaFirmatario, setSaldoCassaFirmatario] = useState(saldoData.applyCassaFirmatario !== false);
 
-  const formatCurrency = (amount) => {
-    return parseFloat(amount || 0).toFixed(2);
-  };
 
   // Calcola i valori netto
   const acconto50NettoCommittente = calcolaBaseCommittente(
@@ -137,16 +135,11 @@ const PaymentModal = ({ pratica, onClose, updatePratica, localPratiche, setLocal
             <div className="space-y-2">
               <div className="flex items-center space-x-4">
                 <div className="flex-1">
-                  <div className="relative">
-                    <span className="absolute left-3 top-2 text-gray-500 dark:text-dark-text-muted text-sm">€</span>
-                    <input
-                      type="number"
-                      value={formatCurrency(acconto50Committente)}
-                      onChange={(e) => setAcconto50Committente(parseFloat(e.target.value) || 0)}
-                      className="pl-7 w-full p-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded"
-                      step="0.01"
+                  <CurrencyInput
+                      value={acconto50Committente}
+                      onChange={setAcconto50Committente}
+                      className="w-full p-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded"
                     />
-                  </div>
                 </div>
                 <label className="inline-flex items-center">
                   <input
@@ -178,16 +171,11 @@ const PaymentModal = ({ pratica, onClose, updatePratica, localPratiche, setLocal
             <div className="space-y-2">
               <div className="flex items-center space-x-4">
                 <div className="flex-1">
-                  <div className="relative">
-                    <span className="absolute left-3 top-2 text-gray-500 dark:text-dark-text-muted text-sm">€</span>
-                    <input
-                      type="number"
-                      value={formatCurrency(acconto50Collaboratore)}
-                      onChange={(e) => setAcconto50Collaboratore(parseFloat(e.target.value) || 0)}
-                      className="pl-7 w-full p-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded"
-                      step="0.01"
+                  <CurrencyInput
+                      value={acconto50Collaboratore}
+                      onChange={setAcconto50Collaboratore}
+                      className="w-full p-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded"
                     />
-                  </div>
                 </div>
                 <label className="inline-flex items-center">
                   <input
@@ -210,16 +198,11 @@ const PaymentModal = ({ pratica, onClose, updatePratica, localPratiche, setLocal
             <div className="space-y-2">
               <div className="flex items-center space-x-4">
                 <div className="flex-1">
-                  <div className="relative">
-                    <span className="absolute left-3 top-2 text-gray-500 dark:text-dark-text-muted text-sm">€</span>
-                    <input
-                      type="number"
-                      value={formatCurrency(acconto50Firmatario)}
-                      onChange={(e) => setAcconto50Firmatario(parseFloat(e.target.value) || 0)}
-                      className="pl-7 w-full p-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded"
-                      step="0.01"
+                  <CurrencyInput
+                      value={acconto50Firmatario}
+                      onChange={setAcconto50Firmatario}
+                      className="w-full p-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded"
                     />
-                  </div>
                 </div>
                 <label className="inline-flex items-center">
                   <input
@@ -246,16 +229,11 @@ const PaymentModal = ({ pratica, onClose, updatePratica, localPratiche, setLocal
             <div className="space-y-2">
               <div className="flex items-center space-x-4">
                 <div className="flex-1">
-                  <div className="relative">
-                    <span className="absolute left-3 top-2 text-gray-500 dark:text-dark-text-muted text-sm">€</span>
-                    <input
-                      type="number"
-                      value={formatCurrency(saldoCommittente)}
-                      onChange={(e) => setSaldoCommittente(parseFloat(e.target.value) || 0)}
-                      className="pl-7 w-full p-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded"
-                      step="0.01"
+                  <CurrencyInput
+                      value={saldoCommittente}
+                      onChange={setSaldoCommittente}
+                      className="w-full p-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded"
                     />
-                  </div>
                 </div>
                 <label className="inline-flex items-center">
                   <input
@@ -287,16 +265,11 @@ const PaymentModal = ({ pratica, onClose, updatePratica, localPratiche, setLocal
             <div className="space-y-2">
               <div className="flex items-center space-x-4">
                 <div className="flex-1">
-                  <div className="relative">
-                    <span className="absolute left-3 top-2 text-gray-500 dark:text-dark-text-muted text-sm">€</span>
-                    <input
-                      type="number"
-                      value={formatCurrency(saldoCollaboratore)}
-                      onChange={(e) => setSaldoCollaboratore(parseFloat(e.target.value) || 0)}
-                      className="pl-7 w-full p-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded"
-                      step="0.01"
+                  <CurrencyInput
+                      value={saldoCollaboratore}
+                      onChange={setSaldoCollaboratore}
+                      className="w-full p-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded"
                     />
-                  </div>
                 </div>
                 <label className="inline-flex items-center">
                   <input
@@ -319,16 +292,11 @@ const PaymentModal = ({ pratica, onClose, updatePratica, localPratiche, setLocal
             <div className="space-y-2">
               <div className="flex items-center space-x-4">
                 <div className="flex-1">
-                  <div className="relative">
-                    <span className="absolute left-3 top-2 text-gray-500 dark:text-dark-text-muted text-sm">€</span>
-                    <input
-                      type="number"
-                      value={formatCurrency(saldoFirmatario)}
-                      onChange={(e) => setSaldoFirmatario(parseFloat(e.target.value) || 0)}
-                      className="pl-7 w-full p-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded"
-                      step="0.01"
+                  <CurrencyInput
+                      value={saldoFirmatario}
+                      onChange={setSaldoFirmatario}
+                      className="w-full p-2 text-sm border border-gray-300 dark:border-dark-border dark:bg-dark-hover dark:text-dark-text-primary rounded"
                     />
-                  </div>
                 </div>
                 <label className="inline-flex items-center">
                   <input

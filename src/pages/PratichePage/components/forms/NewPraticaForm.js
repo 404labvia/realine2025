@@ -10,6 +10,7 @@ import {
   calcolaTotaleCommittente,
   calcolaTotaleCollaboratore
 } from '../../utils/calculationUtils';
+import CurrencyInput from '../../../../components/CurrencyInput';
 
 const NewPraticaForm = ({ onClose, onSave, autoCodice = false, generateNextCodice }) => {
   const [loadingCodice, setLoadingCodice] = useState(false);
@@ -232,10 +233,6 @@ const NewPraticaForm = ({ onClose, onSave, autoCodice = false, generateNextCodic
     onSave(praticaData);
   };
 
-  // Formatta l'importo per la visualizzazione (max 2 decimali)
-  const formatImporto = (importo) => {
-    return parseFloat(importo).toFixed(2);
-  };
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -250,11 +247,16 @@ const NewPraticaForm = ({ onClose, onSave, autoCodice = false, generateNextCodic
               type="text"
               value={autoCodice && loadingCodice ? 'Generazione...' : newPraticaData.codice}
               onChange={(e) => setNewPraticaData({...newPraticaData, codice: e.target.value})}
-              readOnly={autoCodice}
               placeholder={autoCodice ? 'Seleziona un\'agenzia per generare il codice' : ''}
-              className={`w-full p-1.5 text-sm border border-gray-300 rounded-md ${autoCodice ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+              className="w-full p-1.5 text-sm border border-gray-300 rounded-md"
               required
             />
+            {autoCodice && (
+              <p className="mt-0.5 text-xs text-gray-500">
+                Proposto automaticamente in base all'agenzia: puoi modificarlo. La numerazione
+                successiva riparte dal numero più alto salvato.
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Indirizzo *</label>
@@ -338,18 +340,11 @@ const NewPraticaForm = ({ onClose, onSave, autoCodice = false, generateNextCodic
             <label className="block text-sm font-medium text-gray-700 mb-1">Importo Base Committente</label>
             <div className="flex items-center">
               <div className="flex-1">
-                <div className="relative rounded-md shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-gray-500 sm:text-sm">€</span>
-                  </div>
-                  <input
-                    type="number"
-                    value={formatImporto(newPraticaData.importoBaseCommittente)}
-                    onChange={(e) => handleNewPraticaImportoChange('importoBaseCommittente', parseFloat(e.target.value) || 0)}
-                    className="pl-7 w-full p-1.5 text-sm border border-gray-300 rounded-md"
-                    step="0.01"
+                <CurrencyInput
+                    value={newPraticaData.importoBaseCommittente}
+                    onChange={(valore) => handleNewPraticaImportoChange('importoBaseCommittente', valore)}
+                    className="w-full p-1.5 text-sm border border-gray-300 rounded-md"
                   />
-                </div>
               </div>
               <div className="ml-3 flex items-center space-x-3">
                 <label className="inline-flex items-center">
@@ -386,18 +381,11 @@ const NewPraticaForm = ({ onClose, onSave, autoCodice = false, generateNextCodic
             <label className="block text-sm font-medium text-gray-700 mb-1">Importo Base Collaboratore</label>
             <div className="flex items-center">
               <div className="flex-1">
-                <div className="relative rounded-md shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-gray-500 sm:text-sm">€</span>
-                  </div>
-                  <input
-                    type="number"
-                    value={formatImporto(newPraticaData.importoBaseCollaboratore)}
-                    onChange={(e) => handleNewPraticaImportoChange('importoBaseCollaboratore', parseFloat(e.target.value) || 0)}
-                    className="pl-7 w-full p-1.5 text-sm border border-gray-300 rounded-md"
-                    step="0.01"
+                <CurrencyInput
+                    value={newPraticaData.importoBaseCollaboratore}
+                    onChange={(valore) => handleNewPraticaImportoChange('importoBaseCollaboratore', valore)}
+                    className="w-full p-1.5 text-sm border border-gray-300 rounded-md"
                   />
-                </div>
               </div>
               <div className="ml-3 flex items-center">
                 <label className="inline-flex items-center">
@@ -424,18 +412,11 @@ const NewPraticaForm = ({ onClose, onSave, autoCodice = false, generateNextCodic
             <label className="block text-sm font-medium text-gray-700 mb-1">Importo Base Firmatario</label>
             <div className="flex items-center">
               <div className="flex-1">
-                <div className="relative rounded-md shadow-sm">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <span className="text-gray-500 sm:text-sm">€</span>
-                  </div>
-                  <input
-                    type="number"
-                    value={formatImporto(newPraticaData.importoBaseFirmatario)}
-                    onChange={(e) => handleNewPraticaImportoChange('importoBaseFirmatario', parseFloat(e.target.value) || 0)}
-                    className="pl-7 w-full p-1.5 text-sm border border-gray-300 rounded-md"
-                    step="0.01"
+                <CurrencyInput
+                    value={newPraticaData.importoBaseFirmatario}
+                    onChange={(valore) => handleNewPraticaImportoChange('importoBaseFirmatario', valore)}
+                    className="w-full p-1.5 text-sm border border-gray-300 rounded-md"
                   />
-                </div>
               </div>
               <div className="ml-3 flex items-center">
                 <label className="inline-flex items-center">

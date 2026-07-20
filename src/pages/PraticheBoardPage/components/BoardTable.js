@@ -25,7 +25,8 @@ function BoardTable({
   onEditCalendarTask,
   deleteGoogleCalendarEvent,
   onCreateAutomationTask,
-  onAttoConfermato
+  onAttoConfermato,
+  onSpostaInNuovaGestione
 }) {
   return (
     <div className="bg-white dark:bg-dark-surface shadow-sm rounded-lg overflow-hidden transition-colors duration-200">
@@ -196,7 +197,11 @@ function BoardTable({
             {pratiche.map(pratica => (
               <tr key={pratica.id}>
                 <td className="col-pratica">
-                  <PraticaCell pratica={pratica} onEditPratica={onEditPratica} />
+                  <PraticaCell
+                    pratica={pratica}
+                    onEditPratica={onEditPratica}
+                    onSpostaInNuovaGestione={onSpostaInNuovaGestione}
+                  />
                 </td>
                 <td className="col-scadenze">
                   <ScadenzeCell

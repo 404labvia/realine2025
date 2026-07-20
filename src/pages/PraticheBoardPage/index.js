@@ -27,7 +27,7 @@ const calendarListForModal = [
 ].filter(cal => cal.id && cal.name);
 
 function PraticheBoardPage() {
-  const { pratiche, loading, deletePratica, addPratica, updatePratica, autoCodice, generateNextCodice } = usePratiche();
+  const { pratiche, loading, deletePratica, addPratica, updatePratica, autoCodice, generateNextCodice, gestione } = usePratiche();
   const { pratiche: pratichePrivateData, loading: loadingPratichePrivate } = usePratichePrivato();
   const {
     accessi,
@@ -206,6 +206,27 @@ function PraticheBoardPage() {
     } catch (error) {
       console.error('Errore durante l\'eliminazione della pratica:', error);
       alert('Si è verificato un errore durante l\'eliminazione. Riprova.');
+    }
+  };
+
+  // Sposta una pratica storica nella nuova gestione: da lì in poi compare nella pagina
+  // "Pratiche" e le sue note ufficiali entrano nel digest settimanale (functions/digest.js
+  // filtra gestione === "nuova"). Disponibile solo dalle pagine "Da Completare".
+  const handleSpostaInNuovaGestione = async (praticaId) => {
+    const pratica = localPratiche.find(p => p.id === praticaId);
+    const etichetta = pratica ? `${pratica.codice || ''} ${pratica.indirizzo || ''}`.trim() : '';
+    if (!window.confirm(
+      `Spostare la pratica ${etichetta} nella nuova gestione?\n\n` +
+      'Sparirà da "Da Completare", comparirà in "Pratiche" e i suoi aggiornamenti ' +
+      '(note ufficiali) entreranno nelle email settimanali alle agenzie.'
+    )) return;
+
+    try {
+      await updatePratica(praticaId, { gestione: 'nuova', updatedAt: new Date().toISOString() });
+      setLocalPratiche(prev => prev.filter(p => p.id !== praticaId));
+    } catch (error) {
+      console.error('Errore spostando la pratica nella nuova gestione:', error);
+      alert('Si è verificato un errore durante lo spostamento. Riprova.');
     }
   };
 
@@ -648,6 +669,7 @@ function PraticheBoardPage() {
           deleteGoogleCalendarEvent={deleteGoogleCalendarEvent}
           onCreateAutomationTask={handleCreateAutomationTask}
           onAttoConfermato={handleAttoConfermato}
+          onSpostaInNuovaGestione={gestione === 'vecchia' ? handleSpostaInNuovaGestione : undefined}
         />
       )}
 
