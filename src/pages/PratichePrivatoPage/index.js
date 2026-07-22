@@ -266,31 +266,41 @@ function PratichePrivatoPage() {
       alert("L'ora di fine deve essere successiva all'ora di inizio.");
       return;
     }
+    // Cattura i valori del form PRIMA della chiusura (poi il form viene resettato)
     const eventResource = prepareCalendarEventForApi();
     const targetCalendarForApi = calendarFormState.targetCalendarId;
     const praticaIdCollegata = calendarFormState.relatedPraticaId;
+    const editingId = calendarFormState.id;
+    const stepId = currentStepIdForCalendar;
+    const priorityVal = calendarFormState.priority || 'normal';
+    const reminderVal = calendarFormState.reminder || 60;
+    const isPrivateVal = calendarFormState.isPrivate || false;
+
+    // Chiusura immediata (ottimistica): la rete continua in background
+    resetCalendarFormAndCloseModal();
+    setCurrentStepIdForCalendar(null);
 
     try {
       let savedGoogleEvent;
-      if (calendarFormState.id) {
-        savedGoogleEvent = await updateGoogleEvent(calendarFormState.id, eventResource, targetCalendarForApi);
+      if (editingId) {
+        savedGoogleEvent = await updateGoogleEvent(editingId, eventResource, targetCalendarForApi);
       } else {
         savedGoogleEvent = await createGoogleEvent(eventResource, targetCalendarForApi);
       }
 
-      if (savedGoogleEvent && praticaIdCollegata && currentStepIdForCalendar) {
+      if (savedGoogleEvent && praticaIdCollegata && stepId) {
         // Cerca prima nelle pratiche private, poi nelle standard
         const praticaDaAggiornare = localPratiche.find(p => p.id === praticaIdCollegata);
         if (praticaDaAggiornare) {
           const updatedWorkflow = JSON.parse(JSON.stringify(praticaDaAggiornare.workflow || {}));
-          if (!updatedWorkflow[currentStepIdForCalendar]) {
-            updatedWorkflow[currentStepIdForCalendar] = { tasks: [], notes: [] };
+          if (!updatedWorkflow[stepId]) {
+            updatedWorkflow[stepId] = { tasks: [], notes: [] };
           }
-          if (!updatedWorkflow[currentStepIdForCalendar].tasks) {
-            updatedWorkflow[currentStepIdForCalendar].tasks = [];
+          if (!updatedWorkflow[stepId].tasks) {
+            updatedWorkflow[stepId].tasks = [];
           }
 
-          const taskIndex = updatedWorkflow[currentStepIdForCalendar].tasks.findIndex(
+          const taskIndex = updatedWorkflow[stepId].tasks.findIndex(
             t => t.googleCalendarEventId === savedGoogleEvent.id
           );
 
@@ -309,26 +319,26 @@ function PratichePrivatoPage() {
               : new Date(new Date(savedGoogleEvent.start?.dateTime || savedGoogleEvent.start?.date).getTime() + 3600000).toISOString(),
             googleCalendarEventId: savedGoogleEvent.id,
             sourceCalendarId: determinedSourceCalendarId,
-            priority: calendarFormState.priority || 'normal',
-            reminder: calendarFormState.reminder || 60,
-            completed: calendarFormState.id && taskIndex > -1
-              ? (updatedWorkflow[currentStepIdForCalendar].tasks[taskIndex]?.completed || false)
+            priority: priorityVal,
+            reminder: reminderVal,
+            completed: editingId && taskIndex > -1
+              ? (updatedWorkflow[stepId].tasks[taskIndex]?.completed || false)
               : false,
             relatedPraticaId: praticaIdCollegata,
             description: savedGoogleEvent.description || '',
             location: savedGoogleEvent.location || '',
-            isPrivate: calendarFormState.isPrivate || false,
-            stepId: currentStepIdForCalendar
+            isPrivate: isPrivateVal,
+            stepId: stepId
           };
 
           if (taskIndex > -1) {
-            updatedWorkflow[currentStepIdForCalendar].tasks[taskIndex] = {
-              ...updatedWorkflow[currentStepIdForCalendar].tasks[taskIndex],
+            updatedWorkflow[stepId].tasks[taskIndex] = {
+              ...updatedWorkflow[stepId].tasks[taskIndex],
               ...taskData,
               updatedAt: new Date().toISOString(),
             };
           } else {
-            updatedWorkflow[currentStepIdForCalendar].tasks.push({
+            updatedWorkflow[stepId].tasks.push({
               ...taskData,
               createdDate: new Date().toISOString(),
             });
@@ -338,12 +348,9 @@ function PratichePrivatoPage() {
           await updatePratica(praticaIdCollegata, { workflow: updatedWorkflow });
         }
       }
-      resetCalendarFormAndCloseModal();
     } catch (error) {
       console.error("Errore nel salvare l'evento di calendario:", error);
       alert("Si è verificato un errore nel salvare l'evento e aggiornare la pratica.");
-    } finally {
-      setCurrentStepIdForCalendar(null);
     }
   };
 

@@ -23,7 +23,7 @@ import {
   MdBusiness,
   MdPendingActions,
 } from 'react-icons/md';
-import { FaCalendarAlt } from 'react-icons/fa';
+import { FaTasks } from 'react-icons/fa';
 
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -117,7 +117,7 @@ function AppContent() {
       '/pratiche-privato-nuove': 'Gestione Pratiche Privato',
       '/pratiche-board': 'Gestione Pratiche da completare',
       '/pratiche-privato': 'Gestione Pratiche Privato da completare',
-      '/calendario': 'Calendario & Task',
+      '/calendario': 'Da fare',
       '/finanze': 'Gestione Finanziaria',
       '/genera-incarico-committente': 'Genera Incarico Committente',
       '/genera-incarico-collaboratore': 'Genera Incarico Collaboratore',
@@ -162,7 +162,7 @@ function AppContent() {
               { to: "/pratiche-nuove", label: "Pratiche", icon: MdViewColumn },
               { to: "/pratiche-privato-nuove", label: "Pratiche Privato", icon: MdFolderSpecial },
               { to: "/finanze", label: "Finanze", icon: MdAttachMoney },
-              { to: "/calendario", label: "Calendario", icon: FaCalendarAlt },
+              { to: "/calendario", label: "Da fare", icon: FaTasks },
               { to: "/agenzie", label: "Agenzie", icon: MdBusiness },
             ].map((item) => (
               <NavLink

@@ -34,6 +34,8 @@ const mapEvent = (item, calendarId) => ({
   category: item.extendedProperties?.private?.category || 'altro',
   relatedPraticaId: item.extendedProperties?.private?.relatedPraticaId || '',
   isPrivate: item.extendedProperties?.private?.isPrivate === 'true',
+  priority: item.extendedProperties?.private?.priority || 'normale',
+  noDueDate: item.extendedProperties?.private?.noDueDate === 'true',
   googleEvent: true,
   sourceCalendarId: calendarId, // Importante per modifiche/cancellazioni
 });

@@ -1,5 +1,5 @@
 // src/services/taskStateFirebaseService.js
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
 
 // UID hardcoded per tutte le operazioni Firebase
@@ -281,6 +281,31 @@ export const syncAllFromFirebase = async () => {
  */
 export const getPendingCount = () => {
   return Object.keys(getPendingQueue()).length;
+};
+
+/**
+ * Sottoscrive in tempo reale gli stati delle task (doc condiviso).
+ * Il callback riceve la mappa { eventId: { isCompleted, ... } }.
+ * Ritorna la funzione di unsubscribe.
+ */
+export const subscribeTaskStates = (callback) => {
+  const docRef = doc(db, 'taskStates', FIREBASE_USER_ID);
+  return onSnapshot(
+    docRef,
+    (snap) => {
+      const tasks = snap.exists() ? (snap.data().tasks || {}) : {};
+      // Aggiorna anche la cache locale per coerenza offline
+      try {
+        localStorage.setItem(TASK_STATES_KEY, JSON.stringify(tasks));
+      } catch (e) {
+        // ignora errori di storage
+      }
+      callback(tasks);
+    },
+    (error) => {
+      console.warn('Listener taskStates fallito:', error.message);
+    }
+  );
 };
 
 /**

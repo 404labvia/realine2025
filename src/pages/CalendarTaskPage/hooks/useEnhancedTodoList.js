@@ -11,13 +11,27 @@ import {
   syncAllFromFirebase,
   setupAutoSync,
   getPendingCount,
-  migrateFromOldService
+  migrateFromOldService,
+  subscribeTaskStates
 } from '../../../services/taskStateFirebaseService';
 import { startOfDay, addDays, startOfWeek, endOfWeek, parseISO, isValid, format, isPast, isToday } from 'date-fns';
+import { calendarIds } from '../../CalendarPage/utils/calendarUtils';
+
+// Le task "Da fare" vivono esclusivamente sul calendario De Antoni.
+const TASK_CALENDAR_ID = calendarIds.ID_DE_ANTONI;
 
 export const useEnhancedTodoList = () => {
   const { user } = useAuth();
-  const { googleApiToken, gapiClientInitialized, calendarEvents, fetchGoogleEvents, isLoadingEvents: isLoadingCalendarEvents } = useGoogleCalendarApi();
+  const {
+    googleApiToken,
+    gapiClientInitialized,
+    calendarEvents,
+    fetchGoogleEvents,
+    isLoadingEvents: isLoadingCalendarEvents,
+    createGoogleEvent,
+    updateGoogleEvent,
+    deleteGoogleEvent,
+  } = useGoogleCalendarApi();
   const { pratiche: praticheStandard, loading: loadingPraticheStd } = usePratiche();
   const { pratiche: pratichePrivate, loading: loadingPratichePriv } = usePratichePrivato();
 
@@ -25,8 +39,8 @@ export const useEnhancedTodoList = () => {
   const [isLoadingHook, setIsLoadingHook] = useState(true);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
 
-  // Filtri
-  const [activeFilter, setActiveFilter] = useState('inCorso');
+  // Filtri (default 'tutte': la lista raggruppa da sé per scadenza)
+  const [activeFilter, setActiveFilter] = useState('tutte');
   const [dateFilter, setDateFilter] = useState('all');
   const [agenziaFilter, setAgenziaFilter] = useState('tutte');
   const [praticaFilter, setPraticaFilter] = useState('tutte');
@@ -94,6 +108,21 @@ export const useEnhancedTodoList = () => {
     };
   }, []);
 
+  // Live sync: aggiorna lo stato "completata" in tempo reale quando cambia il doc
+  // condiviso taskStates (es. spunta fatta dalla pagina Pratiche).
+  useEffect(() => {
+    const unsubscribe = subscribeTaskStates((tasksMap) => {
+      setAllTodoItems((prev) =>
+        prev.map((it) => {
+          const remote = tasksMap[it.gCalEventId];
+          const remoteCompleted = remote ? !!remote.isCompleted : false;
+          return it.isCompleted === remoteCompleted ? it : { ...it, isCompleted: remoteCompleted };
+        })
+      );
+    });
+    return () => unsubscribe && unsubscribe();
+  }, []);
+
   // Carica e trasforma eventi del calendario in task
   useEffect(() => {
     console.log('🔍 Check condizioni caricamento task:', {
@@ -110,15 +139,15 @@ export const useEnhancedTodoList = () => {
 
       const loadTaskStates = async () => {
         try {
-          console.log('📋 Caricamento task da calendario primary...');
+          console.log('📋 Caricamento task da calendario De Antoni...');
 
           const transformedItems = await Promise.all(
             calendarEvents
-              .filter(event => event.sourceCalendarId === 'primary') // SOLO primary calendar
+              .filter(event => event.sourceCalendarId === TASK_CALENDAR_ID) // SOLO calendario De Antoni
               .map(async (event) => {
-                // Trova pratica correlata
+                // Trova pratica correlata (mapEvent espone relatedPraticaId appiattito)
                 let praticaInfo = null;
-                const relatedPraticaId = event.extendedProperties?.private?.relatedPraticaId;
+                const relatedPraticaId = event.relatedPraticaId;
                 if (relatedPraticaId) {
                   const praticaTrovata = tutteLePratiche.find(p => p.id === relatedPraticaId);
                   if (praticaTrovata) {
@@ -131,6 +160,9 @@ export const useEnhancedTodoList = () => {
                     };
                   }
                 }
+
+                // Task esplicitamente "senza scadenza": ignora la data placeholder
+                const isNoDueDate = event.noDueDate === true;
 
                 // Parse date
                 let validDueDate, validEndDate;
@@ -158,29 +190,33 @@ export const useEnhancedTodoList = () => {
                   gCalEventId: event.id,
                   gCalCalendarId: event.sourceCalendarId,
                   title: event.summary || event.title || '(Nessun titolo)',
-                  dueDate: isValid(validDueDate) ? validDueDate : new Date(),
+                  dueDate: isNoDueDate ? null : (isValid(validDueDate) ? validDueDate : new Date()),
                   endDate: isValid(validEndDate) ? validEndDate : undefined,
                   isCompleted: taskState.isCompleted || false,
+                  priority: event.priority || 'normale',
+                  relatedPraticaId: event.relatedPraticaId || '',
                   praticaInfo,
                   originalGCalEventData: event,
                 };
               })
           );
 
-          console.log(`✓ Caricate ${transformedItems.length} task da primary calendar`);
+          console.log(`✓ Caricate ${transformedItems.length} task dal calendario De Antoni`);
           setAllTodoItems(transformedItems);
 
         } catch (error) {
           console.error('Errore nel caricamento task:', error);
           // In caso di errore, mostra almeno i calendari senza stati
           const fallbackItems = calendarEvents
-            .filter(event => event.sourceCalendarId === 'primary')
+            .filter(event => event.sourceCalendarId === TASK_CALENDAR_ID)
             .map((event) => ({
               gCalEventId: event.id,
               gCalCalendarId: event.sourceCalendarId,
               title: event.summary || event.title || '(Nessun titolo)',
-              dueDate: new Date(),
+              dueDate: event.noDueDate === true ? null : new Date(),
               isCompleted: false,
+              priority: event.priority || 'normale',
+              relatedPraticaId: event.relatedPraticaId || '',
               praticaInfo: null,
               originalGCalEventData: event,
             }));
@@ -279,11 +315,13 @@ export const useEnhancedTodoList = () => {
       items = items.filter(item => item.praticaInfo?.id === praticaFilter);
     }
 
-    // Ordinamento: scadenza più vicina prima
+    // Ordinamento: scadenza più vicina prima; task senza scadenza in fondo
     items.sort((a, b) => {
-      if (isValid(a.dueDate) && isValid(b.dueDate)) {
-        return a.dueDate.getTime() - b.dueDate.getTime();
-      }
+      const aValid = a.dueDate && isValid(a.dueDate);
+      const bValid = b.dueDate && isValid(b.dueDate);
+      if (aValid && bValid) return a.dueDate.getTime() - b.dueDate.getTime();
+      if (aValid) return -1;
+      if (bValid) return 1;
       return 0;
     });
 
@@ -303,6 +341,16 @@ export const useEnhancedTodoList = () => {
     }
   }, [googleApiToken, gapiClientInitialized, fetchGoogleEvents, user?.uid]);
 
+  // Helper ottimistici: aggiornano subito la lista locale (feedback immediato),
+  // in attesa che il fetch dal calendario riconcili lo stato reale.
+  const updateLocalItem = useCallback((eventId, patch) => {
+    setAllTodoItems((prev) => prev.map((it) => (it.gCalEventId === eventId ? { ...it, ...patch } : it)));
+  }, []);
+
+  const removeLocalItem = useCallback((eventId) => {
+    setAllTodoItems((prev) => prev.filter((it) => it.gCalEventId !== eventId));
+  }, []);
+
   return {
     todoItems: filteredAndSortedItems,
     isLoading: isLoadingHook || isLoadingCalendarEvents || loadingPraticheStd || loadingPratichePriv,
@@ -319,5 +367,12 @@ export const useEnhancedTodoList = () => {
     availableAgenzie,
     availablePratiche,
     pendingSyncCount,
+    // CRUD calendario (stessa istanza della lista → un solo fetch)
+    createGoogleEvent,
+    updateGoogleEvent,
+    deleteGoogleEvent,
+    // Helper ottimistici
+    updateLocalItem,
+    removeLocalItem,
   };
 };

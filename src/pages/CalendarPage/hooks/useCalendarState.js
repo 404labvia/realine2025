@@ -13,6 +13,8 @@ export const useCalendarState = (tutteLePratiche = [], pratichePrivate = []) => 
     relatedPraticaId: praticaIdToSelect, // Usa l'ID passato
     isPrivate: praticaIdToSelect ? pratichePrivate.some(p => p.id === praticaIdToSelect) : false,
     targetCalendarId: 'primary',
+    priority: 'normale',
+    noDueDate: false,
   }), [pratichePrivate]);
 
   const [showEventModal, setShowEventModal] = useState(false);
@@ -51,6 +53,8 @@ export const useCalendarState = (tutteLePratiche = [], pratichePrivate = []) => 
       relatedPraticaId: event.relatedPraticaId || '',
       isPrivate: event.isPrivate || false,
       targetCalendarId: event.sourceCalendarId || 'primary',
+      priority: event.priority || 'normale',
+      noDueDate: event.noDueDate || false,
     });
     setShowEventModal(true);
   }, []);
@@ -124,6 +128,12 @@ export const useCalendarState = (tutteLePratiche = [], pratichePrivate = []) => 
     };
     if (formState.relatedPraticaId) {
       extendedPrivateProperties.relatedPraticaId = formState.relatedPraticaId;
+    }
+    if (formState.priority && formState.priority !== 'normale') {
+      extendedPrivateProperties.priority = formState.priority;
+    }
+    if (formState.noDueDate) {
+      extendedPrivateProperties.noDueDate = 'true';
     }
 
     return {
