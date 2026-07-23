@@ -174,21 +174,28 @@ function collectAccessiUpdates(accessi) {
   return updates;
 }
 
-// Oggetto unico per agenzie e committenti: "Aggiornamenti pratiche al 15 Luglio 2026 - Realine Studio"
-function buildSubject(now, isTest) {
+// Oggetto: "Aggiornamenti pratiche al 15 Luglio 2026 - Realine Studio [Barner Viareggio]".
+// Il suffisso [agenzia] compare solo nelle email alle agenzie (per i committenti agenzia è assente).
+function buildSubject(now, isTest, agenzia) {
   const prefix = isTest ? "[TEST] " : "";
-  return `${prefix}Aggiornamenti pratiche al ${formatDateLong(now)} - Realine Studio`;
+  const suffix = agenzia ? ` [${agenzia}]` : "";
+  return `${prefix}Aggiornamenti pratiche al ${formatDateLong(now)} - Realine Studio${suffix}`;
 }
 
-// Note: righe semplici "data — testo", senza elenco puntato né etichetta step.
+// Note: tabella 2 colonne "data | testo". La data resta su una colonna a sé (nowrap,
+// allineata in alto); il testo nota va nella seconda cella così che, andando a capo,
+// le righe successive restino allineate all'inizio del testo (rientro appeso), non sotto la data.
 function renderNoteList(note) {
   const righe = note
     .map(
       (n) =>
-        `<p style="margin:0 0 6px;font-size:13px;line-height:1.6;color:#1f2937"><span style="color:#6b7280">${formatDateIt(n.date)}</span> — ${esc(n.text)}</p>`
+        `<tr>
+          <td style="padding:0 10px 6px 0;font-size:13px;line-height:1.6;color:#6b7280;white-space:nowrap;vertical-align:top">${formatDateIt(n.date)}</td>
+          <td style="padding:0 0 6px;font-size:13px;line-height:1.6;color:#1f2937;vertical-align:top">${esc(n.text)}</td>
+        </tr>`
     )
     .join("");
-  return `<div style="padding:10px 16px 12px">${righe}</div>`;
+  return `<div style="padding:10px 16px 12px"><table cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;width:100%"><tbody>${righe}</tbody></table></div>`;
 }
 
 function renderTestBanner(realRecipients) {
@@ -204,16 +211,16 @@ function renderHeader(title, subtitle) {
   </div>`;
 }
 
-// Card di una pratica: intestazione grigia + elenco note.
+// Card di una pratica: intestazione VERDE CHIARO + elenco note.
 function renderPraticaCard(gruppo) {
-  return `<div style="border:1px solid #e5e7eb;border-radius:8px;margin-bottom:28px;overflow:hidden">
-    <div style="background:#f3f4f6;padding:16px;font-weight:bold;font-size:14px;color:#111827">${esc(gruppo.titolo)}</div>
+  return `<div style="border:1px solid #bbf7d0;border-radius:8px;margin-bottom:28px;overflow:hidden">
+    <div style="background:#dcfce7;padding:16px;font-weight:bold;font-size:14px;color:#14532d">${esc(gruppo.titolo)}</div>
     ${renderNoteList(gruppo.note)}
   </div>`;
 }
 
-// Card di un accesso agli atti: stesso layout della card pratica ma intestazione VERDE
-// CHIARO invece che grigia, così a colpo d'occhio non si confonde con le pratiche.
+// Card di un accesso agli atti: stesso layout della card pratica ma intestazione GIALLO
+// AMBRA invece che verde, così a colpo d'occhio non si confonde con le pratiche.
 // Righe "data — nome step" e, in coda, il campo note.
 function renderAccessoCard(gruppo) {
   const righe = gruppo.fasi
@@ -225,8 +232,8 @@ function renderAccessoCard(gruppo) {
   const note = gruppo.note
     ? `<p style="margin:8px 0 0;font-size:13px;line-height:1.6;color:#1f2937"><span style="color:#6b7280">Note:</span> ${esc(gruppo.note)}</p>`
     : "";
-  return `<div style="border:1px solid #bbf7d0;border-radius:8px;margin-bottom:28px;overflow:hidden">
-    <div style="background:#dcfce7;padding:16px;font-weight:bold;font-size:14px;color:#14532d">${esc(gruppo.titolo)}</div>
+  return `<div style="border:1px solid #fde68a;border-radius:8px;margin-bottom:28px;overflow:hidden">
+    <div style="background:#fef9c3;padding:16px;font-weight:bold;font-size:14px;color:#854d0e">${esc(gruppo.titolo)}</div>
     <div style="padding:10px 16px 12px">${righe}${note}</div>
   </div>`;
 }
@@ -234,7 +241,7 @@ function renderAccessoCard(gruppo) {
 // Sezione accessi agli atti, sotto il blocco delle pratiche. Omessa se vuota.
 function renderAccessiSection(gruppiAccessi) {
   if (!gruppiAccessi || gruppiAccessi.length === 0) return "";
-  return `<h2 style="margin:8px 0 16px;font-size:16px;font-weight:bold;color:#14532d;border-top:1px solid #e5e7eb;padding-top:20px">Aggiornamenti accessi agli atti</h2>
+  return `<h2 style="margin:8px 0 16px;font-size:16px;font-weight:bold;color:#854d0e;border-top:1px solid #e5e7eb;padding-top:20px">Aggiornamenti accessi agli atti</h2>
     ${gruppiAccessi.map(renderAccessoCard).join("")}`;
 }
 
@@ -356,7 +363,7 @@ async function runDigest(db, { trigger, testEmail = null, requestedBy = null, no
         from: DIGEST_FROM,
         to,
         bcc: testEmail ? null : [DIGEST_BCC],
-        subject: buildSubject(now, !!testEmail),
+        subject: buildSubject(now, !!testEmail, agenzia),
         html: renderAgencyDigestHtml({
           agenzia,
           gruppi,
