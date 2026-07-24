@@ -62,6 +62,15 @@ const FASI_ACCESSO = [
   },
 ];
 
+// Fasi degli APE, specchio di FASI_PROGRESSO_CONFIG in
+// src/pages/ApePage/components/NewApeForm.js (stesso ordine).
+// Come sopra: le functions non importano da src/, tenere allineato a mano.
+const FASI_APE = [
+  { label: "Richiesta", flag: "faseRichiestaCompletata", data: "dataFaseRichiesta" },
+  { label: "Esecuzione", flag: "faseEsecuzioneCompletata", data: "dataFaseEsecuzione" },
+  { label: "Pagamento", flag: "fasePagamentoCompletata", data: "dataFasePagamento" },
+];
+
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 // Pausa tra un invio e l'altro: il rate limit Resend è 2 req/s.
@@ -174,6 +183,34 @@ function collectAccessiUpdates(accessi) {
   return updates;
 }
 
+// Come collectAccessiUpdates ma per gli APE. Gli APE non hanno 'spostatoInPratica'
+// (non si trasformano in pratica): l'unica esclusione è 'completata'.
+// Ritorna [{ apeId, agenzia, titolo, fasi: [{ stepLabel, date }], note }]
+function collectApeUpdates(apeList) {
+  const updates = [];
+  for (const ape of apeList) {
+    if (ape.completata) continue;
+
+    const fasi = [];
+    for (const fase of FASI_APE) {
+      if (!ape[fase.flag]) continue;
+      const d = safeDate(ape[fase.data]);
+      if (!d) continue; // senza data valida la riga non è formattabile
+      fasi.push({ stepLabel: fase.label, date: d });
+    }
+    if (fasi.length === 0) continue;
+
+    updates.push({
+      apeId: ape.id,
+      agenzia: ape.agenzia || "",
+      titolo: `${ape.indirizzo || "Senza indirizzo"} - ${(ape.proprieta || "N/D").toUpperCase()}`,
+      fasi,
+      note: (ape.note || "").trim(),
+    });
+  }
+  return updates;
+}
+
 // Oggetto: "Aggiornamenti pratiche al 15 Luglio 2026 - Realine Studio [Barner Viareggio]".
 // Il suffisso [agenzia] compare solo nelle email alle agenzie (per i committenti agenzia è assente).
 function buildSubject(now, isTest, agenzia) {
@@ -245,12 +282,38 @@ function renderAccessiSection(gruppiAccessi) {
     ${gruppiAccessi.map(renderAccessoCard).join("")}`;
 }
 
-function renderAgencyDigestHtml({ agenzia, gruppi, gruppiAccessi, now, testRecipients }) {
+// Card di un APE: stesso layout della card accesso ma intestazione VIOLA (colore
+// della tab APE in AttiApeTabs), così non si confonde con accessi (giallo) e pratiche (verde).
+function renderApeCard(gruppo) {
+  const righe = gruppo.fasi
+    .map(
+      (f) =>
+        `<p style="margin:0 0 6px;font-size:13px;line-height:1.6;color:#1f2937"><span style="color:#6b7280">${formatDateIt(f.date)}</span> — ${esc(f.stepLabel)}</p>`
+    )
+    .join("");
+  const note = gruppo.note
+    ? `<p style="margin:8px 0 0;font-size:13px;line-height:1.6;color:#1f2937"><span style="color:#6b7280">Note:</span> ${esc(gruppo.note)}</p>`
+    : "";
+  return `<div style="border:1px solid #d8b4fe;border-radius:8px;margin-bottom:28px;overflow:hidden">
+    <div style="background:#f3e8ff;padding:16px;font-weight:bold;font-size:14px;color:#6b21a8">${esc(gruppo.titolo)}</div>
+    <div style="padding:10px 16px 12px">${righe}${note}</div>
+  </div>`;
+}
+
+// Sezione APE, sotto il blocco degli accessi agli atti. Omessa se vuota.
+function renderApeSection(gruppiApe) {
+  if (!gruppiApe || gruppiApe.length === 0) return "";
+  return `<h2 style="margin:8px 0 16px;font-size:16px;font-weight:bold;color:#6b21a8;border-top:1px solid #e5e7eb;padding-top:20px">Aggiornamenti APE</h2>
+    ${gruppiApe.map(renderApeCard).join("")}`;
+}
+
+function renderAgencyDigestHtml({ agenzia, gruppi, gruppiAccessi, gruppiApe, now, testRecipients }) {
   return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:640px;margin:0 auto;padding:8px">
     ${renderHeader(`Aggiornamenti pratiche al ${formatDateLong(now)}`, agenzia)}
     ${testRecipients ? renderTestBanner(testRecipients) : ""}
     ${gruppi.map(renderPraticaCard).join("")}
     ${renderAccessiSection(gruppiAccessi)}
+    ${renderApeSection(gruppiApe)}
   </div>`;
 }
 
@@ -285,12 +348,13 @@ async function runDigest(db, { trigger, testEmail = null, requestedBy = null, no
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) throw new Error("Secret RESEND_API_KEY mancante.");
 
-  // Pratiche standard + private (le private hanno una propria agenzia selezionata)
-  // e accessi agli atti (blocco in coda all'email di agenzia).
-  const [snapStandard, snapPrivato, snapAccessi] = await Promise.all([
+  // Pratiche standard + private (le private hanno una propria agenzia selezionata),
+  // accessi agli atti e APE (blocchi in coda all'email di agenzia).
+  const [snapStandard, snapPrivato, snapAccessi, snapApe] = await Promise.all([
     db.collection("pratiche").get(),
     db.collection("pratiche_privato").get(),
     db.collection("accessi_atti").get(),
+    db.collection("ape").get(),
   ]);
   const pratiche = [
     ...snapStandard.docs.map((d) => ({ id: d.id, origine: "standard", ...d.data() })),
@@ -303,6 +367,10 @@ async function runDigest(db, { trigger, testEmail = null, requestedBy = null, no
 
   const accessi = snapAccessi.docs.map((d) => ({ id: d.id, ...d.data() }));
   const accessiUpdates = collectAccessiUpdates(accessi);
+
+  // APE: come gli accessi, nessun filtro 'gestione' (la collezione 'ape' non ha quel campo).
+  const apeList = snapApe.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const apeUpdates = collectApeUpdates(apeList);
 
   // Config agenzie: doc ID = nome esatto agenzia.
   const agenzieSnap = await db.collection("agenzie").get();
@@ -324,15 +392,28 @@ async function runDigest(db, { trigger, testEmail = null, requestedBy = null, no
     accessiByAgency.get(a.agenzia).push(a);
   }
 
-  // Destinatari = unione delle agenzie: un'agenzia con soli accessi (nessuna nota
-  // pratica) deve comunque ricevere la sua email.
-  const agenzieDaInviare = new Set([...byAgency.keys(), ...accessiByAgency.keys()]);
+  // Stesso raggruppamento per gli APE.
+  const apeByAgency = new Map();
+  for (const a of apeUpdates) {
+    if (!a.agenzia || a.agenzia === "PRIVATO") continue;
+    if (!apeByAgency.has(a.agenzia)) apeByAgency.set(a.agenzia, []);
+    apeByAgency.get(a.agenzia).push(a);
+  }
+
+  // Destinatari = unione delle agenzie: un'agenzia con soli accessi o soli APE
+  // (nessuna nota pratica) deve comunque ricevere la sua email.
+  const agenzieDaInviare = new Set([
+    ...byAgency.keys(),
+    ...accessiByAgency.keys(),
+    ...apeByAgency.keys(),
+  ]);
 
   const agencyResults = [];
   const unknownAgencies = [];
   for (const agenzia of agenzieDaInviare) {
     const gruppi = byAgency.get(agenzia) || [];
     const gruppiAccessi = accessiByAgency.get(agenzia) || [];
+    const gruppiApe = apeByAgency.get(agenzia) || [];
     const config = agenzieConfig.get(agenzia);
     if (!config) unknownAgencies.push(agenzia);
     const noteCount = gruppi.reduce((s, g) => s + g.note.length, 0);
@@ -341,6 +422,7 @@ async function runDigest(db, { trigger, testEmail = null, requestedBy = null, no
       praticheCount: gruppi.length,
       noteCount,
       accessiCount: gruppiAccessi.length,
+      apeCount: gruppiApe.length,
     };
     try {
       let to;
@@ -368,6 +450,7 @@ async function runDigest(db, { trigger, testEmail = null, requestedBy = null, no
           agenzia,
           gruppi,
           gruppiAccessi,
+          gruppiApe,
           now,
           testRecipients: realRecipients,
         }),
@@ -420,6 +503,7 @@ async function runDigest(db, { trigger, testEmail = null, requestedBy = null, no
     agencies: agencyResults.length,
     clients: clientResults.length,
     accessi: accessiUpdates.length,
+    ape: apeUpdates.length,
     sent: allResults.filter((r) => r.status === "sent").length,
     skipped: allResults.filter((r) => r.status.startsWith("skipped")).length,
     errors: allResults.filter((r) => r.status === "error").length,

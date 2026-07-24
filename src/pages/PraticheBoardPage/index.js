@@ -65,6 +65,7 @@ function PraticheBoardPage() {
   // Stati per gestione APE (tab affiancato agli accessi nella nuova gestione)
   const [showNewApeForm, setShowNewApeForm] = useState(false);
   const [editingApe, setEditingApe] = useState(null);
+  const [newApeAgenzia, setNewApeAgenzia] = useState('');
 
   useEffect(() => {
     if (!loading) {
@@ -216,6 +217,11 @@ function PraticheBoardPage() {
   // Handlers per APE (tab affiancato)
   const handleEditApe = (apeItem) => {
     setEditingApe(apeItem);
+  };
+
+  const handleOpenNewApeForm = () => {
+    setNewApeAgenzia(filtroAgenzia);
+    setShowNewApeForm(true);
   };
 
   const handleAddNewApe = async (nuovoApe) => {
@@ -732,7 +738,7 @@ function PraticheBoardPage() {
             onEditApe={handleEditApe}
             onDeleteApe={handleDeleteApe}
             onUpdateApe={updateApe}
-            onAddNewApe={() => setShowNewApeForm(true)}
+            onAddNewApe={handleOpenNewApeForm}
           />
         ) : (
           <CollapsibleAccessoAttiCard
@@ -842,6 +848,7 @@ function PraticheBoardPage() {
           onClose={() => setShowNewApeForm(false)}
           onSave={handleAddNewApe}
           agenzieDisponibili={agenzieCollaboratori.map(ac => ac.agenzia).filter(a => a !== 'PRIVATO')}
+          defaultAgenzia={newApeAgenzia}
         />
       )}
 

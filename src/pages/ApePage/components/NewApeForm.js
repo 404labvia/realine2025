@@ -10,13 +10,13 @@ const FASI_PROGRESSO_CONFIG = [
   { label: "Pagamento", field: "fasePagamentoCompletata" },
 ];
 
-function NewApeForm({ onClose, onSave, agenzieDisponibili }) {
+function NewApeForm({ onClose, onSave, agenzieDisponibili, defaultAgenzia = '' }) {
   const { generateNextCodice } = useApe();
   const [formData, setFormData] = useState({
     codice: '',
     indirizzo: '',
     proprieta: '',
-    agenzia: '',
+    agenzia: defaultAgenzia,
     note: '',
     faseRichiestaCompletata: true, // Default: flaggato
     faseEsecuzioneCompletata: false,
