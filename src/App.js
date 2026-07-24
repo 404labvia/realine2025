@@ -9,8 +9,6 @@ import {
   MdLogout,
   MdAccountCircle,
   MdFolderSpecial,
-  MdFolderOpen,
-  MdBolt,
   MdViewColumn,
   MdNoteAdd,
   MdExpandMore,
@@ -34,8 +32,6 @@ import { ApeProvider } from './pages/ApePage/contexts/ApeContext';
 import ThemeToggle from './components/ThemeToggle';
 
 import Dashboard from './pages/Dashboard';
-import AccessiAgliAttiPage from './pages/AccessiAgliAttiPage';
-import ApePage from './pages/ApePage';
 import PraticheBoardPage from './pages/PraticheBoardPage';
 import PratichePrivatoPage from './pages/PratichePrivatoPage';
 import CalendarTaskPage from './pages/CalendarTaskPage';
@@ -111,8 +107,6 @@ function AppContent() {
     const path = location.pathname;
     const titles = {
       '/': 'Dashboard',
-      '/accessi-atti': 'Gestione Accessi agli Atti',
-      '/ape': 'Gestione APE - Attestati di Prestazione Energetica',
       '/pratiche-nuove': 'Gestione Pratiche',
       '/pratiche-privato-nuove': 'Gestione Pratiche Privato',
       '/pratiche-board': 'Gestione Pratiche da completare',
@@ -157,8 +151,6 @@ function AppContent() {
           <nav className="mt-6">
             {[
               { to: "/", label: "Dashboard", icon: MdHome },
-              { to: "/accessi-atti", label: "Accessi Atti", icon: MdFolderOpen },
-              { to: "/ape", label: "APE", icon: MdBolt },
               { to: "/pratiche-nuove", label: "Pratiche", icon: MdViewColumn },
               { to: "/pratiche-privato-nuove", label: "Pratiche Privato", icon: MdFolderSpecial },
               { to: "/finanze", label: "Finanze", icon: MdAttachMoney },
@@ -358,22 +350,6 @@ function AppContent() {
                     </AccessoAttiProvider>
                   </PratichePrivatoProvider>
                 </PraticheProvider>
-              }
-            />
-            <Route
-              path="/accessi-atti"
-              element={
-                <AccessoAttiProvider>
-                  <AccessiAgliAttiPage />
-                </AccessoAttiProvider>
-              }
-            />
-            <Route
-              path="/ape"
-              element={
-                <ApeProvider>
-                  <ApePage />
-                </ApeProvider>
               }
             />
             {/* Pratiche NUOVE (nuova gestione da Settembre) */}
