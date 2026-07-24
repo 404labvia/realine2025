@@ -127,6 +127,11 @@ Le funzioni handler in `handlers/` prendono: `(id, data, updateFn, localState, s
 - `ApePage/utils/exportUtils.js` → `generateApeListPDF`; `AccessiAgliAttiPage/utils/exportUtils.js` → `generateAccessiListPDF`. Bottoni "Esporta Lista PDF" nelle rispettive pagine.
 - Tecnica: render HTML offscreen → `html2canvas` → `jsPDF` (A4, multipagina automatica in `htmlToPdf`).
 
+### Layout Shell (App.js)
+- `<main>` in `App.js` ha `p-4` = **16px** di padding laterale: è l'unico margine dei lati. NON aggiungerne altro nelle pagine.
+- I root delle pagine dati usano `w-full` (piena larghezza, tabelle ampie). NON usare `container mx-auto` (impone max-width per breakpoint → margini vuoti extra su monitor larghi). Solo i form volutamente stretti usano `max-w-*` (`GeneraReportPage`, `AgenziePage`, `GeneraIncaricoPage`).
+- Sidebar: header logo+titolo centrato (`justify-center` + `items-center w-full`); bottone collassa in `absolute top-4 right-2` quando aperta. Ordine nav: Dashboard → Da fare → Pratiche → Pratiche Privato → Finanze → Agenzie.
+
 ## Comandi Sviluppo
 
 ```bash

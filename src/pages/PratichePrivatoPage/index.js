@@ -461,7 +461,7 @@ function PratichePrivatoPage() {
   const isGoogleAuthenticated = gapiClientInitialized && !!googleApiToken;
 
   return (
-    <div className="container mx-auto">
+    <div className="w-full">
       <div className="bg-white dark:bg-dark-surface p-3 rounded-lg shadow mb-4 transition-colors duration-200">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">

@@ -38,7 +38,7 @@ function Dashboard() {
   }
 
   return (
-    <div className="container mx-auto p-2 sm:p-4">
+    <div className="w-full">
       <StatistichePrincipali pratiche={pratiche} />
 
       {/* Statistiche Accesso Atti + APE (stesso stile/dimensioni di Panoramica Pratiche) */}

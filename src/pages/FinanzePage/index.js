@@ -409,7 +409,7 @@ function FinanzePage() {
 
   // --- 6. Return JSX ---
   return (
-    <div className="container mx-auto mb-10 px-4"> {/* Aggiunto padding orizzontale */}
+    <div className="w-full mb-10">
       <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4"> {/* Responsive flex e gap */}
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 text-center sm:text-left">Gestione Finanziaria</h1>
         <button

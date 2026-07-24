@@ -128,8 +128,8 @@ function AppContent() {
     <div className="flex h-screen bg-gray-100 dark:bg-dark-bg transition-colors duration-200">
       <aside className={`${sidebarOpen ? 'w-52' : 'w-16'} bg-white dark:bg-dark-surface text-gray-800 dark:text-dark-text-primary transition-all duration-300 ease-in-out overflow-y-auto shadow-lg flex flex-col justify-between`}>
         <div>
-          <div className="p-4 flex flex-col">
-            <div className={`flex ${sidebarOpen ? 'justify-between' : 'justify-center'} w-full items-center`}>
+          <div className="p-4 flex flex-col relative">
+            <div className="flex justify-center w-full items-center">
               {sidebarOpen ? (
                 <div className="flex flex-col items-center w-full">
                   <img src="/logo.png" alt="Realine Studio Logo" className="h-20 mb-3"/>
@@ -140,7 +140,7 @@ function AppContent() {
                 <img src="/favicon.ico" alt="R" className="h-8 w-8 mx-auto" />
               )}
               <button
-                className={`p-1 rounded-full hover:bg-gray-100 dark:hover:bg-dark-hover text-gray-600 dark:text-dark-text-secondary ${!sidebarOpen && 'mt-4 fixed left-14 top-3 z-50 bg-white dark:bg-dark-surface shadow-md'}`}
+                className={`p-1 rounded-full hover:bg-gray-100 dark:hover:bg-dark-hover text-gray-600 dark:text-dark-text-secondary ${sidebarOpen ? 'absolute top-4 right-2' : 'mt-4 fixed left-14 top-3 z-50 bg-white dark:bg-dark-surface shadow-md'}`}
                 onClick={() => setSidebarOpen(!sidebarOpen)}
                 aria-label={sidebarOpen ? "Collassa sidebar" : "Espandi sidebar"}
               >
@@ -151,10 +151,10 @@ function AppContent() {
           <nav className="mt-6">
             {[
               { to: "/", label: "Dashboard", icon: MdHome },
+              { to: "/calendario", label: "Da fare", icon: FaTasks },
               { to: "/pratiche-nuove", label: "Pratiche", icon: MdViewColumn },
               { to: "/pratiche-privato-nuove", label: "Pratiche Privato", icon: MdFolderSpecial },
               { to: "/finanze", label: "Finanze", icon: MdAttachMoney },
-              { to: "/calendario", label: "Da fare", icon: FaTasks },
               { to: "/agenzie", label: "Agenzie", icon: MdBusiness },
             ].map((item) => (
               <NavLink
