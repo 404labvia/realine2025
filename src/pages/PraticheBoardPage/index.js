@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { usePratiche } from '../../contexts/PraticheContext';
 import { usePratichePrivato } from '../../contexts/PratichePrivatoContext';
 import { useAccessiAtti } from '../AccessiAgliAttiPage/contexts/AccessoAttiContext';
+import { useApe } from '../ApePage/contexts/ApeContext';
 import { FaPlus, FaSearch, FaFilter, FaSort } from 'react-icons/fa';
 import Fuse from 'fuse.js';
 import { addDays } from 'date-fns';
@@ -12,10 +13,13 @@ import { useGoogleCalendarApi } from '../CalendarPage/hooks/useGoogleCalendarApi
 
 import BoardTable from './components/BoardTable';
 import CollapsibleAccessoAttiCard from './components/CollapsibleAccessoAttiCard';
+import AttiApeTabs from './components/AttiApeTabs';
 import EventModal from '../CalendarPage/components/EventModal';
 import { NewPraticaForm, EditPraticaForm } from '../PratichePage/components/forms';
 import NewAccessoAttiForm from '../AccessiAgliAttiPage/components/NewAccessoAttiForm';
 import EditAccessoAttiForm from '../AccessiAgliAttiPage/components/EditAccessoAttiForm';
+import NewApeForm from '../ApePage/components/NewApeForm';
+import EditApeForm from '../ApePage/components/EditApeForm';
 
 import { agenzieCollaboratori } from '../PratichePage/utils';
 import { calendarIds, calendarNameMap } from '../CalendarPage/utils/calendarUtils';
@@ -35,7 +39,14 @@ function PraticheBoardPage() {
     addAccesso,
     updateAccesso,
     deleteAccesso,
+    spostaInPratica,
   } = useAccessiAtti();
+  const {
+    ape,
+    addApe,
+    updateApe,
+    deleteApe,
+  } = useApe();
 
   const [localPratiche, setLocalPratiche] = useState([]);
   const [filtroAgenzia, setFiltroAgenzia] = useState('');
@@ -50,6 +61,10 @@ function PraticheBoardPage() {
   const [showNewAccessoForm, setShowNewAccessoForm] = useState(false);
   const [editingAccesso, setEditingAccesso] = useState(null);
   const [newAccessoAgenzia, setNewAccessoAgenzia] = useState('');
+
+  // Stati per gestione APE (tab affiancato agli accessi nella nuova gestione)
+  const [showNewApeForm, setShowNewApeForm] = useState(false);
+  const [editingApe, setEditingApe] = useState(null);
 
   useEffect(() => {
     if (!loading) {
@@ -145,6 +160,12 @@ function PraticheBoardPage() {
     return accessi.filter(accesso => accesso.agenzia === filtroAgenzia);
   }, [accessi, filtroAgenzia]);
 
+  // Filtra APE per agenzia selezionata (specchio di accessiFiltered)
+  const apeFiltered = useMemo(() => {
+    if (!filtroAgenzia) return [];
+    return ape.filter(apeItem => apeItem.agenzia === filtroAgenzia);
+  }, [ape, filtroAgenzia]);
+
   // Handlers per Accessi Atti
   const handleAddNewAccessoAtti = async (nuovoAccesso) => {
     await addAccesso(nuovoAccesso);
@@ -170,6 +191,61 @@ function PraticheBoardPage() {
   const handleOpenNewAccessoForm = () => {
     setNewAccessoAgenzia(filtroAgenzia);
     setShowNewAccessoForm(true);
+  };
+
+  // Sposta un accesso agli atti nelle Pratiche (nuova gestione). Riusa spostaInPratica
+  // dal context: crea la pratica gestione:"nuova" (proprieta→cliente) e marca l'accesso
+  // spostatoInPratica:true (badge "In pratica", anti-duplicato). Clone del flusso in
+  // AccessiAgliAttiPage/index.js.
+  const handleSpostaInPratica = async (accesso) => {
+    if (accesso.spostatoInPratica) return;
+    if (!window.confirm(`Spostare "${accesso.indirizzo || 'questo accesso'}" nelle Pratiche (nuova gestione)?`)) {
+      return;
+    }
+    try {
+      const nuovoId = await spostaInPratica(accesso);
+      if (nuovoId) {
+        alert('Accesso spostato in pratica. Lo trovi nelle nuove Pratiche (ricarica per vederlo nella board).');
+      }
+    } catch (error) {
+      console.error('Errore durante lo spostamento in pratica:', error);
+      alert('Errore durante lo spostamento in pratica.');
+    }
+  };
+
+  // Handlers per APE (tab affiancato)
+  const handleEditApe = (apeItem) => {
+    setEditingApe(apeItem);
+  };
+
+  const handleAddNewApe = async (nuovoApe) => {
+    try {
+      await addApe(nuovoApe);
+      setShowNewApeForm(false);
+    } catch (error) {
+      console.error('Errore durante l\'aggiunta APE:', error);
+      alert('Si è verificato un errore durante il salvataggio. Riprova.');
+    }
+  };
+
+  const handleSaveEditedApe = async (id, updates) => {
+    try {
+      await updateApe(id, updates);
+      setEditingApe(null);
+    } catch (error) {
+      console.error('Errore durante l\'aggiornamento APE:', error);
+      alert('Si è verificato un errore durante il salvataggio. Riprova.');
+    }
+  };
+
+  const handleDeleteApe = async (id) => {
+    try {
+      await deleteApe(id);
+      setEditingApe(null);
+    } catch (error) {
+      console.error('Errore durante l\'eliminazione APE:', error);
+      alert('Si è verificato un errore durante l\'eliminazione. Riprova.');
+    }
   };
 
   const handleEditPratica = (praticaId) => {
@@ -640,16 +716,34 @@ function PraticheBoardPage() {
         )}
       </div>
 
-      {/* Card Accessi Atti - visibile solo quando è selezionata un'agenzia */}
-      {filtroAgenzia && accessiFiltered.length >= 0 && (
-        <CollapsibleAccessoAttiCard
-          titolo={filtroAgenzia}
-          accessi={accessiFiltered}
-          onEdit={handleEditAccessoAtti}
-          onDelete={handleDeleteAccessoAtti}
-          onUpdate={updateAccesso}
-          onAddNew={handleOpenNewAccessoForm}
-        />
+      {/* Sezione Accessi Atti / APE - visibile solo quando è selezionata un'agenzia.
+          Nuova gestione: tabs Accesso Atti (con "Sposta in pratica") + APE.
+          Da completare: vecchia card accessi (invariata). */}
+      {filtroAgenzia && (
+        gestione === 'nuova' ? (
+          <AttiApeTabs
+            accessi={accessiFiltered}
+            ape={apeFiltered}
+            onEditAccesso={handleEditAccessoAtti}
+            onDeleteAccesso={handleDeleteAccessoAtti}
+            onUpdateAccesso={updateAccesso}
+            onAddNewAccesso={handleOpenNewAccessoForm}
+            onSpostaInPratica={handleSpostaInPratica}
+            onEditApe={handleEditApe}
+            onDeleteApe={handleDeleteApe}
+            onUpdateApe={updateApe}
+            onAddNewApe={() => setShowNewApeForm(true)}
+          />
+        ) : (
+          <CollapsibleAccessoAttiCard
+            titolo={filtroAgenzia}
+            accessi={accessiFiltered}
+            onEdit={handleEditAccessoAtti}
+            onDelete={handleDeleteAccessoAtti}
+            onUpdate={updateAccesso}
+            onAddNew={handleOpenNewAccessoForm}
+          />
+        )
       )}
 
       {praticheFiltered.length === 0 && searchQuery ? (
@@ -739,6 +833,26 @@ function PraticheBoardPage() {
           onClose={() => setEditingAccesso(null)}
           onSave={handleSaveEditedAccessoAtti}
           onDelete={handleDeleteAccessoAtti}
+        />
+      )}
+
+      {/* Form Nuovo APE */}
+      {showNewApeForm && (
+        <NewApeForm
+          onClose={() => setShowNewApeForm(false)}
+          onSave={handleAddNewApe}
+          agenzieDisponibili={agenzieCollaboratori.map(ac => ac.agenzia).filter(a => a !== 'PRIVATO')}
+        />
+      )}
+
+      {/* Form Modifica APE */}
+      {editingApe && (
+        <EditApeForm
+          ape={editingApe}
+          onClose={() => setEditingApe(null)}
+          onSave={handleSaveEditedApe}
+          onDelete={handleDeleteApe}
+          agenzieDisponibili={agenzieCollaboratori.map(ac => ac.agenzia).filter(a => a !== 'PRIVATO')}
         />
       )}
     </div>

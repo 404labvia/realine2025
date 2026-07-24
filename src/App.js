@@ -351,7 +351,11 @@ function AppContent() {
               element={
                 <PraticheProvider gestione="nuova">
                   <PratichePrivatoProvider gestione="nuova">
-                    <Dashboard />
+                    <AccessoAttiProvider>
+                      <ApeProvider>
+                        <Dashboard />
+                      </ApeProvider>
+                    </AccessoAttiProvider>
                   </PratichePrivatoProvider>
                 </PraticheProvider>
               }
@@ -379,7 +383,9 @@ function AppContent() {
                 <PraticheProvider gestione="nuova" autoCodice>
                   <PratichePrivatoProvider gestione="nuova">
                     <AccessoAttiProvider>
-                      <PraticheBoardPage />
+                      <ApeProvider>
+                        <PraticheBoardPage />
+                      </ApeProvider>
                     </AccessoAttiProvider>
                   </PratichePrivatoProvider>
                 </PraticheProvider>
@@ -402,7 +408,9 @@ function AppContent() {
                 <PraticheProvider gestione="vecchia">
                   <PratichePrivatoProvider gestione="vecchia">
                     <AccessoAttiProvider>
-                      <PraticheBoardPage />
+                      <ApeProvider>
+                        <PraticheBoardPage />
+                      </ApeProvider>
                     </AccessoAttiProvider>
                   </PratichePrivatoProvider>
                 </PraticheProvider>

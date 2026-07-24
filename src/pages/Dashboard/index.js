@@ -5,6 +5,8 @@ import StatistichePrincipali from './components/StatistichePrincipali';
 import UpcomingDeadlines from './components/UpcomingDeadlines'; // ORA CORRETTO: renderizzerà solo una card
 import ChartAgenzie from './components/ChartAgenzie';
 import ChartFatturato from './components/ChartFatturato';
+import DashboardAccessiAtti from './components/DashboardAccessiAtti';
+import DashboardApe from './components/DashboardApe';
 
 // Rimuovi import non più usati
 // import TaskNotification from './components/TaskNotification';
@@ -38,6 +40,12 @@ function Dashboard() {
   return (
     <div className="container mx-auto p-2 sm:p-4">
       <StatistichePrincipali pratiche={pratiche} />
+
+      {/* Statistiche Accesso Atti + APE (stesso stile/dimensioni di Panoramica Pratiche) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <DashboardAccessiAtti />
+        <DashboardApe />
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-6">
         <ChartAgenzie
